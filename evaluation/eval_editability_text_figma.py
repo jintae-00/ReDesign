@@ -18,9 +18,9 @@ Phase 3 — Content Modification (word replacement + CER/WER per episode)
 Usage:
     # Replace <GPU_ID> with one of your own GPU ids (e.g. 0).
     python scripts/eval_text_edit_baselines.py \\
-        --figma-data <FIGMA_DATA_DIR> \\
-        --exp-pairs \\
-            <AGENT_OUTPUT_DIR>:<QWEN_OUTPUT_DIR>:merged \\
+        --figma-data figma_data \\
+        --agent-dir <AGENT_OUTPUT_DIR> \\
+        --qwen-dir <QWEN_OUTPUT_DIR> \\
         --models vtracer layered qwen multi_tools sparse_verif agent \\
         --layered-dir <LAYERED_BASELINE_OUTPUT_DIR> \\
         --multi-tools-dir <MULTI_TOOLS_BASELINE_OUTPUT_DIR> \\
@@ -975,11 +975,6 @@ def main() -> None:
     )
     parser.add_argument("--figma-data", type=str, required=True,
                         help="Path to the downloaded figma_data dataset directory.")
-    parser.add_argument("--exp-pairs", type=str, nargs="+", required=True,
-                        help="One or more inference-output pairs formatted as "
-                             "agent_dir:qwen_dir:gt_subset_prefix. Use 'merged' as the "
-                             "prefix for the released merged dataset "
-                             "(e.g. <AGENT_OUTPUT_DIR>:<QWEN_OUTPUT_DIR>:merged).")
     parser.add_argument(
         "--models", type=str, nargs="+", required=True,
         help="Models to evaluate (e.g., agent multi_tools layered qwen)",
@@ -995,9 +990,8 @@ def main() -> None:
     parser.add_argument("--min-pred-text-len", type=int, default=2,
                         help="Minimum pred text length (filters separator chars like | _ —)")
     parser.add_argument("--num-workers", type=int, default=1)
-    parser.add_argument("--ocr-gpu", type=int, default=3,
-                        help="GPU device id for PaddleOCR. Set this to one of your own "
-                             "GPU ids (default: 3).")
+    parser.add_argument("--ocr-gpu", type=int, default=0,
+                        help="GPU id for PaddleOCR; set to your own (default: 0).")
     parser.add_argument("--ocr-pool-size", type=int, default=4,
                         help="Number of PaddleOCR instances on GPU (default: 4)")
     parser.add_argument("--no-tqdm", action="store_true", default=False)
@@ -1031,7 +1025,7 @@ def main() -> None:
     # ===================================================================
     # Collect GT episodes and build per-model info
     # ===================================================================
-    gt_map = collect_gt_episodes(figma_data, args.exp_pairs)
+    gt_map = collect_gt_episodes(figma_data)
     _print(f"[setup] GT episodes: {len(gt_map)}")
 
     model_infos: Dict[str, Dict[str, Any]] = {}

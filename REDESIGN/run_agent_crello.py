@@ -108,7 +108,7 @@ def parse_gpu_list(gpu_str: Optional[str]) -> Optional[List[int]]:
 
 def setup_logging(log_file: Path) -> logging.Logger:
     """Setup logger for this run."""
-    logger = logging.getLogger("crello_split_runner")
+    logger = logging.getLogger("crello_agent_runner")
     logger.setLevel(logging.DEBUG)
     logger.handlers.clear()
     

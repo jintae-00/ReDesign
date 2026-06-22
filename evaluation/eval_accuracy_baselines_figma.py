@@ -9,9 +9,9 @@ can be copied in for unified comparison.
 Usage:
     # Replace <GPU_IDS> with a comma-separated list of your own GPU ids (e.g. 0,1,2,3).
     python scripts/eval_accuracy_baselines.py \
-        --figma-data <FIGMA_DATA_DIR> \
-        --exp-pairs \
-            <AGENT_OUTPUT_DIR>:<QWEN_OUTPUT_DIR>:merged \
+        --figma-data figma_data \
+        --agent-dir <AGENT_OUTPUT_DIR> \
+        --qwen-dir <QWEN_OUTPUT_DIR> \
         --models layered multi_tools sparse_verif \
         --layered-dir <LAYERED_BASELINE_OUTPUT_DIR> \
         --multi-tools-dir <MULTI_TOOLS_BASELINE_OUTPUT_DIR> \
@@ -659,11 +659,6 @@ def main():
     )
     parser.add_argument("--figma-data", type=str, required=True,
                         help="Path to the downloaded figma_data dataset directory.")
-    parser.add_argument("--exp-pairs", type=str, nargs="+", required=True,
-                        help="One or more inference-output pairs formatted as "
-                             "agent_dir:qwen_dir:gt_subset_prefix. Use 'merged' as the "
-                             "prefix for the released merged dataset "
-                             "(e.g. <AGENT_OUTPUT_DIR>:<QWEN_OUTPUT_DIR>:merged).")
     parser.add_argument("--models", type=str, nargs="+", required=True,
                         choices=list(MODEL_CONFIGS.keys()),
                         help="Baseline models to evaluate")
@@ -673,9 +668,8 @@ def main():
     parser.add_argument("--output", type=str, default=None,
                         help="Output root directory. Required unless --resume-dir is set.")
     parser.add_argument("--num-workers", type=int, default=4)
-    parser.add_argument("--gpu-ids", type=str, default="0,1,2,3",
-                        help="Comma-separated list of GPU ids to use, e.g. 0,1,2,3. "
-                             "Set this to your own GPU ids.")
+    parser.add_argument("--gpu-ids", type=str, default="0",
+                        help="comma-separated GPU ids (set to your own), e.g. 0,1,2,3.")
     parser.add_argument("--gpu-workers", type=str, default=None,
                         help="Per-GPU worker counts, e.g. '0:1,1:2,2:1,3:4'. "
                              "Overrides --num-workers and --gpu-ids.")
@@ -735,7 +729,7 @@ def main():
     print("=" * 80)
 
     # 1. Collect GT episodes
-    gt_map = collect_gt_episodes(figma_data_dir, args.exp_pairs)
+    gt_map = collect_gt_episodes(figma_data_dir)
     print(f"\nGT episodes: {len(gt_map)}")
 
     # 2. Scan episodes for all models (including agent/qwen if requested)
@@ -906,7 +900,8 @@ def main():
     unified = {
         "metadata": {
             "timestamp": datetime.now().isoformat(),
-            "exp_pairs": args.exp_pairs,
+            "agent_dir": args.agent_dir,
+            "qwen_dir": args.qwen_dir,
             "models_evaluated": args.models,
             "matching_algorithm": args.matching,
             "num_workers": num_workers,

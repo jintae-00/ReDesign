@@ -11,8 +11,9 @@ Prerequisites:
 Usage:
     # Replace <GPU_ID> with one of your own GPU ids (e.g. 0).
     CUDA_VISIBLE_DEVICES=<GPU_ID> python scripts/eval_editability_baselines.py \
-        --figma-data <FIGMA_DATA_DIR> \
-        --exp-pairs <AGENT_OUTPUT_DIR>:<QWEN_OUTPUT_DIR>:merged \
+        --figma-data figma_data \
+        --agent-dir <AGENT_OUTPUT_DIR> \
+        --qwen-dir <QWEN_OUTPUT_DIR> \
         --match-root <MATCH_ROOT_DIR> \
         --models layered multi_tools sparse_verif \
         --layered-dir <LAYERED_BASELINE_OUTPUT_DIR> \
@@ -981,11 +982,6 @@ def main():
     )
     parser.add_argument("--figma-data", type=str, required=True,
                         help="Path to the downloaded figma_data dataset directory.")
-    parser.add_argument("--exp-pairs", type=str, nargs="+", required=True,
-                        help="One or more inference-output pairs formatted as "
-                             "agent_dir:qwen_dir:gt_subset_prefix. Use 'merged' as the "
-                             "prefix for the released merged dataset "
-                             "(e.g. <AGENT_OUTPUT_DIR>:<QWEN_OUTPUT_DIR>:merged).")
     parser.add_argument("--match-root", type=str, required=True,
                         help="Directory of pre-computed matches produced by "
                              "before_eval_editability_precompute_matches.py "
@@ -1120,7 +1116,7 @@ def main():
     save_json(output_dir / "atomic_selected_subset.json", original_subset)
 
     # 3. Collect GT episodes
-    gt_map = collect_gt_episodes(figma_data_dir, args.exp_pairs)
+    gt_map = collect_gt_episodes(figma_data_dir)
     print(f"\nGT episodes: {len(gt_map)}")
 
     # 4. Pre-load agent results for reference and task-count alignment

@@ -2,29 +2,29 @@
 """
 BASELINES/run_qwen_crello.py - Qwen Image Layered baseline runner for the Crello test set
 
-Combines the splits into a single set, processes them in parallel with one worker per
-GPU pair, and shows a unified tqdm progress bar.
+Processes EVERY crello_test_* record directory under <data_dir> in parallel with one
+worker per GPU pair, and shows a unified tqdm progress bar.
 
 Note: Replace the GPU id placeholder <QWEN_GPU_IDS> below with your own
 comma-separated GPU ids.
 
 Usage:
-    # Basic: split the GPUs into pairs of 2, processing all splits
-    python run_qwen_crello.py --splits 0,1,2,3,4 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2
+    # Basic: split the GPUs into pairs of 2
+    python run_qwen_crello.py --data_dir crello_data/records --output_dir outputs/qwen_crello --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2
 
     # Testing (10 records only)
-    python run_qwen_crello.py --splits 0 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --limit 10
+    python run_qwen_crello.py --data_dir crello_data/records --output_dir outputs/qwen_crello --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --limit 10
 
     # Dry run
-    python run_qwen_crello.py --splits 0,1,2,3,4 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --dry_run
+    python run_qwen_crello.py --data_dir crello_data/records --output_dir outputs/qwen_crello --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --dry_run
 
 Directory Structure:
     Input:
-        crello_splits/crello_split_{0~4}/crello_test_XXXX/
+        <data_dir>/crello_test_XXXX/
             - composite.png
 
     Output:
-        qwen_crello_experiment/{record_id}/
+        <output_dir>/{record_id}/
             - input.png
             - layer_00.png, layer_01.png, ...
             - reconstructed.png
@@ -53,9 +53,6 @@ from PIL import Image, ImageFilter
 # =============================================================================
 # Configuration
 # =============================================================================
-
-CRELLO_SPLIT_BASE = "crello_splits"
-QWEN_CRELLO_EXPERIMENT_BASE = "crello_experiment_qwen_0206"
 
 # Qwen default parameters
 DEFAULT_NUM_LAYERS = 4
@@ -95,16 +92,6 @@ def setup_logging(log_file: Path, name: str = "qwen_crello_baseline") -> logging
 # Path Resolution
 # =============================================================================
 
-def get_src_root() -> Path:
-    current = Path(__file__).resolve().parent
-    if current.name == "src":
-        return current
-    elif (current / "src").exists():
-        return current / "src"
-    else:
-        return current
-
-
 # =============================================================================
 # GPU Configuration
 # =============================================================================
@@ -116,11 +103,6 @@ def parse_gpu_list(gpu_str: Optional[str]) -> List[int]:
         return [int(x.strip()) for x in gpu_str.split(",") if x.strip()]
     except ValueError:
         return []
-
-
-def parse_split_list(splits_str: str) -> List[int]:
-    """Parse a split list string (e.g. '0,1,2,3,4' -> [0, 1, 2, 3, 4])."""
-    return [int(x.strip()) for x in splits_str.split(",") if x.strip()]
 
 
 def create_gpu_pairs(gpu_ids: List[int], pair_size: int) -> List[Tuple[int, ...]]:
@@ -145,30 +127,27 @@ class RecordInfo:
     image_path: Path  # Absolute path to composite.png
 
 
-def load_record_list(src_root: Path, split_indices: List[int]) -> List[RecordInfo]:
-    """Return the combined, sorted record list from multiple splits."""
+def load_record_list(data_dir: Path) -> List[RecordInfo]:
+    """Load every crello_test_* record directory under data_dir (split-agnostic).
+
+    The input image for each record is ``<record_dir>/composite.png``.
+    """
     records = []
 
-    for split_idx in split_indices:
-        split_dir = src_root / CRELLO_SPLIT_BASE / f"crello_split_{split_idx}"
-        if not split_dir.exists():
-            print(f"[Warning] Split directory not found: {split_dir}")
-            continue
+    record_dirs = sorted([
+        d for d in data_dir.iterdir()
+        if (d.is_dir() or d.is_symlink()) and d.name.startswith("crello_test_")
+    ])
 
-        record_dirs = sorted([
-            d for d in split_dir.iterdir()
-            if (d.is_dir() or d.is_symlink()) and d.name.startswith("crello_test_")
-        ])
-
-        for record_dir in record_dirs:
-            composite_path = record_dir / "composite.png"
-            if composite_path.exists():
-                records.append(RecordInfo(
-                    record_id=record_dir.name,
-                    image_path=composite_path.resolve(),
-                ))
-            else:
-                print(f"[Warning] composite.png not found: {record_dir}")
+    for record_dir in record_dirs:
+        composite_path = record_dir / "composite.png"
+        if composite_path.exists():
+            records.append(RecordInfo(
+                record_id=record_dir.name,
+                image_path=composite_path.resolve(),
+            ))
+        else:
+            print(f"[Warning] composite.png not found: {record_dir}")
 
     # Sort by record_id and deduplicate (avoids symlink overlaps)
     seen = set()
@@ -449,7 +428,8 @@ def worker_process(
 # =============================================================================
 
 def run_qwen_crello_baseline(
-    split_indices: List[int],
+    data_dir: Path,
+    output_dir: Path,
     qwen_gpus: List[int],
     qwen_pair_size: int,
     num_layers: int = DEFAULT_NUM_LAYERS,
@@ -461,15 +441,10 @@ def run_qwen_crello_baseline(
     dry_run: bool = False,
     limit: Optional[int] = None,
     skip_completed: bool = True,
-    src_root: Optional[Path] = None,
 ) -> Dict[str, Any]:
-    """Qwen Image Layered baseline — run over the entire Crello test subset."""
+    """Qwen Image Layered baseline — run over a whole Crello test dataset directory."""
     from tqdm import tqdm
 
-    if src_root is None:
-        src_root = get_src_root()
-
-    output_dir = src_root / QWEN_CRELLO_EXPERIMENT_BASE
     output_dir.mkdir(parents=True, exist_ok=True)
 
     log_file = output_dir / "qwen_crello_baseline.log"
@@ -481,14 +456,15 @@ def run_qwen_crello_baseline(
         raise ValueError(f"Cannot create GPU pairs from {qwen_gpus} with pair_size {qwen_pair_size}")
 
     logger.info("=" * 70)
-    logger.info(f"Qwen Crello Baseline — Splits {split_indices}")
+    logger.info(f"Qwen Crello Baseline")
     logger.info("=" * 70)
+    logger.info(f"data_dir: {data_dir}")
     logger.info(f"Output: {output_dir}")
     logger.info(f"GPU pairs: {gpu_pairs} ({len(gpu_pairs)} workers)")
 
-    # ---- Combine records across all splits ----
-    all_records = load_record_list(src_root, split_indices)
-    logger.info(f"Total records across splits {split_indices}: {len(all_records)}")
+    # ---- Load all records ----
+    all_records = load_record_list(data_dir)
+    logger.info(f"Total records: {len(all_records)}")
 
     if not all_records:
         logger.warning("No records found!")
@@ -563,7 +539,7 @@ def run_qwen_crello_baseline(
 
     # ---- Collect results (unified tqdm) ----
     results = {
-        "split_indices": split_indices,
+        "data_dir": str(data_dir),
         "start_time": datetime.now().isoformat(),
         "gpu_pairs": [list(p) for p in gpu_pairs],
         "qwen_params": qwen_params,
@@ -662,19 +638,21 @@ Note: Replace the GPU id placeholder <QWEN_GPU_IDS> below with your own
 comma-separated GPU ids (e.g. 0,1,2,3,4,5,6,7).
 
 Examples:
-    # Split GPUs into pairs of 2, processing all splits
-    python run_qwen_crello.py --splits 0,1,2,3,4 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2
+    # Split GPUs into pairs of 2
+    python run_qwen_crello.py --data_dir crello_data/records --output_dir outputs/qwen_crello --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2
 
     # Testing (10 records only)
-    python run_qwen_crello.py --splits 0 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --limit 10
+    python run_qwen_crello.py --data_dir crello_data/records --output_dir outputs/qwen_crello --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --limit 10
 
     # Dry run
-    python run_qwen_crello.py --splits 0,1,2,3,4 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --dry_run
+    python run_qwen_crello.py --data_dir crello_data/records --output_dir outputs/qwen_crello --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --dry_run
         """
     )
 
-    parser.add_argument("--splits", type=str, required=True,
-                        help="Split indices (comma-separated, e.g., '0,1,2,3,4')")
+    parser.add_argument("--data_dir", "-i", type=str, required=True,
+                        help="Path to the Crello dataset directory (containing crello_test_*/ record dirs)")
+    parser.add_argument("--output_dir", "-o", type=str, required=True,
+                        help="Path to the output directory")
     parser.add_argument("--qwen_gpus", type=str, required=True,
                         help="GPU IDs for the Qwen model, comma-separated and user-specific (e.g., '0,1,2,3,4,5,6,7')")
     parser.add_argument("--qwen_pair_size", type=int, required=True,
@@ -689,7 +667,6 @@ Examples:
     parser.add_argument("--dry_run", "-d", action="store_true")
     parser.add_argument("--limit", "-l", type=int, default=None)
     parser.add_argument("--no_skip", action="store_true")
-    parser.add_argument("--src_root", type=str, default=None)
 
     args = parser.parse_args()
 
@@ -698,13 +675,10 @@ Examples:
         print(f"Error: Invalid qwen_gpus: {args.qwen_gpus}")
         sys.exit(1)
 
-    split_indices = parse_split_list(args.splits)
-
-    src_root = Path(args.src_root) if args.src_root else None
-
     try:
         results = run_qwen_crello_baseline(
-            split_indices=split_indices,
+            data_dir=Path(args.data_dir),
+            output_dir=Path(args.output_dir),
             qwen_gpus=qwen_gpus,
             qwen_pair_size=args.qwen_pair_size,
             num_layers=args.num_layers,
@@ -713,11 +687,10 @@ Examples:
             dry_run=args.dry_run,
             limit=args.limit,
             skip_completed=not args.no_skip,
-            src_root=src_root,
         )
 
         if not args.dry_run:
-            print(f"\nResults saved to: {QWEN_CRELLO_EXPERIMENT_BASE}/qwen_crello_results.json")
+            print(f"\nResults saved to: {Path(args.output_dir) / 'qwen_crello_results.json'}")
 
     except FileNotFoundError as e:
         print(f"Error: {e}")

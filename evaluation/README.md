@@ -28,11 +28,14 @@ you want to compare) to produce `episodes/<id>/parse.json` etc.:
 python -m REDESIGN.run_agent_figma --data_dir figma_data --output_dir outputs/figma_agent
 ```
 
-`baseline_model_configs.collect_gt_episodes` auto-detects the **merged** dataset
-(`figma_data/valid_frames/…`); GT discovery then ignores the `gt_prefix` field of
-`--exp-pairs` (every episode is collected). Model-output discovery accepts both the
-flat `episodes/` layout (produced by `run_agent_figma.py`) and the legacy
-`split_*/episodes/` layout.
+There is **no dataset-split concept**. `collect_gt_episodes` reads the whole flat
+dataset (`figma_data/valid_frames/…`, all 909 episodes). You pass the agent's
+inference output directory directly with `--agent-dir` (and baseline outputs with
+`--<model>-dir`). Model-output discovery accepts the flat `episodes/` layout
+produced by the runners.
+
+Set the GPU for the metric models via `--gpu-ids <GPU_ID>` (PaddleOCR text eval
+uses `--ocr-gpu <GPU_ID>`); both default to GPU 0.
 
 ## 1. Reconstruction accuracy
 
@@ -40,12 +43,14 @@ flat `episodes/` layout (produced by `run_agent_figma.py`) and the legacy
 python evaluation/eval_accuracy_baselines_figma.py \
     --figma-data figma_data \
     --models agent \
-    --exp-pairs outputs/figma_agent:outputs/figma_qwen:merged \
+    --agent-dir outputs/figma_agent \
+    --gpu-ids <GPU_ID> \
     --output outputs/eval_accuracy_figma
 
 python evaluation/eval_accuracy_baselines_crello.py \
     --crello-subset crello_data/records \
     --models agent --agent-dir outputs/crello_agent \
+    --gpu-ids <GPU_ID> \
     --output outputs/eval_accuracy_crello
 ```
 
@@ -58,16 +63,18 @@ Editability requires the precomputed GT↔pred matches **before** scoring:
 python evaluation/before_eval_editability_precompute_matches.py \
     --figma-data figma_data \
     --model agent --model-dir outputs/figma_agent \
-    --exp-pairs outputs/figma_agent:outputs/figma_qwen:merged \
     --output outputs/editability_matches
 
-# Step B — atomic-edit editability
-python evaluation/eval_editability_figma.py        # paths via env vars (below)
+# Step B — atomic-edit editability (paths via env vars, see table below)
+REDESIGN_FIGMA_DATA=figma_data \
+REDESIGN_AGENT_DIR=outputs/figma_agent \
+REDESIGN_MATCH_ROOT=outputs/editability_matches \
+    python evaluation/eval_editability_figma.py --models agent
 
 # Text editability
 python evaluation/eval_editability_text_figma.py \
-    --figma-data figma_data --models agent \
-    --exp-pairs outputs/figma_agent:outputs/figma_qwen:merged \
+    --figma-data figma_data --models agent --agent-dir outputs/figma_agent \
+    --ocr-gpu <GPU_ID> \
     --output outputs/eval_editability_text
 ```
 
@@ -77,9 +84,10 @@ sensible defaults under `outputs/`):
 | Env var | Default | Meaning |
 |---|---|---|
 | `REDESIGN_FIGMA_DATA` | `figma_data` | dataset root |
+| `REDESIGN_AGENT_DIR` | `outputs/figma_agent` | agent inference output dir |
+| `REDESIGN_QWEN_DIR` | `outputs/figma_qwen` | Qwen baseline output dir |
 | `REDESIGN_MATCH_ROOT` | `outputs/editability_matches` | precompute output (Step A) |
 | `REDESIGN_EDIT_OUTPUT` | `outputs/eval_editability_figma` | this script's output |
-| `REDESIGN_EXP_PAIRS` | `outputs/figma_agent:outputs/figma_qwen:merged` | agent/qwen output dirs |
 | `REDESIGN_<MODEL>_DIR` | `outputs/baseline_<model>` | per-baseline output dirs |
 | `REDESIGN_SUBSET_FILE` | `evaluation/assets/atomic_selected_subset.json` | frozen subset for reproducibility |
 

@@ -2,34 +2,34 @@
 """
 BASELINES/run_qwen_figma.py - Qwen Image Layered baseline experiment runner (Figma)
 
-Runs the Qwen Image Layered model as a baseline over the Figma dataset splits.
+Runs the Qwen Image Layered model as a baseline over a whole Figma dataset directory.
 The provided qwen_gpus are divided into groups of qwen_pair_size for parallel processing.
+Processes EVERY episode found under <data_dir>/valid_frames/.
 
-Note: Replace the GPU id placeholders below (e.g. <QWEN_GPU_IDS>) with your own
-comma-separated GPU ids.
+Note: Replace the GPU id placeholder <QWEN_GPU_IDS> with your own comma-separated GPU ids.
 
 Usage:
     # Basic usage
-    python run_qwen_figma.py --split_idx 0 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2
+    python run_qwen_figma.py --data_dir figma_data --output_dir outputs/qwen_figma --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2
 
-    # Split the GPUs into two pairs to process split 0 in parallel
+    # Split the GPUs into two pairs to process in parallel
     # e.g. with --qwen_gpus a,b,c,d and --qwen_pair_size 2:
     # -> pair (a,b): frame 0, 2, 4, ...
     # -> pair (c,d): frame 1, 3, 5, ...
 
     # Dry run (preview without executing)
-    python run_qwen_figma.py --split_idx 0 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --dry_run
+    python run_qwen_figma.py --data_dir figma_data --output_dir outputs/qwen_figma --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --dry_run
 
     # For testing (first 10 frames only)
-    python run_qwen_figma.py --split_idx 0 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --limit 10
+    python run_qwen_figma.py --data_dir figma_data --output_dir outputs/qwen_figma --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --limit 10
 
 Directory Structure:
     Input:
-        src/figma_data/process/subset/dino90_obj_5_25_char_50_split_{idx}/valid_frames/*.json
-        src/figma_data/process/subset/dino90_obj_5_25_char_50_split_{idx}/unit_images/...
+        <data_dir>/valid_frames/*.json
+        <data_dir>/unit_images/...
 
     Output:
-        src/qwen_experiment/split_{idx}/{frame_id}/
+        <output_dir>/{frame_id}/
             - input.png          # Original input image
             - layer_00.png
             - layer_01.png
@@ -58,11 +58,6 @@ from PIL import Image, ImageFilter
 # =============================================================================
 # Configuration
 # =============================================================================
-
-FIGMA_DATA_BASE = "figma_data/process/subset"
-QWEN_EXPERIMENT_BASE = "qwen_experiment_0208"
-SPLIT_PREFIX = "dino80_obj_5_60_char_25_split_"
-NUM_TOTAL_SPLITS = 4  # Number of splits to combine
 
 # Qwen default parameters
 DEFAULT_NUM_LAYERS = 4
@@ -106,37 +101,6 @@ def setup_logging(log_file: Path, name: str = "qwen_baseline") -> logging.Logger
 # Path Resolution
 # =============================================================================
 
-def get_src_root() -> Path:
-    """Get the src directory root."""
-    current = Path(__file__).resolve().parent
-    
-    if current.name == "src":
-        return current
-    elif (current / "src").exists():
-        return current / "src"
-    else:
-        # Assume the current location is inside src
-        return current
-
-
-def get_all_split_paths(src_root: Path) -> Dict[str, Any]:
-    """Return the combined paths for all splits."""
-    all_valid_frames_dirs = []
-    all_split_dirs = []
-    
-    for i in range(NUM_TOTAL_SPLITS):
-        split_name = f"{SPLIT_PREFIX}{i}"
-        split_dir = src_root / FIGMA_DATA_BASE / split_name
-        all_split_dirs.append(split_dir)
-        all_valid_frames_dirs.append(split_dir / "valid_frames")
-    
-    return {
-        "split_dirs": all_split_dirs,
-        "valid_frames_dirs": all_valid_frames_dirs,
-        "output_dir": src_root / QWEN_EXPERIMENT_BASE / "all_splits",
-    }
-
-
 # =============================================================================
 # GPU Configuration
 # =============================================================================
@@ -177,39 +141,43 @@ class FrameInfo:
     image_path: Path
 
 
-def load_frame_list(paths: Dict[str, Any]) -> List[FrameInfo]:
-    """Load the frame list from the valid_frames of all splits."""
+def load_frame_list(data_dir: Path) -> List[FrameInfo]:
+    """Load every valid_frames/*.json under data_dir (split-agnostic).
+
+    The GT reconstruction (input image) resolves to
+    ``data_dir / <unit_images_dir> / <reconstructed_image_path>`` from each JSON.
+    """
     frames = []
-    
-    for split_dir, vf_dir in zip(paths["split_dirs"], paths["valid_frames_dirs"]):
-        if not vf_dir.exists():
-            print(f"[Warning] Not found: {vf_dir}")
+
+    vf_dir = data_dir / "valid_frames"
+    if not vf_dir.exists():
+        print(f"[Warning] Not found: {vf_dir}")
+        return frames
+
+    json_files = sorted(vf_dir.glob("*.json"))
+
+    for json_path in json_files:
+        frame_id = json_path.stem
+
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                json_data = json.load(f)
+
+            rel_path = json_data.get("reconstructed_image_path")
+            unit_images_dir = json_data.get("unit_images_dir")
+
+            if rel_path and unit_images_dir:
+                image_path = data_dir / unit_images_dir / rel_path
+                if image_path.exists():
+                    frames.append(FrameInfo(
+                        frame_id=frame_id,
+                        json_path=json_path,
+                        image_path=image_path,
+                    ))
+        except Exception as e:
+            print(f"[Warning] Failed to load {json_path}: {e}")
             continue
-        
-        json_files = sorted(vf_dir.glob("*.json"))
-        
-        for json_path in json_files:
-            frame_id = json_path.stem
-            
-            try:
-                with open(json_path, 'r', encoding='utf-8') as f:
-                    json_data = json.load(f)
-                
-                rel_path = json_data.get("reconstructed_image_path")
-                unit_images_dir = json_data.get("unit_images_dir")
-                
-                if rel_path and unit_images_dir:
-                    image_path = split_dir / unit_images_dir / rel_path
-                    if image_path.exists():
-                        frames.append(FrameInfo(
-                            frame_id=frame_id,
-                            json_path=json_path,
-                            image_path=image_path,
-                        ))
-            except Exception as e:
-                print(f"[Warning] Failed to load {json_path}: {e}")
-                continue
-    
+
     return frames
 
 
@@ -561,6 +529,8 @@ def worker_process(
 # =============================================================================
 
 def run_qwen_baseline(
+    data_dir: Path,
+    output_dir: Path,
     qwen_gpus: List[int],
     qwen_pair_size: int,
     num_layers: int = DEFAULT_NUM_LAYERS,
@@ -572,42 +542,32 @@ def run_qwen_baseline(
     dry_run: bool = False,
     limit: Optional[int] = None,
     skip_completed: bool = True,
-    src_root: Optional[Path] = None,
 ) -> Dict[str, Any]:
     """
-    Run the Qwen Image Layered baseline experiment.
+    Run the Qwen Image Layered baseline experiment over a whole Figma dataset directory.
     """
-    if src_root is None:
-        src_root = get_src_root()
-    
-    paths = get_all_split_paths(src_root)
-    
-    for vf_dir in paths["valid_frames_dirs"]:
-        if not vf_dir.exists():
-            print(f"Warning: {vf_dir} not found")
-    
-    paths["output_dir"].mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     # Logging setup
-    log_file = paths["output_dir"] / "qwen_baseline_all_splits.log"
+    log_file = output_dir / "qwen_baseline.log"
     logger = setup_logging(log_file)
 
     # Create GPU pairs
     gpu_pairs = create_gpu_pairs(qwen_gpus, qwen_pair_size)
     if not gpu_pairs:
         raise ValueError(f"Cannot create GPU pairs from {qwen_gpus} with pair_size {qwen_pair_size}")
-    
+
     logger.info("=" * 70)
-    logger.info(f"Qwen Image Layered Baseline - Split 0,1,2,3")
+    logger.info(f"Qwen Image Layered Baseline (Figma)")
     logger.info("=" * 70)
-    logger.info(f"valid_frames_dir: {paths['valid_frames_dirs']}")
-    logger.info(f"output_dir: {paths['output_dir']}")
+    logger.info(f"data_dir: {data_dir}")
+    logger.info(f"output_dir: {output_dir}")
     logger.info(f"GPU pairs: {gpu_pairs}")
     logger.info(f"num_layers: {num_layers}, resolution: {resolution}")
     logger.info(f"dry_run: {dry_run}, limit: {limit}")
-    
+
     # Load the frame list
-    frames = load_frame_list(paths)
+    frames = load_frame_list(data_dir)
     logger.info(f"Found {len(frames)} valid frames")
     
     if not frames:
@@ -618,7 +578,7 @@ def run_qwen_baseline(
     logger.info("Checking for missing input images in completed frames...")
 
 
-    backfill_stats = backfill_missing_files(frames, paths["output_dir"], logger)
+    backfill_stats = backfill_missing_files(frames, output_dir, logger)
     if backfill_stats["input_image"] > 0 or backfill_stats["reconstruction"] > 0:
         logger.info(f"Backfilled: {backfill_stats['input_image']} inputs, {backfill_stats['reconstruction']} reconstructions")
     else:
@@ -630,7 +590,7 @@ def run_qwen_baseline(
     
     # Filter out completed frames
     if skip_completed:
-        pending_frames = [f for f in frames if not is_frame_completed(paths["output_dir"], f.frame_id)]
+        pending_frames = [f for f in frames if not is_frame_completed(output_dir, f.frame_id)]
         completed_count = len(frames) - len(pending_frames)
         logger.info(f"Already completed: {completed_count}, Pending: {len(pending_frames)}")
     else:
@@ -657,7 +617,7 @@ def run_qwen_baseline(
             "dry_run": True,
             "total_frames": len(pending_frames),
             "gpu_pairs": [list(p) for p in gpu_pairs],
-            "backfilled_input_images": backfilled_count,
+            "backfilled_input_images": backfill_stats["input_image"],
         }
     
     # Exit if there are no frames to process
@@ -699,7 +659,7 @@ def run_qwen_baseline(
     for i, pair in enumerate(gpu_pairs):
         p = mp.Process(
             target=worker_process,
-            args=(i, pair, frame_queue, result_queue, paths["output_dir"], qwen_params),
+            args=(i, pair, frame_queue, result_queue, output_dir, qwen_params),
             daemon=True,
         )
         p.start()
@@ -751,7 +711,7 @@ def run_qwen_baseline(
             # Save intermediate results
             if processed % 10 == 0:
                 results["end_time"] = datetime.now().isoformat()
-                results_file = paths["output_dir"] / f"qwen_baseline_results.json"
+                results_file = output_dir / f"qwen_baseline_results.json"
                 with open(results_file, 'w', encoding='utf-8') as f:
                     json.dump(results, f, indent=2, ensure_ascii=False)
     
@@ -767,7 +727,7 @@ def run_qwen_baseline(
 
     # Save final results
     results["end_time"] = datetime.now().isoformat()
-    results_file = paths["output_dir"] / f"qwen_baseline_results.json"
+    results_file = output_dir / f"qwen_baseline_results.json"
     with open(results_file, 'w', encoding='utf-8') as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
     
@@ -803,22 +763,34 @@ comma-separated GPU ids (e.g. 0,1,2,3).
 
 Examples:
     # Basic run: use the GPUs in pairs of 2
-    python run_qwen_figma.py --split_idx 0 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2
+    python run_qwen_figma.py --data_dir figma_data --output_dir outputs/qwen_figma --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2
 
     # RTX 3090: use pairs of 3 GPUs
-    python run_qwen_figma.py --split_idx 1 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 3
+    python run_qwen_figma.py --data_dir figma_data --output_dir outputs/qwen_figma --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 3
 
     # Dry run (preview without executing)
-    python run_qwen_figma.py --split_idx 0 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --dry_run
+    python run_qwen_figma.py --data_dir figma_data --output_dir outputs/qwen_figma --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --dry_run
 
     # For testing (first 10 frames only)
-    python run_qwen_figma.py --split_idx 0 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --limit 10
+    python run_qwen_figma.py --data_dir figma_data --output_dir outputs/qwen_figma --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --limit 10
 
     # Adjust the number of layers
-    python run_qwen_figma.py --split_idx 0 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --num_layers 6
+    python run_qwen_figma.py --data_dir figma_data --output_dir outputs/qwen_figma --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --num_layers 6
         """
     )
 
+    parser.add_argument(
+        "--data_dir", "-i",
+        type=str,
+        required=True,
+        help="Path to the Figma dataset directory (containing valid_frames/, unit_images/)"
+    )
+    parser.add_argument(
+        "--output_dir", "-o",
+        type=str,
+        required=True,
+        help="Path to the output directory"
+    )
     parser.add_argument(
         "--qwen_gpus",
         type=str,
@@ -869,13 +841,7 @@ Examples:
         action="store_true",
         help="Don't skip already completed frames (re-process all)"
     )
-    parser.add_argument(
-        "--src_root",
-        type=str,
-        default=None,
-        help="Source root directory (default: auto-detect)"
-    )
-    
+
     args = parser.parse_args()
 
     # Parse GPUs
@@ -883,11 +849,11 @@ Examples:
     if not qwen_gpus:
         print(f"Error: Invalid qwen_gpus: {args.qwen_gpus}")
         sys.exit(1)
-    
-    src_root = Path(args.src_root) if args.src_root else None
-    
+
     try:
         results = run_qwen_baseline(
+            data_dir=Path(args.data_dir),
+            output_dir=Path(args.output_dir),
             qwen_gpus=qwen_gpus,
             qwen_pair_size=args.qwen_pair_size,
             num_layers=args.num_layers,
@@ -896,11 +862,10 @@ Examples:
             dry_run=args.dry_run,
             limit=args.limit,
             skip_completed=not args.no_skip,
-            src_root=src_root,
         )
-        
+
         if not args.dry_run:
-            print(f"\nResults saved to: qwen_experiment/all_splits/qwen_baseline_results.json")
+            print(f"\nResults saved to: {Path(args.output_dir) / 'qwen_baseline_results.json'}")
             
     except FileNotFoundError as e:
         print(f"Error: {e}")

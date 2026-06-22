@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional
 
 # ---------------------------------------------------------------------------
 # Model configuration registry
@@ -58,26 +58,37 @@ MODEL_CONFIGS: Dict[str, Dict[str, Any]] = {
 # ---------------------------------------------------------------------------
 
 def scan_layered(base_dir: Path) -> Dict[str, Path]:
-    """Scan baseline_layerd_experiment/all_splits/{episode_id}/ for layer_00.png."""
+    """Scan the layered baseline output for episodes with layer_00.png.
+
+    Supports the flat output of run_layerd_*.py ({base_dir}/{episode_id}/) and the
+    legacy {base_dir}/all_splits/{episode_id}/ layout.
+    """
     found: Dict[str, Path] = {}
-    all_splits = base_dir / "all_splits"
-    if not all_splits.exists():
-        return found
-    for ep_dir in sorted(all_splits.iterdir()):
-        if ep_dir.is_dir() and (ep_dir / "layer_00.png").exists():
-            found[ep_dir.name] = ep_dir
+    roots = [base_dir / "all_splits", base_dir]
+    for root in roots:
+        if not root.exists():
+            continue
+        for ep_dir in sorted(root.iterdir()):
+            if ep_dir.is_dir() and ep_dir.name != "all_splits" \
+                    and (ep_dir / "layer_00.png").exists():
+                found.setdefault(ep_dir.name, ep_dir)
     return found
 
 
 def scan_multi_tools(base_dir: Path) -> Dict[str, Path]:
-    """Scan baseline_muilti_tools_experiment/all_splits/episodes/{episode_id}/ for parse.json."""
+    """Scan the multi-tools baseline output for episodes with parse.json.
+
+    Supports the flat output of run_multi_tools_*.py ({base_dir}/episodes/{id}/)
+    and the legacy {base_dir}/all_splits/episodes/{id}/ layout.
+    """
     found: Dict[str, Path] = {}
-    episodes_dir = base_dir / "all_splits" / "episodes"
-    if not episodes_dir.exists():
-        return found
-    for ep_dir in sorted(episodes_dir.iterdir()):
-        if ep_dir.is_dir() and (ep_dir / "parse.json").exists():
-            found[ep_dir.name] = ep_dir
+    roots = [base_dir / "all_splits" / "episodes", base_dir / "episodes"]
+    for episodes_dir in roots:
+        if not episodes_dir.exists():
+            continue
+        for ep_dir in sorted(episodes_dir.iterdir()):
+            if ep_dir.is_dir() and (ep_dir / "parse.json").exists():
+                found.setdefault(ep_dir.name, ep_dir)
     return found
 
 
@@ -271,66 +282,33 @@ def scan_model_episodes(model_name: str, base_dir: Path) -> Dict[str, Path]:
 
 def collect_gt_episodes(
     figma_data_dir: Path,
-    exp_pairs: Sequence[str],
 ) -> Dict[str, Dict[str, Any]]:
-    """Scan GT episodes from a Figma dataset directory.
+    """Scan GT episodes from a flat Figma dataset directory.
 
-    Supports two layouts:
+    Expects the released flat layout::
 
-      1. Merged / flat (the released 909-episode dataset):
-             {figma_data_dir}/valid_frames/*.json
-         All episodes live in one directory; per-episode JSON ``unit_images_dir``
-         paths are relative to ``figma_data_dir``. ``exp_pairs`` is ignored for GT
-         discovery in this mode (every episode is collected).
+        {figma_data_dir}/valid_frames/*.json
 
-      2. Legacy per-split layout:
-             {figma_data_dir}/process/subset/{gt_prefix}_split_*/valid_frames/*.json
-         ``gt_prefix`` is taken from each ``agent:qwen:gt_prefix`` exp-pair.
+    All episodes live in one directory; per-episode JSON ``unit_images_dir``
+    paths are relative to ``figma_data_dir``. Every episode is collected.
 
     Returns dict: episode_id -> {gt_json_path, split_name, split_dir}
+    (``split_name`` is hardcoded to "merged" for downstream compatibility.)
     """
     gt_map: Dict[str, Dict[str, Any]] = {}
 
-    # ---- Layout 1: merged / flat dataset ----
     flat_valid_frames = figma_data_dir / "valid_frames"
-    if flat_valid_frames.is_dir():
-        for gt_json in sorted(flat_valid_frames.glob("*.json")):
-            if gt_json.stem not in gt_map:
-                gt_map[gt_json.stem] = {
-                    "gt_json_path": gt_json,
-                    "split_name": "merged",
-                    "split_dir": figma_data_dir,
-                }
+    if not flat_valid_frames.is_dir():
+        print(f"[WARNING] No valid_frames directory found at {flat_valid_frames}")
         return gt_map
 
-    # ---- Layout 2: legacy per-split layout ----
-    for pair_str in exp_pairs:
-        parts = pair_str.split(":")
-        if len(parts) != 3:
-            print(f"[WARNING] Invalid exp-pair format: '{pair_str}', skipping")
-            continue
-        gt_prefix = parts[2]
-
-        subset_base = figma_data_dir / "process" / "subset"
-        gt_split_dirs = sorted(subset_base.glob(f"{gt_prefix}_split_*"))
-
-        if not gt_split_dirs:
-            print(f"[WARNING] No GT directories found matching '{gt_prefix}_split_*' in {subset_base}")
-            continue
-
-        for d in gt_split_dirs:
-            split_name = d.name[len(gt_prefix) + 1:]  # e.g., "split_0"
-            valid_frames_dir = d / "valid_frames"
-            if not valid_frames_dir.exists():
-                continue
-            for gt_json in valid_frames_dir.glob("*.json"):
-                if gt_json.stem not in gt_map:
-                    gt_map[gt_json.stem] = {
-                        "gt_json_path": gt_json,
-                        "split_name": split_name,
-                        "split_dir": d,
-                    }
-
+    for gt_json in sorted(flat_valid_frames.glob("*.json")):
+        if gt_json.stem not in gt_map:
+            gt_map[gt_json.stem] = {
+                "gt_json_path": gt_json,
+                "split_name": "merged",
+                "split_dir": figma_data_dir,
+            }
     return gt_map
 
 
@@ -371,34 +349,26 @@ def add_baseline_dir_args(parser):
                         help="Root directory for OmniSVG baseline experiment")
     parser.add_argument("--vtracer-dir", type=str, default="./baseline_vtracer_experiment",
                         help="Root directory for VTracer baseline experiment")
-    parser.add_argument("--agent-dirs", type=str, nargs="*", default=None,
-                        help="Agent experiment directories (auto-detected from --exp-pairs if not set)")
-    parser.add_argument("--qwen-dirs", type=str, nargs="*", default=None,
-                        help="Qwen experiment directories (auto-detected from --exp-pairs if not set)")
+    parser.add_argument("--agent-dir", type=str, default=None,
+                        help="Agent inference output directory (episodes/<id>/parse.json)")
+    parser.add_argument("--qwen-dir", type=str, default=None,
+                        help="Qwen inference output directory (<id>/layer_00.png)")
 
 
 def _resolve_multi_dirs(args, model_name: str) -> Optional[List[Path]]:
-    """Resolve multi-dir models (agent, qwen) from args or exp-pairs."""
+    """Resolve the inference output directory for agent / qwen models.
+
+    Reads the direct ``--agent-dir`` / ``--qwen-dir`` arguments. Returns a
+    single-element list (kept as a list for ``scan_model_episodes_multi``).
+    """
     if model_name == "agent":
-        if getattr(args, "agent_dirs", None):
-            return [Path(d) for d in args.agent_dirs]
-        if hasattr(args, "exp_pairs"):
-            dirs = []
-            for pair_str in args.exp_pairs:
-                parts = pair_str.split(":")
-                if len(parts) >= 1 and parts[0]:
-                    dirs.append(Path(parts[0]))
-            return dirs if dirs else None
+        d = getattr(args, "agent_dir", None)
+        if d:
+            return [Path(d)]
     elif model_name == "qwen":
-        if getattr(args, "qwen_dirs", None):
-            return [Path(d) for d in args.qwen_dirs]
-        if hasattr(args, "exp_pairs"):
-            dirs = []
-            for pair_str in args.exp_pairs:
-                parts = pair_str.split(":")
-                if len(parts) >= 2 and parts[1]:
-                    dirs.append(Path(parts[1]))
-            return dirs if dirs else None
+        d = getattr(args, "qwen_dir", None)
+        if d:
+            return [Path(d)]
     return None
 
 

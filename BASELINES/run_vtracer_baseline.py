@@ -6,15 +6,25 @@ Converts images to SVG with VTracer for use as a baseline.
 Saves output.svg; evaluation rasterizes each individual SVG element to perform GT matching.
 CPU only -- no GPU required. Runs in parallel across multiple workers.
 
+Each dataset takes a whole data directory (no splits):
+    Figma  : --figma_data_dir (dir with valid_frames/ + unit_images/)
+    Crello : --crello_data_dir (dir with crello_test_*/ each containing composite.png)
+
 Usage:
     # Figma only
-    python run_vtracer_baseline.py --dataset figma --workers 32
+    python run_vtracer_baseline.py --dataset figma --figma_data_dir figma_data \
+        --figma_output_dir outputs/vtracer_figma --workers 32
     # Crello only
-    python run_vtracer_baseline.py --dataset crello --workers 32
+    python run_vtracer_baseline.py --dataset crello --crello_data_dir crello_data/records \
+        --crello_output_dir outputs/vtracer_crello --workers 32
     # Both, run sequentially
-    python run_vtracer_baseline.py --dataset all --workers 32
+    python run_vtracer_baseline.py --dataset all \
+        --figma_data_dir figma_data --figma_output_dir outputs/vtracer_figma \
+        --crello_data_dir crello_data/records --crello_output_dir outputs/vtracer_crello --workers 32
     # Limit the number of items
-    python run_vtracer_baseline.py --dataset all --workers 32 --limit 10 --dry_run
+    python run_vtracer_baseline.py --dataset all --workers 32 --limit 10 --dry_run \
+        --figma_data_dir figma_data --figma_output_dir outputs/vtracer_figma \
+        --crello_data_dir crello_data/records --crello_output_dir outputs/vtracer_crello
 """
 from __future__ import annotations
 
@@ -40,21 +50,6 @@ import vtracer
 # =============================================================================
 # Configuration
 # =============================================================================
-
-# --- Figma ---
-FIGMA_DATA_BASE = "figma_data/process/subset"
-ALL_DATASET_SPLITS = [
-    ("dino80_obj_5_60_char_25_split_", 4),   # splits 0-3
-    ("dino90_obj_5_25_char_50_split_", 5),   # splits 0-4
-]
-
-# --- Crello ---
-CRELLO_SPLIT_BASE = "crello_splits"
-CRELLO_NUM_SPLITS = 5  # crello_split_0 ~ crello_split_4
-
-# --- Output ---
-VTRACER_FIGMA_OUTPUT = "baseline_vtracer_experiment/figma"
-VTRACER_CRELLO_OUTPUT = "baseline_vtracer_experiment/crello"
 
 # --- VTracer parameters (user-specified) ---
 VTRACER_PARAMS = dict(
@@ -105,51 +100,38 @@ def setup_logging(log_file: Path, name: str = "vtracer") -> logging.Logger:
 
 
 # =============================================================================
-# Path Resolution
-# =============================================================================
-
-def get_src_root() -> Path:
-    current = Path(__file__).resolve().parent
-    if current.name == "src":
-        return current
-    elif (current / "src").exists():
-        return current / "src"
-    else:
-        return current
-
-
-# =============================================================================
 # Figma Data Loading
 # =============================================================================
 
-def load_figma_items(src_root: Path) -> List[DataItem]:
+def load_figma_items(data_dir: Path) -> List[DataItem]:
+    """Load every valid_frames/*.json under data_dir (split-agnostic).
+
+    The GT reconstruction (input image) resolves to
+    ``data_dir / <unit_images_dir> / <reconstructed_image_path>`` from each JSON.
+    """
     items = []
-    for prefix, num_splits in ALL_DATASET_SPLITS:
-        for i in range(num_splits):
-            split_name = f"{prefix}{i}"
-            split_dir = src_root / FIGMA_DATA_BASE / split_name
-            vf_dir = split_dir / "valid_frames"
-            if not vf_dir.exists():
-                print(f"[Warning] Not found: {vf_dir}")
-                continue
-            json_files = sorted(vf_dir.glob("*.json"))
-            for json_path in json_files:
-                frame_id = json_path.stem
-                try:
-                    with open(json_path, 'r', encoding='utf-8') as f:
-                        json_data = json.load(f)
-                    rel_path = json_data.get("reconstructed_image_path")
-                    unit_images_dir = json_data.get("unit_images_dir")
-                    if rel_path and unit_images_dir:
-                        image_path = split_dir / unit_images_dir / rel_path
-                        if image_path.exists():
-                            items.append(DataItem(
-                                item_id=frame_id,
-                                image_path=image_path,
-                                dataset="figma",
-                            ))
-                except Exception as e:
-                    print(f"[Warning] Failed to load {json_path}: {e}")
+    vf_dir = data_dir / "valid_frames"
+    if not vf_dir.exists():
+        print(f"[Warning] Not found: {vf_dir}")
+        return items
+    json_files = sorted(vf_dir.glob("*.json"))
+    for json_path in json_files:
+        frame_id = json_path.stem
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                json_data = json.load(f)
+            rel_path = json_data.get("reconstructed_image_path")
+            unit_images_dir = json_data.get("unit_images_dir")
+            if rel_path and unit_images_dir:
+                image_path = data_dir / unit_images_dir / rel_path
+                if image_path.exists():
+                    items.append(DataItem(
+                        item_id=frame_id,
+                        image_path=image_path,
+                        dataset="figma",
+                    ))
+        except Exception as e:
+            print(f"[Warning] Failed to load {json_path}: {e}")
     return items
 
 
@@ -157,43 +139,35 @@ def load_figma_items(src_root: Path) -> List[DataItem]:
 # Crello Data Loading
 # =============================================================================
 
-def load_crello_items(src_root: Path) -> List[DataItem]:
+def load_crello_items(data_dir: Path) -> List[DataItem]:
+    """Load every crello_test_* record directory under data_dir (split-agnostic).
+
+    The input image for each record is ``<record_dir>/composite.png``.
+    """
     items = []
     seen = set()
-    for split_idx in range(CRELLO_NUM_SPLITS):
-        split_dir = src_root / CRELLO_SPLIT_BASE / f"crello_split_{split_idx}"
-        if not split_dir.exists():
-            print(f"[Warning] Split directory not found: {split_dir}")
+    record_dirs = sorted([
+        d for d in data_dir.iterdir()
+        if (d.is_dir() or d.is_symlink()) and d.name.startswith("crello_test_")
+    ])
+    for record_dir in record_dirs:
+        record_id = record_dir.name
+        if record_id in seen:
             continue
-        record_dirs = sorted([
-            d for d in split_dir.iterdir()
-            if (d.is_dir() or d.is_symlink()) and d.name.startswith("crello_test_")
-        ])
-        for record_dir in record_dirs:
-            record_id = record_dir.name
-            if record_id in seen:
-                continue
-            seen.add(record_id)
-            composite_path = record_dir / "composite.png"
-            if composite_path.exists():
-                items.append(DataItem(
-                    item_id=record_id,
-                    image_path=composite_path.resolve(),
-                    dataset="crello",
-                ))
+        seen.add(record_id)
+        composite_path = record_dir / "composite.png"
+        if composite_path.exists():
+            items.append(DataItem(
+                item_id=record_id,
+                image_path=composite_path.resolve(),
+                dataset="crello",
+            ))
     return items
 
 
 # =============================================================================
 # Completion Check
 # =============================================================================
-
-def get_output_dir(src_root: Path, dataset: str) -> Path:
-    if dataset == "figma":
-        return src_root / VTRACER_FIGMA_OUTPUT
-    else:
-        return src_root / VTRACER_CRELLO_OUTPUT
-
 
 def is_completed(output_dir: Path, item_id: str) -> bool:
     return (output_dir / item_id / "output.svg").exists()
@@ -376,21 +350,20 @@ def _process_dataset(
 
 def run_vtracer_baseline(
     datasets: List[str],
+    figma_data_dir: Optional[Path] = None,
+    figma_output_dir: Optional[Path] = None,
+    crello_data_dir: Optional[Path] = None,
+    crello_output_dir: Optional[Path] = None,
     num_workers: int = 32,
     dry_run: bool = False,
     limit: Optional[int] = None,
     skip_completed: bool = True,
-    src_root: Optional[Path] = None,
 ) -> Dict[str, Any]:
-    if src_root is None:
-        src_root = get_src_root()
+    # Pick a log directory from whichever output dir is configured for the run.
+    log_base = figma_output_dir if "figma" in datasets and figma_output_dir else crello_output_dir
+    log_base.parent.mkdir(parents=True, exist_ok=True)
 
-    figma_output_dir = src_root / VTRACER_FIGMA_OUTPUT
-    crello_output_dir = src_root / VTRACER_CRELLO_OUTPUT
-    log_dir = src_root / "baseline_vtracer_experiment"
-    log_dir.mkdir(parents=True, exist_ok=True)
-
-    logger = setup_logging(log_dir / "vtracer_run.log")
+    logger = setup_logging(log_base.parent / "vtracer_run.log")
 
     logger.info("=" * 70)
     logger.info("VTracer Image-to-SVG Baseline")
@@ -403,7 +376,7 @@ def run_vtracer_baseline(
     dataset_items: Dict[str, List[DataItem]] = {}
 
     if "figma" in datasets:
-        figma_items = load_figma_items(src_root)
+        figma_items = load_figma_items(figma_data_dir)
         logger.info(f"Figma frames found: {len(figma_items)}")
         if skip_completed:
             before = len(figma_items)
@@ -418,7 +391,7 @@ def run_vtracer_baseline(
         dataset_items["figma"] = figma_items
 
     if "crello" in datasets:
-        crello_items = load_crello_items(src_root)
+        crello_items = load_crello_items(crello_data_dir)
         logger.info(f"Crello records found: {len(crello_items)}")
         if skip_completed:
             before = len(crello_items)
@@ -484,6 +457,14 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", type=str, default="all",
                         choices=["figma", "crello", "all"],
                         help="Which dataset(s) to process (default: all)")
+    parser.add_argument("--figma_data_dir", type=str, default=None,
+                        help="Path to the Figma dataset directory (containing valid_frames/, unit_images/)")
+    parser.add_argument("--figma_output_dir", type=str, default=None,
+                        help="Path to the Figma output directory")
+    parser.add_argument("--crello_data_dir", type=str, default=None,
+                        help="Path to the Crello dataset directory (containing crello_test_*/ record dirs)")
+    parser.add_argument("--crello_output_dir", type=str, default=None,
+                        help="Path to the Crello output directory")
     parser.add_argument("--workers", type=int, default=32,
                         help="Number of parallel workers (default: 32)")
     parser.add_argument("--limit", type=int, default=None,
@@ -500,8 +481,17 @@ if __name__ == "__main__":
     else:
         datasets = [args.dataset]
 
+    if "figma" in datasets and (not args.figma_data_dir or not args.figma_output_dir):
+        parser.error("--figma_data_dir and --figma_output_dir are required for the figma dataset")
+    if "crello" in datasets and (not args.crello_data_dir or not args.crello_output_dir):
+        parser.error("--crello_data_dir and --crello_output_dir are required for the crello dataset")
+
     run_vtracer_baseline(
         datasets=datasets,
+        figma_data_dir=Path(args.figma_data_dir) if args.figma_data_dir else None,
+        figma_output_dir=Path(args.figma_output_dir) if args.figma_output_dir else None,
+        crello_data_dir=Path(args.crello_data_dir) if args.crello_data_dir else None,
+        crello_output_dir=Path(args.crello_output_dir) if args.crello_output_dir else None,
         num_workers=args.workers,
         dry_run=args.dry_run,
         limit=args.limit,

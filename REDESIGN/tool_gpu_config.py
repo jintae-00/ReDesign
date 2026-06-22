@@ -9,10 +9,10 @@ Resolution priority:
 
 Usage examples:
     # From the CLI
-    python -m REDESIGN.run_figma_split --split_idx 0 --qwen_gpus <QWEN_GPU_IDS> --tool_gpus <TOOL_GPU_IDS>
+    python -m REDESIGN.run_agent_figma --data_dir figma_data --output_dir outputs/figma_agent --qwen_gpus <QWEN_GPU_IDS> --tool_gpus <TOOL_GPU_IDS>
 
     # Via environment variables
-    URLD_QWEN_GPUS="<QWEN_GPU_IDS>" URLD_TOOL_GPUS="<TOOL_GPU_IDS>" python -m REDESIGN.run_figma_split --split_idx 1
+    URLD_QWEN_GPUS="<QWEN_GPU_IDS>" URLD_TOOL_GPUS="<TOOL_GPU_IDS>" python -m REDESIGN.run_agent_figma --data_dir figma_data --output_dir outputs/figma_agent
 
     # Replace <QWEN_GPU_IDS> and <TOOL_GPU_IDS> with your own comma-separated
     # GPU ids (e.g. "0,1").

@@ -613,7 +613,8 @@ def main():
     parser.add_argument("--resume-dir", type=str, default=None,
                         help="Resume from a previous output directory")
     parser.add_argument("--num-workers", type=int, default=4)
-    parser.add_argument("--gpu-ids", type=str, default="0,1,2,3")
+    parser.add_argument("--gpu-ids", type=str, default="0",
+                        help="comma-separated GPU ids (set to your own), e.g. 0,1,2,3.")
     parser.add_argument("--gpu-workers", type=str, default=None,
                         help="Per-GPU worker counts, e.g. '0:3,1:3,2:3,3:3'")
     parser.add_argument("--max-episodes", type=int, default=None)

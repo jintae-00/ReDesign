@@ -85,13 +85,11 @@ SUBSET_FILE = _env_path("REDESIGN_SUBSET_FILE", BASE_DIR / "evaluation" / "asset
 # Output directory
 OUTPUT_DIR = _env_path("REDESIGN_EDIT_OUTPUT", OUTPUTS_BASE / "eval_editability_figma")
 
-# exp_pairs (agent_dir:qwen_dir:gt_prefix). With the merged dataset, GT discovery
-# ignores gt_prefix (all 909 episodes are collected); the dirs are still used to
-# locate agent/qwen inference outputs. Override via REDESIGN_EXP_PAIRS (space-sep).
-_default_exp_pairs = [
-    f"{OUTPUTS_BASE / 'figma_agent'}:{OUTPUTS_BASE / 'figma_qwen'}:merged",
-]
-EXP_PAIRS = os.environ.get("REDESIGN_EXP_PAIRS", " ".join(_default_exp_pairs)).split()
+# Agent / qwen inference output directories. GT discovery scans the whole
+# flat dataset (all 909 episodes); these dirs only locate the model outputs.
+# Override via REDESIGN_AGENT_DIR / REDESIGN_QWEN_DIR.
+AGENT_DIR = _env_path("REDESIGN_AGENT_DIR", OUTPUTS_BASE / "figma_agent")
+QWEN_DIR = _env_path("REDESIGN_QWEN_DIR", OUTPUTS_BASE / "figma_qwen")
 
 # All 7 models to evaluate
 ALL_MODELS = [
@@ -107,11 +105,6 @@ MODEL_DIRS = {
     "simple_verif": _env_path("REDESIGN_SIMPLE_VERIF_DIR", OUTPUTS_BASE / "baseline_simple_verif"),
     "vtracer":      _env_path("REDESIGN_VTRACER_DIR",      OUTPUTS_BASE / "baseline_vtracer"),
 }
-
-# Multi-dir models (agent, qwen) — first field of each exp-pair is the agent dir,
-# second is the qwen dir.
-AGENT_DIRS = [Path(p.split(":")[0]) for p in EXP_PAIRS]
-QWEN_DIRS = [Path(p.split(":")[1]) for p in EXP_PAIRS]
 
 SUBTASK_NAMES = ["delete", "opacity", "recolor", "rotation", "transition", "z_order"]
 
@@ -235,9 +228,9 @@ def setup_model(
 
     # Scan model episodes
     if model_name == "agent":
-        model_map = scan_model_episodes_multi("agent", AGENT_DIRS)
+        model_map = scan_model_episodes_multi("agent", [AGENT_DIR])
     elif model_name == "qwen":
-        model_map = scan_model_episodes_multi("qwen", QWEN_DIRS)
+        model_map = scan_model_episodes_multi("qwen", [QWEN_DIR])
     else:
         base_dir = MODEL_DIRS.get(model_name)
         if base_dir is None or not base_dir.exists():
@@ -390,7 +383,7 @@ def main():
     save_json(OUTPUT_DIR / "atomic_selected_subset.json", original_subset)
 
     # 2. Collect GT episodes
-    gt_map = collect_gt_episodes(FIGMA_DATA_DIR, EXP_PAIRS)
+    gt_map = collect_gt_episodes(FIGMA_DATA_DIR)
     print(f"GT episodes: {len(gt_map)}", flush=True)
 
     # 3. Set up models

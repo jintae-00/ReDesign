@@ -100,7 +100,17 @@ python scripts/download_figma_dataset.py          # -> ./figma_data  (909 episod
 
 ## 5. Run the agent
 
+Replace `<QWEN_GPU_IDS>` / `<TOOL_GPU_IDS>` with your own comma-separated GPU ids.
+**The Qwen layered model needs ~2 GPUs** (≈55 GB of weights — see §"Compute & API
+configuration"); the vision tools use one more GPU. `--qwen_pair_size 2` shards
+one Qwen worker across the 2 Qwen GPUs.
+
 ```bash
+# Single image
+python -m REDESIGN.run_single_image \
+    --image path/to/design.png --output_dir outputs/single \
+    --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --tool_gpus <TOOL_GPU_IDS>
+
 # Figma (all 909 episodes)
 python -m REDESIGN.run_agent_figma \
     --data_dir figma_data --output_dir outputs/figma_agent \
@@ -112,9 +122,8 @@ python -m REDESIGN.run_agent_crello \
     --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --tool_gpus <TOOL_GPU_IDS>
 ```
 
-Replace `<QWEN_GPU_IDS>` / `<TOOL_GPU_IDS>` with your own comma-separated GPU ids
-(the Qwen layered model and the vision tools run on separate GPUs), e.g.
-`--qwen_gpus 0,1 --tool_gpus 2`. On a single GPU, pass the same id to both.
+Example with concrete ids (2 GPUs for Qwen, 1 for tools):
+`--qwen_gpus 0,1 --qwen_pair_size 2 --tool_gpus 2`.
 
 Outputs are written under `--output_dir/episodes/<id>/` (`parse.json`,
 `history_tree.json`, reconstructions, logs). **The input datasets are never
@@ -123,15 +132,35 @@ episodes are skipped on re-run.
 
 ## 6. Evaluate
 
+Evaluation scores inference outputs, so run the agent first (§5). Point the eval
+at the dataset (`--figma-data`) and the agent's output dir (`--agent-dir`).
+
 ```bash
+# Reconstruction accuracy (Figma)
 python evaluation/eval_accuracy_baselines_figma.py \
     --figma-data figma_data --models agent \
-    --exp-pairs outputs/figma_agent:outputs/figma_qwen:merged \
+    --agent-dir outputs/figma_agent \
     --output outputs/eval_accuracy_figma
+
+# Editability — step 1: precompute GT↔prediction element matches
+python evaluation/before_eval_editability_precompute_matches.py \
+    --figma-data figma_data --model agent --model-dir outputs/figma_agent \
+    --output outputs/editability_matches
+
+# Editability — step 2: atomic-edit editability (set GPU via --gpu-ids / env)
+REDESIGN_FIGMA_DATA=figma_data \
+REDESIGN_AGENT_DIR=outputs/figma_agent \
+REDESIGN_MATCH_ROOT=outputs/editability_matches \
+    python evaluation/eval_editability_figma.py --models agent
+
+# Text editability
+python evaluation/eval_editability_text_figma.py \
+    --figma-data figma_data --models agent --agent-dir outputs/figma_agent \
+    --output outputs/eval_editability_text --ocr-gpu <GPU_ID>
 ```
 
-Full accuracy + editability pipeline (including the two-step editability
-precompute) is documented in [`evaluation/README.md`](evaluation/README.md).
+Full accuracy + editability pipeline is documented in
+[`evaluation/README.md`](evaluation/README.md).
 
 ## Dataset, license & attribution
 
@@ -154,19 +183,20 @@ machine and budget. The agent has two kinds of cost:
 
 | Role | Flag / env var | What runs on it | Memory guidance |
 |---|---|---|---|
-| Qwen layered model | `--qwen_gpus <QWEN_GPU_IDS>` / `URLD_QWEN_GPUS` | `Qwen/Qwen-Image-Layered` (the costly generator) | ~40 GB in bf16. Fits on **one ≥48 GB GPU**; on smaller GPUs give it **several GPUs** (it is sharded across them with `device_map="balanced"`), or it falls back to CPU offload (slower). |
+| Qwen layered model | `--qwen_gpus <QWEN_GPU_IDS>` / `URLD_QWEN_GPUS` | `Qwen/Qwen-Image-Layered` (the costly generator) | **≈55 GB of weights in bf16** (transformer ~39 GB + text encoder ~16 GB) plus activations → needs **2 GPUs** (sharded with `device_map="balanced"`, e.g. 2×≥32 GB) **or one ≥80 GB GPU**. Use `--qwen_pair_size 2` to put one worker on 2 GPUs. CPU-offload fallback exists but is much slower. |
 | Vision tools | `--tool_gpus <TOOL_GPU_IDS>` / `URLD_TOOL_GPUS` | GroundingDINO, SAM 2, Hi-SAM, LaMa, ObjectClear (PaddleOCR runs on CPU) | ~10–16 GB total → **one ≥16 GB GPU** is enough. |
 
-- **Minimum** to run end-to-end: **1 GPU**. Put both roles on it, e.g.
-  `--qwen_gpus 0 --tool_gpus 0` (needs roughly ≥48 GB so Qwen + tools coexist; on
-  an H200/A100-80GB this is comfortable). Optionally also `--objectclear_gpu 0`.
+- **Minimum** to run end-to-end: **2 GPUs** — e.g. 2 GPUs of ≥40 GB for Qwen
+  (`--qwen_gpus 0,1 --qwen_pair_size 2`) and one of them (or a third) for the
+  tools (`--tool_gpus 1`). On a **single ≥80 GB GPU** you can put everything on
+  it: `--qwen_gpus 0 --qwen_pair_size 1 --tool_gpus 0 --objectclear_gpu 0`.
 - **Faster**: more GPUs = more **parallel** Qwen workers. `--qwen_pair_size N`
-  sets how many GPUs each Qwen worker uses; the remaining `--qwen_gpus` are split
-  into that many parallel workers. e.g. `--qwen_gpus 0,1,2,3 --qwen_pair_size 2`
-  → 2 workers (GPUs {0,1} and {2,3}) decoding episodes concurrently. Keep the
-  tools on a separate GPU (`--tool_gpus 4`) when you can.
-- Defaults are conservative (everything on GPU 0). GPU ids are **per-machine** —
-  use `nvidia-smi` to pick free ones.
+  sets how many GPUs each Qwen worker uses; the listed `--qwen_gpus` are split
+  into `len(qwen_gpus)/N` parallel workers. e.g. `--qwen_gpus 0,1,2,3
+  --qwen_pair_size 2` → 2 workers (GPUs {0,1} and {2,3}) decoding episodes
+  concurrently, with tools on a separate GPU (`--tool_gpus 4`).
+- GPU ids are **per-machine** — use `nvidia-smi` to pick free ones. (The built-in
+  defaults are a conservative single GPU 0, intended only as a placeholder.)
 
 **B. LLM API (the VLM controller)** — the agent calls an OpenAI-compatible
 chat-completions endpoint for routing/labeling decisions:

@@ -8,14 +8,22 @@ directly) and inpaints with LaMa, producing the same output format as the Qwen b
 Output Format: metadata.json + layer_*.png (Qwen-compatible)
 Evaluation: evaluation_figma.py -> extract_qwen_elements_cca()
 
+Processes EVERY episode found under <data_dir>/valid_frames/.
+
 Usage:
-    python run_baseline1_figma.py --gpu 0
-    python run_baseline1_figma.py --gpu 0 --limit 10
-    python run_baseline1_figma.py --gpu 0,1,2,3 --workers_per_gpu 1
+    python run_layerd_figma.py --data_dir figma_data --output_dir outputs/layerd_figma --gpu <GPU_IDS>
+    python run_layerd_figma.py --data_dir figma_data --output_dir outputs/layerd_figma --gpu <GPU_IDS> --limit 10
+    python run_layerd_figma.py --data_dir figma_data --output_dir outputs/layerd_figma --gpu <GPU_IDS> --workers_per_gpu 1
+
+    # Replace <GPU_IDS> with your own comma-separated GPU ids (e.g. 0 or 0,1).
 
 Directory Structure:
+    Input:
+        <data_dir>/valid_frames/<frame_id>.json
+        <data_dir>/unit_images/...        (GT layers + reconstruction)
+
     Output:
-        layerd_experiment/{frame_id}/
+        <output_dir>/episodes/{frame_id}/
             - input.png
             - layer_00.png  (RGBA, canvas size)
             - layer_01.png
@@ -51,15 +59,6 @@ from tqdm import tqdm
 # =============================================================================
 # Configuration
 # =============================================================================
-
-FIGMA_DATA_BASE = "figma_data/process/subset"
-LAYERD_EXPERIMENT_BASE = "baseline_layerd_experiment"
-
-# All dataset splits: (prefix, num_splits) — dino80 (435) + dino90 (474) = 909 frames
-ALL_DATASET_SPLITS = [
-    ("dino80_obj_5_60_char_25_split_", 4),   # splits 0-3
-    ("dino90_obj_5_25_char_50_split_", 5),   # splits 0-4
-]
 
 MAX_LAYERD_ITERATIONS = 4
 ALPHA_THRESHOLD_LAYERD = 16
@@ -97,32 +96,6 @@ def setup_logging(log_file: Path, name: str = "baseline1") -> logging.Logger:
 # Path Resolution
 # =============================================================================
 
-def get_src_root() -> Path:
-    current = Path(__file__).resolve().parent
-    if current.name == "src":
-        return current
-    elif (current / "src").exists():
-        return current / "src"
-    else:
-        return current
-
-
-def get_all_split_paths(src_root: Path) -> Dict[str, Any]:
-    all_valid_frames_dirs = []
-    all_split_dirs = []
-    for prefix, num_splits in ALL_DATASET_SPLITS:
-        for i in range(num_splits):
-            split_name = f"{prefix}{i}"
-            split_dir = src_root / FIGMA_DATA_BASE / split_name
-            all_split_dirs.append(split_dir)
-            all_valid_frames_dirs.append(split_dir / "valid_frames")
-    return {
-        "split_dirs": all_split_dirs,
-        "valid_frames_dirs": all_valid_frames_dirs,
-        "output_dir": src_root / LAYERD_EXPERIMENT_BASE / "all_splits",
-    }
-
-
 # =============================================================================
 # Frame Data Loading
 # =============================================================================
@@ -134,30 +107,35 @@ class FrameInfo:
     image_path: Path
 
 
-def load_frame_list(paths: Dict[str, Any]) -> List[FrameInfo]:
+def load_frame_list(data_dir: Path) -> List[FrameInfo]:
+    """Load every valid_frames/*.json under data_dir (split-agnostic).
+
+    The GT reconstruction (input image) resolves to
+    ``data_dir / <unit_images_dir> / <reconstructed_image_path>`` from each JSON.
+    """
     frames = []
-    for split_dir, vf_dir in zip(paths["split_dirs"], paths["valid_frames_dirs"]):
-        if not vf_dir.exists():
-            print(f"[Warning] Not found: {vf_dir}")
-            continue
-        json_files = sorted(vf_dir.glob("*.json"))
-        for json_path in json_files:
-            frame_id = json_path.stem
-            try:
-                with open(json_path, 'r', encoding='utf-8') as f:
-                    json_data = json.load(f)
-                rel_path = json_data.get("reconstructed_image_path")
-                unit_images_dir = json_data.get("unit_images_dir")
-                if rel_path and unit_images_dir:
-                    image_path = split_dir / unit_images_dir / rel_path
-                    if image_path.exists():
-                        frames.append(FrameInfo(
-                            frame_id=frame_id,
-                            json_path=json_path,
-                            image_path=image_path,
-                        ))
-            except Exception as e:
-                print(f"[Warning] Failed to load {json_path}: {e}")
+    vf_dir = data_dir / "valid_frames"
+    if not vf_dir.exists():
+        print(f"[Warning] Not found: {vf_dir}")
+        return frames
+    json_files = sorted(vf_dir.glob("*.json"))
+    for json_path in json_files:
+        frame_id = json_path.stem
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                json_data = json.load(f)
+            rel_path = json_data.get("reconstructed_image_path")
+            unit_images_dir = json_data.get("unit_images_dir")
+            if rel_path and unit_images_dir:
+                image_path = data_dir / unit_images_dir / rel_path
+                if image_path.exists():
+                    frames.append(FrameInfo(
+                        frame_id=frame_id,
+                        json_path=json_path,
+                        image_path=image_path,
+                    ))
+        except Exception as e:
+            print(f"[Warning] Failed to load {json_path}: {e}")
     return frames
 
 
@@ -601,36 +579,34 @@ def worker_process(
 # =============================================================================
 
 def run_baseline1(
+    data_dir: Path,
+    output_dir: Path,
     gpu_ids: List[int],
     workers_per_gpu: int = 1,
     dry_run: bool = False,
     limit: Optional[int] = None,
     skip_completed: bool = True,
-    src_root: Optional[Path] = None,
 ) -> Dict[str, Any]:
-    if src_root is None:
-        src_root = get_src_root()
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    paths = get_all_split_paths(src_root)
-    paths["output_dir"].mkdir(parents=True, exist_ok=True)
-
-    log_file = paths["output_dir"] / "baseline1_run.log"
+    log_file = output_dir / "baseline1_run.log"
     logger = setup_logging(log_file)
 
     logger.info("=" * 70)
     logger.info("Baseline 1: LayerD + LaMa Iterative Extraction")
     logger.info("=" * 70)
+    logger.info(f"data_dir: {data_dir}")
     logger.info(f"GPUs: {gpu_ids}")
     logger.info(f"Workers per GPU: {workers_per_gpu}")
     total_workers = len(gpu_ids) * workers_per_gpu
     logger.info(f"Total workers: {total_workers}")
-    logger.info(f"Output: {paths['output_dir']}")
+    logger.info(f"Output: {output_dir}")
 
     if workers_per_gpu < 1:
         raise ValueError(f"workers_per_gpu must be >= 1, got {workers_per_gpu}")
 
     # Load frames
-    frames = load_frame_list(paths)
+    frames = load_frame_list(data_dir)
     logger.info(f"Found {len(frames)} total frames")
 
     # Filter completed and permanently failed frames
@@ -638,10 +614,10 @@ def run_baseline1(
     skipped = 0
     skipped_failed = 0
     for frame in frames:
-        if skip_completed and is_frame_completed(paths["output_dir"], frame.frame_id):
+        if skip_completed and is_frame_completed(output_dir, frame.frame_id):
             skipped += 1
             continue
-        if is_frame_failed(paths["output_dir"], frame.frame_id):
+        if is_frame_failed(output_dir, frame.frame_id):
             skipped_failed += 1
             continue
         frames_to_process.append(frame)
@@ -674,7 +650,7 @@ def run_baseline1(
         for _ in range(workers_per_gpu):
             p = mp.Process(
                 target=worker_process,
-                args=(worker_id, gpu_id, frame_queue, result_queue, paths["output_dir"]),
+                args=(worker_id, gpu_id, frame_queue, result_queue, output_dir),
             )
             p.start()
             workers.append(p)
@@ -722,25 +698,28 @@ def main():
     parser = argparse.ArgumentParser(
         description="Baseline 1: LayerD + LaMa Iterative Extraction"
     )
+    parser.add_argument("--data_dir", "-i", type=str, required=True,
+                        help="Path to the Figma dataset directory (containing valid_frames/, unit_images/)")
+    parser.add_argument("--output_dir", "-o", type=str, required=True,
+                        help="Path to the output directory")
     parser.add_argument("--gpu", type=str, default="0",
-                        help="Comma-separated GPU ids to use (user-specific, e.g. '0,1,2,3')")
+                        help="comma-separated GPU ids (set to your own; e.g. 0 or 0,1)")
     parser.add_argument("--workers_per_gpu", type=int, default=1, help="Number of workers per GPU")
     parser.add_argument("--limit", type=int, default=None, help="Limit the number of frames to process")
     parser.add_argument("--dry_run", action="store_true")
     parser.add_argument("--no_skip", action="store_true")
-    parser.add_argument("--src_root", type=str, default=None)
     args = parser.parse_args()
 
     gpu_ids = [int(x.strip()) for x in args.gpu.split(",")]
-    src_root = Path(args.src_root) if args.src_root else None
 
     run_baseline1(
+        data_dir=Path(args.data_dir),
+        output_dir=Path(args.output_dir),
         gpu_ids=gpu_ids,
         workers_per_gpu=args.workers_per_gpu,
         dry_run=args.dry_run,
         limit=args.limit,
         skip_completed=not args.no_skip,
-        src_root=src_root,
     )
 
 

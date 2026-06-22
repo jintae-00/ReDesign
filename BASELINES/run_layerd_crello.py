@@ -5,20 +5,24 @@ run_layerd_crello.py - LayerD + LaMa Iterative Extraction on Crello Dataset
 Same pipeline as run_layerd_figma.py but applied to the Crello test dataset (549 records).
 
 Output Format: metadata.json + layer_*.png (Qwen-compatible)
-Evaluation: eval_accuracy_baselines_crello.py --layered-dir baseline_crello_layerd_experiment
+Evaluation: eval_accuracy_baselines_crello.py --layered-dir <output_dir>
+
+Processes EVERY crello_test_* record directory under <data_dir>.
 
 Usage:
-    python run_layerd_crello.py --gpu 0
-    python run_layerd_crello.py --gpu 0 --limit 10
-    python run_layerd_crello.py --gpu 0,1,2,3 --workers_per_gpu 1
+    python run_layerd_crello.py --data_dir crello_data/records --output_dir outputs/layerd_crello --gpu <GPU_IDS>
+    python run_layerd_crello.py --data_dir crello_data/records --output_dir outputs/layerd_crello --gpu <GPU_IDS> --limit 10
+    python run_layerd_crello.py --data_dir crello_data/records --output_dir outputs/layerd_crello --gpu <GPU_IDS> --workers_per_gpu 1
+
+    # Replace <GPU_IDS> with your own comma-separated GPU ids (e.g. 0 or 0,1).
 
 Directory Structure:
     Input:
-        crello_splits/crello_split_{0~4}/crello_test_XXXX/
+        <data_dir>/crello_test_XXXX/
             - composite.png
 
     Output:
-        baseline_crello_layerd_experiment/all_splits/{record_id}/
+        <output_dir>/{record_id}/
             - input.png
             - layer_00.png  (RGBA, canvas size)
             - layer_01.png
@@ -54,10 +58,6 @@ from tqdm import tqdm
 # =============================================================================
 # Configuration
 # =============================================================================
-
-CRELLO_SPLIT_BASE = "crello_splits"
-LAYERD_EXPERIMENT_BASE = "baseline_crello_layerd_experiment"
-ALL_SPLIT_INDICES = [0, 1, 2, 3, 4]
 
 MAX_LAYERD_ITERATIONS = 4
 ALPHA_THRESHOLD_LAYERD = 16
@@ -95,16 +95,6 @@ def setup_logging(log_file: Path, name: str = "layerd_crello") -> logging.Logger
 # Path Resolution
 # =============================================================================
 
-def get_src_root() -> Path:
-    current = Path(__file__).resolve().parent
-    if current.name == "src":
-        return current
-    elif (current / "src").exists():
-        return current / "src"
-    else:
-        return current
-
-
 # =============================================================================
 # Record Data Loading (Crello)
 # =============================================================================
@@ -115,30 +105,27 @@ class RecordInfo:
     image_path: Path  # composite.png absolute path
 
 
-def load_record_list(src_root: Path, split_indices: List[int]) -> List[RecordInfo]:
-    """Load Crello records from multiple splits, deduplicated and sorted."""
+def load_record_list(data_dir: Path) -> List[RecordInfo]:
+    """Load every crello_test_* record directory under data_dir (split-agnostic).
+
+    The input image for each record is ``<record_dir>/composite.png``.
+    """
     records = []
 
-    for split_idx in split_indices:
-        split_dir = src_root / CRELLO_SPLIT_BASE / f"crello_split_{split_idx}"
-        if not split_dir.exists():
-            print(f"[Warning] Split directory not found: {split_dir}")
-            continue
+    record_dirs = sorted([
+        d for d in data_dir.iterdir()
+        if (d.is_dir() or d.is_symlink()) and d.name.startswith("crello_test_")
+    ])
 
-        record_dirs = sorted([
-            d for d in split_dir.iterdir()
-            if (d.is_dir() or d.is_symlink()) and d.name.startswith("crello_test_")
-        ])
-
-        for record_dir in record_dirs:
-            composite_path = record_dir / "composite.png"
-            if composite_path.exists():
-                records.append(RecordInfo(
-                    record_id=record_dir.name,
-                    image_path=composite_path.resolve(),
-                ))
-            else:
-                print(f"[Warning] composite.png not found: {record_dir}")
+    for record_dir in record_dirs:
+        composite_path = record_dir / "composite.png"
+        if composite_path.exists():
+            records.append(RecordInfo(
+                record_id=record_dir.name,
+                image_path=composite_path.resolve(),
+            ))
+        else:
+            print(f"[Warning] composite.png not found: {record_dir}")
 
     # Deduplicate by record_id and sort
     seen = set()
@@ -575,21 +562,14 @@ def worker_process(
 # =============================================================================
 
 def run_layerd_crello(
+    data_dir: Path,
+    output_dir: Path,
     gpu_ids: List[int],
     workers_per_gpu: int = 1,
     dry_run: bool = False,
     limit: Optional[int] = None,
     skip_completed: bool = True,
-    src_root: Optional[Path] = None,
-    split_indices: Optional[List[int]] = None,
 ) -> Dict[str, Any]:
-    if src_root is None:
-        src_root = get_src_root()
-
-    if split_indices is None:
-        split_indices = ALL_SPLIT_INDICES
-
-    output_dir = src_root / LAYERD_EXPERIMENT_BASE / "all_splits"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     log_file = output_dir / "layerd_crello_run.log"
@@ -598,18 +578,18 @@ def run_layerd_crello(
     logger.info("=" * 70)
     logger.info("LayerD + LaMa Iterative Extraction — Crello Dataset")
     logger.info("=" * 70)
+    logger.info(f"data_dir: {data_dir}")
     logger.info(f"GPUs: {gpu_ids}")
     logger.info(f"Workers per GPU: {workers_per_gpu}")
     total_workers = len(gpu_ids) * workers_per_gpu
     logger.info(f"Total workers: {total_workers}")
-    logger.info(f"Splits: {split_indices}")
     logger.info(f"Output: {output_dir}")
 
     if workers_per_gpu < 1:
         raise ValueError(f"workers_per_gpu must be >= 1, got {workers_per_gpu}")
 
     # Load records
-    records = load_record_list(src_root, split_indices)
+    records = load_record_list(data_dir)
     logger.info(f"Found {len(records)} total records")
 
     # Filter completed and permanently failed records
@@ -701,29 +681,28 @@ def main():
     parser = argparse.ArgumentParser(
         description="LayerD + LaMa Iterative Extraction on Crello Dataset"
     )
+    parser.add_argument("--data_dir", "-i", type=str, required=True,
+                        help="Path to the Crello dataset directory (containing crello_test_*/ record dirs)")
+    parser.add_argument("--output_dir", "-o", type=str, required=True,
+                        help="Path to the output directory")
     parser.add_argument("--gpu", type=str, default="0",
-                        help="Comma-separated GPU ids to use (user-specific, e.g. '0,1,2,3')")
+                        help="comma-separated GPU ids (set to your own; e.g. 0 or 0,1)")
     parser.add_argument("--workers_per_gpu", type=int, default=1, help="Number of workers per GPU")
     parser.add_argument("--limit", type=int, default=None, help="Limit the number of records to process")
-    parser.add_argument("--splits", type=str, default="0,1,2,3,4",
-                        help="Split indices (comma-separated, e.g., '0,1,2,3,4')")
     parser.add_argument("--dry_run", action="store_true")
     parser.add_argument("--no_skip", action="store_true")
-    parser.add_argument("--src_root", type=str, default=None)
     args = parser.parse_args()
 
     gpu_ids = [int(x.strip()) for x in args.gpu.split(",")]
-    split_indices = [int(x.strip()) for x in args.splits.split(",")]
-    src_root = Path(args.src_root) if args.src_root else None
 
     run_layerd_crello(
+        data_dir=Path(args.data_dir),
+        output_dir=Path(args.output_dir),
         gpu_ids=gpu_ids,
         workers_per_gpu=args.workers_per_gpu,
         dry_run=args.dry_run,
         limit=args.limit,
         skip_completed=not args.no_skip,
-        src_root=src_root,
-        split_indices=split_indices,
     )
 
 

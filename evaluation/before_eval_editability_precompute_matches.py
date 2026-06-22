@@ -6,9 +6,7 @@ saving to {output}/{model_name}/episodes/{episode_id}.json.
 
 Usage:
     python scripts/precompute_baseline_matches.py \
-        --figma-data <FIGMA_DATA_DIR> \
-        --exp-pairs \
-            <AGENT_OUTPUT_DIR>:<QWEN_OUTPUT_DIR>:merged \
+        --figma-data figma_data \
         --model layered --model-dir <LAYERED_BASELINE_OUTPUT_DIR> \
         --output <MATCH_ROOT_DIR> \
         --num-workers 4
@@ -250,7 +248,6 @@ def main():
         description="Pre-compute GT-to-pred matches for a baseline model"
     )
     parser.add_argument("--figma-data", type=str, required=True)
-    parser.add_argument("--exp-pairs", type=str, nargs="+", required=True)
     parser.add_argument("--model", type=str, required=True,
                         choices=list(MODEL_CONFIGS.keys()))
     parser.add_argument("--model-dir", type=str, required=True,
@@ -297,7 +294,7 @@ def main():
     print(f"Workers: {args.num_workers}")
 
     # 1. Collect GT episodes
-    gt_map = collect_gt_episodes(figma_data_dir, args.exp_pairs)
+    gt_map = collect_gt_episodes(figma_data_dir)
     print(f"GT episodes: {len(gt_map)}")
 
     # 2. Scan model episodes

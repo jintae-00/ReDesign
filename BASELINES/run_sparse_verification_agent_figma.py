@@ -14,16 +14,18 @@ Evaluation: evaluation.editability_utils → extract_agent_elements()
 Note: Replace the GPU id placeholders below (e.g. <QWEN_GPU_IDS>, <TOOL_GPU_IDS>,
 <OBJECTCLEAR_GPU_ID>) with your own comma-separated, user-specific GPU ids.
 
+Processes EVERY episode found under <data_dir>/valid_frames/.
+
 Usage:
-    python run_sparse_verification_agent_figma.py --qwen_gpus <QWEN_GPU_IDS> --tool_gpus <TOOL_GPU_IDS> --objectclear_gpu <OBJECTCLEAR_GPU_ID>
-    python run_sparse_verification_agent_figma.py --qwen_gpus <QWEN_GPU_IDS> --tool_gpus <TOOL_GPU_IDS> --limit 5 --dry_run
+    python run_sparse_verification_agent_figma.py --data_dir figma_data --output_dir outputs/sparse_verification_figma --qwen_gpus <QWEN_GPU_IDS> --tool_gpus <TOOL_GPU_IDS> --objectclear_gpu <OBJECTCLEAR_GPU_ID>
+    python run_sparse_verification_agent_figma.py --data_dir figma_data --output_dir outputs/sparse_verification_figma --qwen_gpus <QWEN_GPU_IDS> --tool_gpus <TOOL_GPU_IDS> --limit 5 --dry_run
 
 How it works:
     1. Monkey-patches REDESIGN.episode_run._get_node_function to use
        REDESIGN_ablation.nodes.stack_manager instead of the original
-    2. Iterates over ALL dataset splits (dino80 splits 0-3 + dino90 splits 0-4 = 909 frames)
+    2. Iterates over EVERY episode under <data_dir>/valid_frames/ (split-agnostic)
     3. Resume mode: skips already-completed frames (parse.json exists)
-    4. Output directory: baseline3_experiment/episodes/{frame_id}/
+    4. Output directory: <output_dir>/episodes/{frame_id}/
 """
 from __future__ import annotations
 
@@ -42,15 +44,6 @@ import logging
 # =============================================================================
 # Configuration
 # =============================================================================
-
-FIGMA_DATA_BASE = "figma_data/process/subset"
-BASELINE3_EXPERIMENT_BASE = "baseline_sparse_verification_agent_experiment"
-
-# All dataset splits: (prefix, num_splits) — dino80 (435) + dino90 (474) = 909 frames
-ALL_DATASET_SPLITS = [
-    ("dino80_obj_5_60_char_25_split_", 4),   # splits 0-3
-    ("dino90_obj_5_25_char_50_split_", 5),   # splits 0-4
-]
 
 DEFAULT_WORKERS = 6
 DEFAULT_LLM_LIMIT = 100
@@ -631,51 +624,41 @@ def setup_logging(log_file: Path) -> logging.Logger:
 # Path Resolution & Frame Loading
 # =============================================================================
 
-def get_src_root() -> Path:
-    current = Path(__file__).resolve().parent
-    if current.name == "src":
-        return current
-    elif (current / "src").exists():
-        return current / "src"
-    else:
-        return current
+# Repository root = parent of the BASELINES package directory. Required so the
+# subprocess can resolve the `BASELINES` and `REDESIGN` packages.
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
-def get_output_dir(src_root: Path) -> Path:
-    return src_root / BASELINE3_EXPERIMENT_BASE
+def load_all_frames(data_dir: Path) -> List[Dict[str, Any]]:
+    """Load every valid_frames/*.json under data_dir (split-agnostic).
 
-
-def load_all_frames(src_root: Path) -> List[Dict[str, Any]]:
-    """Load all frames from all dataset splits (dino80 + dino90 = 909)."""
+    The GT reconstruction (input image) resolves to
+    ``data_dir / <unit_images_dir> / <reconstructed_image_path>`` from each JSON.
+    """
     frames = []
-    for prefix, num_splits in ALL_DATASET_SPLITS:
-        for split_idx in range(num_splits):
-            split_name = f"{prefix}{split_idx}"
-            split_dir = src_root / FIGMA_DATA_BASE / split_name
-            valid_frames_dir = split_dir / "valid_frames"
+    valid_frames_dir = data_dir / "valid_frames"
 
-            if not valid_frames_dir.exists():
-                print(f"[Warning] Not found: {valid_frames_dir}")
-                continue
+    if not valid_frames_dir.exists():
+        print(f"[Warning] Not found: {valid_frames_dir}")
+        return frames
 
-            json_files = sorted(valid_frames_dir.glob("*.json"))
-            for json_path in json_files:
-                frame_id = json_path.stem
-                try:
-                    with open(json_path, 'r', encoding='utf-8') as f:
-                        json_data = json.load(f)
-                    rel_path = json_data.get("reconstructed_image_path")
-                    unit_images_dir = json_data.get("unit_images_dir")
-                    if rel_path and unit_images_dir:
-                        image_path = split_dir / unit_images_dir / rel_path
-                        if image_path.exists():
-                            frames.append({
-                                "frame_id": frame_id,
-                                "image_path": image_path,
-                                "split_name": split_name,
-                            })
-                except Exception:
-                    continue
+    json_files = sorted(valid_frames_dir.glob("*.json"))
+    for json_path in json_files:
+        frame_id = json_path.stem
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                json_data = json.load(f)
+            rel_path = json_data.get("reconstructed_image_path")
+            unit_images_dir = json_data.get("unit_images_dir")
+            if rel_path and unit_images_dir:
+                image_path = data_dir / unit_images_dir / rel_path
+                if image_path.exists():
+                    frames.append({
+                        "frame_id": frame_id,
+                        "image_path": image_path,
+                    })
+        except Exception:
+            continue
 
     return frames
 
@@ -786,7 +769,7 @@ def run_episode_subprocess(
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
-            cwd=str(get_src_root()),
+            cwd=str(REPO_ROOT),
             env=env,
         )
 
@@ -815,6 +798,8 @@ def run_episode_subprocess(
 # =============================================================================
 
 def run_all(
+    data_dir: Path,
+    output_dir: Path,
     workers: int = DEFAULT_WORKERS,
     qwen_gpus: Optional[str] = None,
     qwen_pair_size: Optional[int] = None,
@@ -823,20 +808,15 @@ def run_all(
     dry_run: bool = False,
     limit: Optional[int] = None,
     skip_completed: bool = True,
-    src_root: Optional[Path] = None,
     use_subprocess: bool = True,
     llm_limit: int = DEFAULT_LLM_LIMIT,
     max_depth: int = DEFAULT_MAX_DEPTH,
     max_layers: int = DEFAULT_MAX_LAYERS,
-    split_index: Optional[int] = None,
-    num_splits: Optional[int] = None,
+    shard_index: Optional[int] = None,
+    num_shards: Optional[int] = None,
 ) -> Dict[str, Any]:
     from tqdm import tqdm
 
-    if src_root is None:
-        src_root = get_src_root()
-
-    output_dir = get_output_dir(src_root)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     log_file = output_dir / "baseline3_run.log"
@@ -845,6 +825,7 @@ def run_all(
     logger.info("=" * 70)
     logger.info("Baseline 3: Sparse Verification Agent")
     logger.info("=" * 70)
+    logger.info(f"data_dir: {data_dir}")
     logger.info(f"output_dir: {output_dir}")
     logger.info(f"sparse_period: {sparse_period}")
     logger.info(f"workers: {workers}")
@@ -853,9 +834,9 @@ def run_all(
     logger.info(f"dry_run: {dry_run}, limit: {limit}")
     logger.info(f"use_subprocess: {use_subprocess}")
 
-    # Load ALL frames (dino80 + dino90 = 909)
-    all_frames = load_all_frames(src_root)
-    logger.info(f"Found {len(all_frames)} total frames across all splits")
+    # Load ALL frames under data_dir/valid_frames (split-agnostic)
+    all_frames = load_all_frames(data_dir)
+    logger.info(f"Found {len(all_frames)} total frames")
 
     # Split assignment FIRST (before filtering completed), then filter.
     #
@@ -871,15 +852,15 @@ def run_all(
     #   2. Filter completed within each server's assigned subset (resume safety).
     #
     # This guarantees:
-    # - No overlap: frame i goes to split (i % num_splits), always.
+    # - No overlap: frame i goes to split (i % num_shards), always.
     # - Real-time resume: each restart re-checks is_frame_completed() live.
     # - Independence: servers don't need to coordinate; they read the same
     #   deterministic frame list and pick their own slice.
-    if split_index is not None and num_splits is not None:
-        if not (0 <= split_index < num_splits):
-            raise ValueError(f"split_index {split_index} out of range [0, {num_splits})")
-        assigned = [f for i, f in enumerate(all_frames) if i % num_splits == split_index]
-        logger.info(f"Split mode: {split_index+1}/{num_splits} → {len(assigned)} frames assigned from {len(all_frames)} total")
+    if shard_index is not None and num_shards is not None:
+        if not (0 <= shard_index < num_shards):
+            raise ValueError(f"shard_index {shard_index} out of range [0, {num_shards})")
+        assigned = [f for i, f in enumerate(all_frames) if i % num_shards == shard_index]
+        logger.info(f"Shard mode: {shard_index+1}/{num_shards} → {len(assigned)} frames assigned from {len(all_frames)} total")
     else:
         assigned = all_frames
 
@@ -901,7 +882,7 @@ def run_all(
     if dry_run:
         logger.info("\n[DRY RUN] Would process these frames:")
         for i, frame in enumerate(frames_to_process[:30]):
-            logger.info(f"  [{i+1:3d}] {frame['frame_id']} ({frame['split_name']})")
+            logger.info(f"  [{i+1:3d}] {frame['frame_id']}")
         if len(frames_to_process) > 30:
             logger.info(f"  ... and {len(frames_to_process) - 30} more")
         return {"dry_run": True, "total": len(all_frames), "pending": len(frames_to_process), "skipped": skipped}
@@ -926,7 +907,7 @@ def run_all(
         image_path = frame["image_path"]
 
         pbar.set_postfix_str(f"{frame_id}", refresh=True)
-        logger.info(f"\nProcessing: {frame_id} ({frame['split_name']})")
+        logger.info(f"\nProcessing: {frame_id}")
 
         try:
             if use_subprocess:
@@ -1003,6 +984,10 @@ def main():
         description="Baseline 3: Agent with Sparse Verification (909 frames)",
     )
 
+    parser.add_argument("--data_dir", "-i", type=str, required=True,
+                        help="Path to the Figma dataset directory (containing valid_frames/, unit_images/)")
+    parser.add_argument("--output_dir", "-o", type=str, required=True,
+                        help="Path to the output directory (an episodes/ subfolder is created here)")
     parser.add_argument("--sparse_period", "-p", type=int, default=3, choices=[2, 3],
                         help="Sparse verification period: verify every N generations (default: 3)")
     parser.add_argument("--workers", "-w", type=int, default=DEFAULT_WORKERS)
@@ -1023,10 +1008,9 @@ def main():
                         help="Don't skip completed frames (re-process all)")
     parser.add_argument("--in_process", action="store_true",
                         help="Run in-process instead of subprocess (for debugging)")
-    parser.add_argument("--src_root", type=str, default=None)
-    parser.add_argument("--split_index", type=int, default=None,
-                        help="0-based index of this server's split (requires --num_splits)")
-    parser.add_argument("--num_splits", type=int, default=None,
+    parser.add_argument("--shard_index", type=int, default=None,
+                        help="0-based shard index for distributing frames across machines (requires --num_shards)")
+    parser.add_argument("--num_shards", type=int, default=None,
                         help="Total number of splits (e.g., 3 for 3 servers). "
                              "Each server gets every Nth pending frame by modular assignment. "
                              "Resume-safe: already-completed frames are always skipped first.")
@@ -1044,10 +1028,10 @@ def main():
         objectclear_gpu=args.objectclear_gpu,
     )
 
-    src_root = Path(args.src_root) if args.src_root else None
-
     try:
         results = run_all(
+            data_dir=Path(args.data_dir),
+            output_dir=Path(args.output_dir),
             workers=args.workers,
             qwen_gpus=args.qwen_gpus,
             qwen_pair_size=args.qwen_pair_size,
@@ -1056,17 +1040,16 @@ def main():
             dry_run=args.dry_run,
             limit=args.limit,
             skip_completed=not args.no_skip,
-            src_root=src_root,
             use_subprocess=not args.in_process,
             llm_limit=args.llm_limit,
             max_depth=args.max_depth,
             max_layers=args.max_layers,
-            split_index=args.split_index,
-            num_splits=args.num_splits,
+            shard_index=args.shard_index,
+            num_shards=args.num_shards,
         )
 
         if not args.dry_run:
-            print(f"\nResults saved to: {BASELINE3_EXPERIMENT_BASE}/")
+            print(f"\nResults saved to: {Path(args.output_dir)}/")
 
     except FileNotFoundError as e:
         print(f"Error: {e}")

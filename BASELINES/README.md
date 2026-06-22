@@ -2,7 +2,7 @@
 
 Baseline methods compared against the ReDesign agent in the paper. Run **from the
 repository root** as modules (e.g. `python -m BASELINES.run_layerd_figma`) so the
-shared packages (`REDESIGN`, `tool_learning_wo_qwen`, `modules`, `config`) resolve.
+shared packages (`REDESIGN`, `BASELINES.tool_backends`, `modules`, `config`) resolve.
 
 | Script | Method | Dataset |
 |---|---|---|
@@ -14,8 +14,8 @@ shared packages (`REDESIGN`, `tool_learning_wo_qwen`, `modules`, `config`) resol
 
 These share the agent's tool backends:
 
-- `run_layerd_*`, `run_multi_tools_*` import `tool_learning_wo_qwen.tools.*`
-  (bundled at the repo root) which wrap the same `modules/` checkpoints.
+- `run_layerd_*`, `run_multi_tools_*` import `BASELINES.tool_backends.tools.*`
+  (a bundled subpackage) which wrap the same `modules/` checkpoints.
 - `run_qwen_*` use `from diffusers import QwenImageLayeredPipeline` (`Qwen/Qwen-Image-Layered`).
 - `run_sparse_verification_agent_figma.py` reuses `REDESIGN.episode_run` with a
   sparse-verification monkey-patch.
@@ -23,16 +23,26 @@ These share the agent's tool backends:
 So the same environment (`environment.yml` + `post_install.sh`) and checkpoints
 (`scripts/download_checkpoints.py`) cover the baselines too.
 
-## Input layout
+## Input / output (split-agnostic)
 
-The baselines were written for the original **per-split** dataset layout
-(`figma_data/process/subset/<prefix>_split_*` for Figma; `crello_splits/` for
-Crello) and the original GPU/CLI flags — see each script's `--help` and the
-`Configuration` block near the top. They are included **as-is** for
-reproducibility; only their package imports were updated for this release
-(`tool_learning` → `REDESIGN`). To run a baseline on the released merged
-`figma_data`, point its data path at the dataset and adjust the split constants
-in the script header as needed.
+Like the agent runners, every baseline takes a **whole dataset directory** and an
+output directory — there is no split concept. GPU ids are placeholders; the Qwen
+baseline needs ~2 GPUs (see the main README compute section).
 
-Baseline outputs feed the evaluation in `../evaluation/` (point the eval
-`--*-dir` flags / `REDESIGN_<MODEL>_DIR` env vars at the baseline output dirs).
+```bash
+# Figma baselines: --data_dir is the merged dataset (valid_frames/ + unit_images/)
+python -m BASELINES.run_layerd_figma \
+    --data_dir figma_data --output_dir outputs/baseline_layered --gpu <GPU_IDS>
+
+python -m BASELINES.run_qwen_figma \
+    --data_dir figma_data --output_dir outputs/figma_qwen \
+    --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2
+
+# Crello baselines: --data_dir holds crello_test_*/ records (composite.png)
+python -m BASELINES.run_layerd_crello \
+    --data_dir crello_data/records --output_dir outputs/baseline_layered_crello --gpu <GPU_IDS>
+```
+
+See each script's `--help` for its full flag set. Baseline outputs feed the
+evaluation in `../evaluation/` — pass them with the eval `--<model>-dir` flags /
+`REDESIGN_<MODEL>_DIR` env vars (e.g. `--layered-dir outputs/baseline_layered`).

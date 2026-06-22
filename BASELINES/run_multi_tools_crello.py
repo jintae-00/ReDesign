@@ -8,19 +8,23 @@ Phase 1: OCR bbox -> HiSAM segmentation -> text RGBA -> LaMa inpaint (text union
 Phase 2: VLM Labeling -> GDINO detection -> SAM2 segmentation -> LaMa inpaint (repeat)
 
 Output Format: parse.json + elements/ (Agent-compatible)
-Evaluation: eval_accuracy_baselines_crello.py --multi-tools-dir baseline_crello_multi_tools_experiment/all_splits
+Evaluation: eval_accuracy_baselines_crello.py --multi-tools-dir <output_dir>
+
+Processes EVERY crello_test_* record directory under <data_dir>.
 
 Usage:
-    python run_multi_tools_crello.py --gpu 0
-    python run_multi_tools_crello.py --gpu 0,1,2,3 --limit 10
+    python run_multi_tools_crello.py --data_dir crello_data/records --output_dir outputs/multi_tools_crello --gpu <GPU_IDS>
+    python run_multi_tools_crello.py --data_dir crello_data/records --output_dir outputs/multi_tools_crello --gpu <GPU_IDS> --limit 10
+
+    # Replace <GPU_IDS> with your own comma-separated GPU ids (e.g. 0 or 0,1).
 
 Directory Structure:
     Input:
-        crello_splits/crello_split_{0~4}/crello_test_XXXX/
+        <data_dir>/crello_test_XXXX/
             - composite.png
 
     Output:
-        baseline_crello_multi_tools_experiment/all_splits/episodes/{record_id}/
+        <output_dir>/episodes/{record_id}/
             - parse.json
             - history_tree.json
             - original_input.png
@@ -68,10 +72,6 @@ from tqdm import tqdm
 # =============================================================================
 # Configuration
 # =============================================================================
-
-CRELLO_SPLIT_BASE = "crello_splits"
-BASELINE2_EXPERIMENT_BASE = "baseline_crello_multi_tools_experiment"
-ALL_SPLIT_INDICES = [0, 1, 2, 3, 4]
 
 MAX_OBJ_ITERATIONS = 4
 ALPHA_THRESHOLD = 16
@@ -131,16 +131,6 @@ def setup_logging(log_file: Path, name: str = "multi_tools_crello") -> logging.L
 # Path Resolution
 # =============================================================================
 
-def get_src_root() -> Path:
-    current = Path(__file__).resolve().parent
-    if current.name == "src":
-        return current
-    elif (current / "src").exists():
-        return current / "src"
-    else:
-        return current
-
-
 # =============================================================================
 # Record Data Loading (Crello)
 # =============================================================================
@@ -151,30 +141,27 @@ class RecordInfo:
     image_path: Path  # composite.png absolute path
 
 
-def load_record_list(src_root: Path, split_indices: List[int]) -> List[RecordInfo]:
-    """Load Crello records from multiple splits, deduplicated and sorted."""
+def load_record_list(data_dir: Path) -> List[RecordInfo]:
+    """Load every crello_test_* record directory under data_dir (split-agnostic).
+
+    The input image for each record is ``<record_dir>/composite.png``.
+    """
     records = []
 
-    for split_idx in split_indices:
-        split_dir = src_root / CRELLO_SPLIT_BASE / f"crello_split_{split_idx}"
-        if not split_dir.exists():
-            print(f"[Warning] Split directory not found: {split_dir}")
-            continue
+    record_dirs = sorted([
+        d for d in data_dir.iterdir()
+        if (d.is_dir() or d.is_symlink()) and d.name.startswith("crello_test_")
+    ])
 
-        record_dirs = sorted([
-            d for d in split_dir.iterdir()
-            if (d.is_dir() or d.is_symlink()) and d.name.startswith("crello_test_")
-        ])
-
-        for record_dir in record_dirs:
-            composite_path = record_dir / "composite.png"
-            if composite_path.exists():
-                records.append(RecordInfo(
-                    record_id=record_dir.name,
-                    image_path=composite_path.resolve(),
-                ))
-            else:
-                print(f"[Warning] composite.png not found: {record_dir}")
+    for record_dir in record_dirs:
+        composite_path = record_dir / "composite.png"
+        if composite_path.exists():
+            records.append(RecordInfo(
+                record_id=record_dir.name,
+                image_path=composite_path.resolve(),
+            ))
+        else:
+            print(f"[Warning] composite.png not found: {record_dir}")
 
     # Deduplicate by record_id and sort
     seen = set()
@@ -901,23 +888,16 @@ def _frame_worker_fn(
 # =============================================================================
 
 def run_multi_tools_crello(
+    data_dir: Path,
+    output_dir: Path,
     gpu_ids: List[int],
     dry_run: bool = False,
     limit: Optional[int] = None,
     skip_completed: bool = True,
     retry_failed: bool = False,
-    src_root: Optional[Path] = None,
     workers_per_gpu: int = 1,
-    split_indices: Optional[List[int]] = None,
     gpu_workers_map: Optional[Dict[int, int]] = None,
 ) -> Dict[str, Any]:
-    if src_root is None:
-        src_root = get_src_root()
-
-    if split_indices is None:
-        split_indices = ALL_SPLIT_INDICES
-
-    output_dir = src_root / BASELINE2_EXPERIMENT_BASE / "all_splits"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     log_file = output_dir / "multi_tools_crello_run.log"
@@ -927,10 +907,10 @@ def run_multi_tools_crello(
     logger.info("Multi-Tools Pipeline (OCR + HiSAM + VLM + GDINO + SAM2 + LaMa) — Crello Dataset")
     logger.info("=" * 70)
 
-    logger.info(f"Splits: {split_indices}")
+    logger.info(f"data_dir: {data_dir}")
     logger.info(f"Output: {output_dir}")
 
-    records = load_record_list(src_root, split_indices)
+    records = load_record_list(data_dir)
     logger.info(f"Found {len(records)} total records")
 
     # If retry_failed, clean up _FAILED markers and incomplete episode dirs
@@ -1083,25 +1063,24 @@ def main():
     parser = argparse.ArgumentParser(
         description="Multi-Tools Pipeline (OCR + HiSAM + VLM + GDINO + SAM2 + LaMa) on Crello Dataset"
     )
+    parser.add_argument("--data_dir", "-i", type=str, required=True,
+                        help="Path to the Crello dataset directory (containing crello_test_*/ record dirs)")
+    parser.add_argument("--output_dir", "-o", type=str, required=True,
+                        help="Path to the output directory (an episodes/ subfolder is created here)")
     parser.add_argument("--gpu", type=str, default="0",
-                        help="Comma-separated GPU ids to use (user-specific, e.g. '0,1,2,3')")
+                        help="comma-separated GPU ids (set to your own; e.g. 0 or 0,1)")
     parser.add_argument("--workers_per_gpu", type=int, default=1,
                         help="Uniform number of workers per GPU (ignored if --gpu_workers is set)")
     parser.add_argument("--gpu_workers", type=str, default=None,
                         help="Per-GPU worker counts as 'gpu_id:count' pairs, comma-separated "
                              "with user-specific GPU ids, e.g. '0:2,1:3,2:3,3:3'")
     parser.add_argument("--limit", type=int, default=None)
-    parser.add_argument("--splits", type=str, default="0,1,2,3,4",
-                        help="Split indices (comma-separated, e.g., '0,1,2,3,4')")
     parser.add_argument("--dry_run", action="store_true")
     parser.add_argument("--no_skip", action="store_true")
     parser.add_argument("--retry_failed", action="store_true")
-    parser.add_argument("--src_root", type=str, default=None)
     args = parser.parse_args()
 
     gpu_ids = [int(x.strip()) for x in args.gpu.split(",")]
-    split_indices = [int(x.strip()) for x in args.splits.split(",")]
-    src_root = Path(args.src_root) if args.src_root else None
 
     # Parse per-GPU worker map
     gpu_workers_map = None
@@ -1112,14 +1091,14 @@ def main():
             gpu_workers_map[int(gid_str.strip())] = int(cnt_str.strip())
 
     run_multi_tools_crello(
+        data_dir=Path(args.data_dir),
+        output_dir=Path(args.output_dir),
         gpu_ids=gpu_ids,
         dry_run=args.dry_run,
         limit=args.limit,
         skip_completed=not args.no_skip,
         retry_failed=args.retry_failed,
-        src_root=src_root,
         workers_per_gpu=args.workers_per_gpu,
-        split_indices=split_indices,
         gpu_workers_map=gpu_workers_map,
     )
 

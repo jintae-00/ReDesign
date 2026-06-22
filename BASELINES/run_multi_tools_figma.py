@@ -8,13 +8,21 @@ Phase 2: VLM Labeling -> GDINO detection -> SAM2 segmentation -> LaMa inpaint (i
 Output Format: parse.json + elements/ (Agent-compatible)
 Evaluation: evaluation.editability_utils → extract_agent_elements()
 
+Processes EVERY episode found under <data_dir>/valid_frames/.
+
 Usage:
-    python run_baseline2_figma.py --gpu 0
-    python run_baseline2_figma.py --gpu 0,1,2,3 --limit 10
+    python run_multi_tools_figma.py --data_dir figma_data --output_dir outputs/multi_tools_figma --gpu <GPU_IDS>
+    python run_multi_tools_figma.py --data_dir figma_data --output_dir outputs/multi_tools_figma --gpu <GPU_IDS> --limit 10
+
+    # Replace <GPU_IDS> with your own comma-separated GPU ids (e.g. 0 or 0,1).
 
 Directory Structure:
+    Input:
+        <data_dir>/valid_frames/<frame_id>.json
+        <data_dir>/unit_images/...        (GT layers + reconstruction)
+
     Output:
-        baseline2_experiment/split_0/episodes/{frame_id}/
+        <output_dir>/episodes/{frame_id}/
             - parse.json
             - history_tree.json
             - original_input.png
@@ -62,15 +70,6 @@ from tqdm import tqdm
 # =============================================================================
 # Configuration
 # =============================================================================
-
-FIGMA_DATA_BASE = "figma_data/process/subset"
-BASELINE2_EXPERIMENT_BASE = "baseline_muilti_tools_experiment"
-
-# All dataset splits: (prefix, num_splits) — dino80 (435) + dino90 (474) = 909 frames
-ALL_DATASET_SPLITS = [
-    ("dino80_obj_5_60_char_25_split_", 4),   # splits 0-3
-    ("dino90_obj_5_25_char_50_split_", 5),   # splits 0-4
-]
 
 MAX_OBJ_ITERATIONS = 4
 ALPHA_THRESHOLD = 16
@@ -130,32 +129,6 @@ def setup_logging(log_file: Path, name: str = "baseline2") -> logging.Logger:
 # Path Resolution
 # =============================================================================
 
-def get_src_root() -> Path:
-    current = Path(__file__).resolve().parent
-    if current.name == "src":
-        return current
-    elif (current / "src").exists():
-        return current / "src"
-    else:
-        return current
-
-
-def get_all_split_paths(src_root: Path) -> Dict[str, Any]:
-    all_valid_frames_dirs = []
-    all_split_dirs = []
-    for prefix, num_splits in ALL_DATASET_SPLITS:
-        for i in range(num_splits):
-            split_name = f"{prefix}{i}"
-            split_dir = src_root / FIGMA_DATA_BASE / split_name
-            all_split_dirs.append(split_dir)
-            all_valid_frames_dirs.append(split_dir / "valid_frames")
-    return {
-        "split_dirs": all_split_dirs,
-        "valid_frames_dirs": all_valid_frames_dirs,
-        "output_dir": src_root / BASELINE2_EXPERIMENT_BASE / "all_splits",
-    }
-
-
 # =============================================================================
 # Frame Data Loading
 # =============================================================================
@@ -167,25 +140,31 @@ class FrameInfo:
     image_path: Path
 
 
-def load_frame_list(paths: Dict[str, Any]) -> List[FrameInfo]:
+def load_frame_list(data_dir: Path) -> List[FrameInfo]:
+    """Load every valid_frames/*.json under data_dir (split-agnostic).
+
+    The GT reconstruction (input image) resolves to
+    ``data_dir / <unit_images_dir> / <reconstructed_image_path>`` from each JSON.
+    """
     frames = []
-    for split_dir, vf_dir in zip(paths["split_dirs"], paths["valid_frames_dirs"]):
-        if not vf_dir.exists():
+    vf_dir = data_dir / "valid_frames"
+    if not vf_dir.exists():
+        print(f"[Warning] Not found: {vf_dir}")
+        return frames
+    json_files = sorted(vf_dir.glob("*.json"))
+    for json_path in json_files:
+        frame_id = json_path.stem
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                json_data = json.load(f)
+            rel_path = json_data.get("reconstructed_image_path")
+            unit_images_dir = json_data.get("unit_images_dir")
+            if rel_path and unit_images_dir:
+                image_path = data_dir / unit_images_dir / rel_path
+                if image_path.exists():
+                    frames.append(FrameInfo(frame_id=frame_id, json_path=json_path, image_path=image_path))
+        except Exception:
             continue
-        json_files = sorted(vf_dir.glob("*.json"))
-        for json_path in json_files:
-            frame_id = json_path.stem
-            try:
-                with open(json_path, 'r', encoding='utf-8') as f:
-                    json_data = json.load(f)
-                rel_path = json_data.get("reconstructed_image_path")
-                unit_images_dir = json_data.get("unit_images_dir")
-                if rel_path and unit_images_dir:
-                    image_path = split_dir / unit_images_dir / rel_path
-                    if image_path.exists():
-                        frames.append(FrameInfo(frame_id=frame_id, json_path=json_path, image_path=image_path))
-            except Exception:
-                continue
     return frames
 
 
@@ -929,21 +908,18 @@ def _frame_worker_fn(
 # =============================================================================
 
 def run_baseline2(
+    data_dir: Path,
+    output_dir: Path,
     gpu_ids: List[int],
     dry_run: bool = False,
     limit: Optional[int] = None,
     skip_completed: bool = True,
     retry_failed: bool = False,
-    src_root: Optional[Path] = None,
     workers_per_gpu: int = 1,
 ) -> Dict[str, Any]:
-    if src_root is None:
-        src_root = get_src_root()
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    paths = get_all_split_paths(src_root)
-    paths["output_dir"].mkdir(parents=True, exist_ok=True)
-
-    log_file = paths["output_dir"] / "baseline2_run.log"
+    log_file = output_dir / "baseline2_run.log"
     logger = setup_logging(log_file)
 
     logger.info("=" * 70)
@@ -951,16 +927,17 @@ def run_baseline2(
     logger.info("=" * 70)
 
     num_slots = len(gpu_ids) * workers_per_gpu
+    logger.info(f"data_dir: {data_dir}")
     logger.info(f"GPUs: {gpu_ids} | workers_per_gpu: {workers_per_gpu} | total slots: {num_slots}")
-    logger.info(f"Output: {paths['output_dir']}")
+    logger.info(f"Output: {output_dir}")
 
-    frames = load_frame_list(paths)
+    frames = load_frame_list(data_dir)
     logger.info(f"Found {len(frames)} total frames")
 
     # If retry_failed, clean up _FAILED markers and incomplete episode dirs
     retried = 0
     if retry_failed:
-        episodes_dir = paths["output_dir"] / "episodes"
+        episodes_dir = output_dir / "episodes"
         if episodes_dir.exists():
             for fail_marker in episodes_dir.glob("*/_FAILED"):
                 frame_dir = fail_marker.parent
@@ -973,10 +950,10 @@ def run_baseline2(
     skipped = 0
     skipped_failed = 0
     for frame in frames:
-        if skip_completed and is_frame_completed(paths["output_dir"], frame.frame_id):
+        if skip_completed and is_frame_completed(output_dir, frame.frame_id):
             skipped += 1
             continue
-        if is_frame_failed(paths["output_dir"], frame.frame_id):
+        if is_frame_failed(output_dir, frame.frame_id):
             skipped_failed += 1
             continue
         frames_to_process.append(frame)
@@ -1023,7 +1000,7 @@ def run_baseline2(
                 p = mp.Process(
                     target=_frame_worker_fn,
                     args=(gpu_id, frame.frame_id, str(frame.image_path),
-                          paths["output_dir"], result_queue),
+                          output_dir, result_queue),
                 )
                 p.start()
                 active[slot_key] = (p, frame.frame_id, time.time())
@@ -1062,7 +1039,7 @@ def run_baseline2(
                     completed += 1
                     results["failed"] += 1
                     exit_code = proc.exitcode
-                    mark_frame_failed(paths["output_dir"], fid,
+                    mark_frame_failed(output_dir, fid,
                                       f"Process crashed (exit code {exit_code})")
                     logger.error(f"  Process crashed for {fid} (exit code {exit_code})")
                     pbar.update(1)
@@ -1077,7 +1054,7 @@ def run_baseline2(
                     received_frames.add(fid)
                     completed += 1
                     results["failed"] += 1
-                    mark_frame_failed(paths["output_dir"], fid, f"Killed after {elapsed:.0f}s timeout")
+                    mark_frame_failed(output_dir, fid, f"Killed after {elapsed:.0f}s timeout")
                     pbar.update(1)
                     pbar.set_postfix_str(f"ok={results['success']} fail={results['failed']}", refresh=True)
 
@@ -1100,26 +1077,29 @@ def run_baseline2(
 
 def main():
     parser = argparse.ArgumentParser(description="Baseline 2: OCR + HiSAM + VLM + GDINO + SAM2 + LaMa")
+    parser.add_argument("--data_dir", "-i", type=str, required=True,
+                        help="Path to the Figma dataset directory (containing valid_frames/, unit_images/)")
+    parser.add_argument("--output_dir", "-o", type=str, required=True,
+                        help="Path to the output directory (an episodes/ subfolder is created here)")
     parser.add_argument("--gpu", type=str, default="0",
-                        help="Comma-separated GPU ids to use (user-specific, e.g. '0,1,2,3')")
+                        help="comma-separated GPU ids (set to your own; e.g. 0 or 0,1)")
     parser.add_argument("--workers_per_gpu", type=int, default=1, help="Number of workers per GPU (default: 1)")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--dry_run", action="store_true")
     parser.add_argument("--no_skip", action="store_true")
     parser.add_argument("--retry_failed", action="store_true", help="Clean up and retry previously failed (CUDA OOM etc.) episodes")
-    parser.add_argument("--src_root", type=str, default=None)
     args = parser.parse_args()
 
     gpu_ids = [int(x.strip()) for x in args.gpu.split(",")]
-    src_root = Path(args.src_root) if args.src_root else None
 
     run_baseline2(
+        data_dir=Path(args.data_dir),
+        output_dir=Path(args.output_dir),
         gpu_ids=gpu_ids,
         dry_run=args.dry_run,
         limit=args.limit,
         skip_completed=not args.no_skip,
         retry_failed=args.retry_failed,
-        src_root=src_root,
         workers_per_gpu=args.workers_per_gpu,
     )
 
