@@ -650,6 +650,66 @@ def _load_metrics_from_output_dir(
 
 
 # ---------------------------------------------------------------------------
+# Readable comparison table (agent vs baselines)
+# ---------------------------------------------------------------------------
+
+def _write_accuracy_comparison(all_summaries, all_results, output_dir):
+    """Print and save a readable agent-vs-baselines accuracy comparison.
+
+    Saves comparison_accuracy.md (Markdown table) and comparison_accuracy.csv
+    next to the unified summary. 'agent' is listed first, baselines after.
+    """
+    cols = [
+        ("episodes", lambda s, n: n),
+        ("elem_L1",  lambda s, n: s.get("element_metrics", {}).get("simple_avg", {}).get("l1")),
+        ("elem_IoU", lambda s, n: s.get("element_metrics", {}).get("simple_avg", {}).get("iou")),
+        ("PQ",       lambda s, n: s.get("panoptic_quality", {}).get("pq")),
+        ("SQ",       lambda s, n: s.get("panoptic_quality", {}).get("sq")),
+        ("RQ",       lambda s, n: s.get("panoptic_quality", {}).get("rq")),
+        ("comp_L1",  lambda s, n: (s.get("composite_metrics") or {}).get("l1")),
+        ("PSNR",     lambda s, n: (s.get("composite_metrics") or {}).get("psnr")),
+        ("SSIM",     lambda s, n: (s.get("composite_metrics") or {}).get("ssim")),
+        ("LPIPS",    lambda s, n: (s.get("composite_metrics") or {}).get("lpips")),
+        ("DINO",     lambda s, n: (s.get("composite_metrics") or {}).get("dino")),
+    ]
+    order = [m for m in (["agent"] + sorted(k for k in all_summaries if k != "agent"))
+             if m in all_summaries]
+    if not order:
+        return
+
+    def fmt(v):
+        return f"{v:.4f}" if isinstance(v, (int, float)) else "-"
+
+    headers = ["model"] + [c[0] for c in cols]
+    rows = []
+    for m in order:
+        s = all_summaries[m]
+        n = len(all_results.get(m, []))
+        rows.append([m] + [fmt(fn(s, n)) for _, fn in cols])
+
+    # Markdown
+    md = ["# Accuracy comparison (agent vs baselines)\n",
+          "| " + " | ".join(headers) + " |",
+          "|" + "|".join(["---"] * len(headers)) + "|"]
+    md += ["| " + " | ".join(r) + " |" for r in rows]
+    md_text = "\n".join(md) + "\n"
+    (output_dir / "comparison_accuracy.md").write_text(md_text)
+
+    # CSV
+    import csv as _csv
+    with open(output_dir / "comparison_accuracy.csv", "w", newline="") as f:
+        w = _csv.writer(f)
+        w.writerow(headers)
+        w.writerows(rows)
+
+    print("\n" + "=" * 80)
+    print("ACCURACY COMPARISON (agent vs baselines)")
+    print("=" * 80)
+    print(md_text)
+    print(f"Saved comparison_accuracy.md / .csv to {output_dir}")
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -938,6 +998,10 @@ def main():
         json.dump(unified, f, indent=2, default=_json_safe_default)
 
     print(f"\nSaved unified summary to {summary_path}")
+
+    # Readable agent-vs-baselines comparison table (printed + saved as .md and .csv)
+    _write_accuracy_comparison(all_summaries, all_results, output_dir)
+
     print(f"Total time: {elapsed_time:.2f}s ({elapsed_time/60:.1f}min)")
 
 

@@ -112,6 +112,26 @@ SUBTASK_NAMES = ["delete", "opacity", "recolor", "rotation", "transition", "z_or
 SEED = 42
 
 
+def _summary_means(summary: Dict[str, Any], keys=("l1", "ssim", "lpips", "dino")) -> Dict[str, Optional[float]]:
+    """Extract count-weighted mean metrics from a subtask summary.
+
+    Metrics live under summary["by_task_type"][<task>]["mean"]; this averages
+    them across task-type variants (weighted by per-type count).
+    """
+    btt = (summary or {}).get("by_task_type", {}) or {}
+    acc = {k: 0.0 for k in keys}
+    wsum = {k: 0 for k in keys}
+    for info in btt.values():
+        c = info.get("count", 0) or 0
+        mean = info.get("mean", {}) or {}
+        for k in keys:
+            v = mean.get(k)
+            if isinstance(v, (int, float)) and c:
+                acc[k] += float(v) * c
+                wsum[k] += c
+    return {k: (acc[k] / wsum[k] if wsum[k] else None) for k in keys}
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Aggressive Parameter Grids
 # ═══════════════════════════════════════════════════════════════════════════
@@ -217,6 +237,35 @@ def _get_aggressive_subtask_configs() -> List[Dict[str, Any]]:
 # Model Setup
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _ensure_matches(model_name: str, model_dir: Path) -> bool:
+    """Ensure GT<->prediction matches exist for a model under MATCH_ROOT.
+
+    The editability metric needs precomputed matches. Rather than requiring a
+    separate manual step, we generate them on demand here by invoking
+    before_eval_editability_precompute_matches.py for this model. Returns True
+    if a non-empty match directory is available afterwards.
+    """
+    import subprocess
+    match_dir = MATCH_ROOT / model_name / "episodes"
+    if match_dir.exists() and any(match_dir.glob("*.json")):
+        return True
+    print(f"  [matches] none found for '{model_name}' — precomputing into {MATCH_ROOT} ...", flush=True)
+    cmd = [
+        sys.executable, "-m", "evaluation.before_eval_editability_precompute_matches",
+        "--figma-data", str(FIGMA_DATA_DIR),
+        "--model", model_name,
+        "--model-dir", str(model_dir),
+        "--output", str(MATCH_ROOT),
+        "--num-workers", "1",
+    ]
+    try:
+        subprocess.run(cmd, cwd=str(BASE_DIR), check=True)
+    except Exception as e:
+        print(f"  [matches] precompute failed for '{model_name}': {e}", flush=True)
+        return False
+    return match_dir.exists() and any(match_dir.glob("*.json"))
+
+
 def setup_model(
     model_name: str,
     gt_map: Dict[str, Any],
@@ -229,22 +278,29 @@ def setup_model(
 
     # Scan model episodes
     if model_name == "agent":
+        model_dir = AGENT_DIR
         model_map = scan_model_episodes_multi("agent", [AGENT_DIR])
     else:
         # qwen and every other baseline follow the same outputs/baseline_<model> layout
-        base_dir = MODEL_DIRS.get(model_name)
-        if base_dir is None or not base_dir.exists():
-            print(f"  [WARNING] No directory for {model_name}, skipping")
+        model_dir = MODEL_DIRS.get(model_name)
+        if model_dir is None or not model_dir.exists():
+            print(f"  [skip] no inference output dir for '{model_name}' ({model_dir}); "
+                  f"run its baseline first.", flush=True)
             return None
-        model_map = scan_model_episodes(model_name, base_dir)
+        model_map = scan_model_episodes(model_name, model_dir)
 
     common = get_common_episodes(gt_map, model_map)
     filtered = {eid: info for eid, info in common.items() if eid in selected_episodes}
 
-    # Check matches exist
+    if not model_map:
+        print(f"  [skip] no inference outputs found for '{model_name}' under {model_dir}.", flush=True)
+        return None
+
+    # Ensure matches exist (auto-precompute on demand); skip cleanly if unavailable
     match_dir = MATCH_ROOT / model_name / "episodes"
-    if not match_dir.exists():
-        print(f"  [ERROR] No match dir: {match_dir}")
+    if not _ensure_matches(model_name, model_dir):
+        print(f"  [skip] '{model_name}': could not obtain GT<->pred matches "
+              f"(no usable inference outputs?).", flush=True)
         return None
     match_count = len(list(match_dir.glob("*.json")))
 
@@ -496,11 +552,11 @@ def main():
 
                 # Print summary
                 summary = result.get("summary", {})
-                key_metrics = ["l1", "ssim", "lpips", "dino"]
+                _means = _summary_means(summary)
                 metric_str = " ".join(
-                    f"{k}={summary.get(k, 'N/A'):.4f}" if isinstance(summary.get(k), (int, float))
+                    f"{k}={_means[k]:.4f}" if isinstance(_means[k], (int, float))
                     else f"{k}=N/A"
-                    for k in key_metrics
+                    for k in ["l1", "ssim", "lpips", "dino"]
                 )
                 print(f"<<< {model_name} × {subtask_label}: {n_results} results "
                       f"in {elapsed:.1f}s | {metric_str}", flush=True)
@@ -591,11 +647,11 @@ def main():
                     agent_results_for_ref = result.get("results", [])
 
                 summary = result.get("summary", {})
-                key_metrics = ["l1", "ssim", "lpips", "dino"]
+                _means = _summary_means(summary)
                 metric_str = " ".join(
-                    f"{k}={summary.get(k, 'N/A'):.4f}" if isinstance(summary.get(k), (int, float))
+                    f"{k}={_means[k]:.4f}" if isinstance(_means[k], (int, float))
                     else f"{k}=N/A"
-                    for k in key_metrics
+                    for k in ["l1", "ssim", "lpips", "dino"]
                 )
                 print(f"<<< {model_name} × {subtask_label}: {n_results} results "
                       f"in {elapsed:.1f}s | {metric_str}", flush=True)
@@ -622,9 +678,10 @@ def main():
                 with open(summary_path) as f:
                     s = json.load(f).get("summary", {})
                 count = s.get("total", "?")
+                means = _summary_means(s)
                 row = f"  {model_name:<15} | {count:>6}"
                 for mk in ["l1", "ssim", "lpips", "dino"]:
-                    v = s.get(mk)
+                    v = means.get(mk)
                     row += f" | {float(v):>8.4f}" if v is not None else f" | {'N/A':>8}"
                 print(row, flush=True)
 
