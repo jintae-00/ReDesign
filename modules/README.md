@@ -9,8 +9,8 @@ cache). Each module retains its upstream license.
 |---|---|---|---|---|
 | `grounding_dino` | `detect_gdino` | Open-vocabulary object detection | `groundingdino_swinb_cogcoor.pth` | [IDEA-Research/GroundingDINO](https://github.com/IDEA-Research/GroundingDINO) (Apache-2.0) |
 | `sam2` | `seg_sam2_bbox` | Promptable segmentation (SAM 2.1) | `sam2.1_hiera_large.pt` + `pip install sam2` | [facebookresearch/sam2](https://github.com/facebookresearch/sam2) (Apache-2.0) |
-| `hisam` | `seg_hisam` | Hierarchical text segmentation | `sam_tss_h_textseg.pth` | [ymy-k/Hi-SAM](https://github.com/ymy-k/Hi-SAM) (Apache-2.0) |
-| `textremover` | `inpaint_lama` | LaMa text/object removal (inpaint) | `big-lama.pt` | [advimman/lama](https://github.com/advimman/lama) (Apache-2.0) |
+| `hisam` | `seg_hisam` | Text-stroke segmentation | `sam_tss_h_textseg.pth` (Hi-SAM head, **manual** from OneDrive) + `sam_vit_h_4b8939.pth` (SAM backbone, auto) | [ymy-k/Hi-SAM](https://github.com/ymy-k/Hi-SAM) (Apache-2.0) |
+| `textremover` | `inpaint_lama` | LaMa text/object removal (inpaint) | `big-lama.pt` (TorchScript, auto via IOPaint mirror) | [advimman/lama](https://github.com/advimman/lama) (Apache-2.0) |
 | `ObjectClear` | `inpaint_oc` | Object-aware inpainting | `jixin0101/ObjectClear` (HF) | [ObjectClear](https://huggingface.co/jixin0101/ObjectClear) |
 | `ocr` | `detect_ocr` | Text detection/recognition | PaddleOCR PP-OCRv5 (auto) | [PaddlePaddle/PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) (Apache-2.0) |
 | `layerd` | layered decomposition | Front-layer decomposition | — | LayerDecomposition |

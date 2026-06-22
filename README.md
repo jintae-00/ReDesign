@@ -63,8 +63,14 @@ python scripts/download_checkpoints.py            # tool + eval checkpoints -> w
 python scripts/download_checkpoints.py --with-qwen  # also prefetch Qwen-Image-Layered (large)
 ```
 
-Downloads GroundingDINO, SAM 2.1, Hi-SAM, LaMa, ObjectClear (and DINO for eval).
-`Qwen/Qwen-Image-Layered` is fetched on first run unless `--with-qwen` is used.
+Auto-downloads (public sources) GroundingDINO, SAM 2.1, the SAM ViT-H backbone,
+LaMa, ObjectClear, and DINO (eval). `Qwen/Qwen-Image-Layered` is fetched on first
+run unless `--with-qwen` is used.
+
+> **One manual checkpoint:** Hi-SAM's text-segmentation head
+> (`sam_tss_h_textseg.pth`) is distributed only via the authors' OneDrive. The
+> script prints the link and target path (`weights/sam_tss_h_textseg.pth`) —
+> download it once manually. (We do not redistribute third-party checkpoints.)
 
 ## 4. Datasets
 
