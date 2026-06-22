@@ -40,12 +40,12 @@ Parquet shards with the bundled script:
 ```bash
 # Render every test record (composite.png + elements/ + gt_metadata.json)
 python scripts/prepare_crello_records.py \
-    --parquet-glob "crello_data/test-*.parquet" \
+    --parquet-glob "crello_data/data/test-*.parquet" \
     --output-dir crello_data/records
 
 # Or a quick smoke test (first 3 records)
 python scripts/prepare_crello_records.py \
-    --parquet-glob "crello_data/test-*.parquet" \
+    --parquet-glob "crello_data/data/test-*.parquet" \
     --output-dir crello_data/records --limit 3
 ```
 

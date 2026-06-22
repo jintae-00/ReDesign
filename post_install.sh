@@ -15,16 +15,30 @@ set -u
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$REPO_ROOT"
 
-echo "=== [1/5] PyTorch nightly (cu129) ==="
-pip install --pre torch torchaudio torchvision --index-url https://download.pytorch.org/whl/nightly/cu129
+# ----------------------------------------------------------------------------
+# CUDA / driver note: the wheels below are built for CUDA 12.8 (cu128), which
+# runs on any NVIDIA driver providing CUDA >= 12.8 (e.g. driver 570+/CUDA 12.9).
+# NVIDIA drivers are backward compatible, so cu128 wheels work on 12.8/12.9/13.x
+# drivers. If your driver is OLDER than 12.8, install the matching index instead
+# (e.g. .../whl/cu126 or .../whl/cu124) for both PyTorch and PaddlePaddle.
+# ----------------------------------------------------------------------------
 
-echo "=== [2/5] PaddlePaddle GPU 3.1.0 (cu129) ==="
-pip install paddlepaddle-gpu==3.1.0 -i https://www.paddlepaddle.org.cn/packages/stable/cu129/
+echo "=== [1/6] PaddlePaddle GPU 3.1.0 (cu126; runs on CUDA>=12.6 drivers) ==="
+pip install paddlepaddle-gpu==3.1.0 -i https://www.paddlepaddle.org.cn/packages/stable/cu126/
 
-echo "=== [3/5] SAM 2 (segment-anything-2) ==="
+echo "=== [2/6] PyTorch (stable, cu128) ==="
+# Pinned to a stable cu128 build for reproducibility and driver compatibility.
+# Installed AFTER PaddlePaddle so PyTorch's CUDA libraries (incl. NCCL) win.
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+
+echo "=== [3/6] diffusers (from git: provides QwenImageLayeredPipeline) ==="
+# QwenImageLayeredPipeline is not in the pinned PyPI diffusers; install from git.
+pip install -U "git+https://github.com/huggingface/diffusers.git"
+
+echo "=== [4/6] SAM 2 (segment-anything-2) ==="
 pip install "git+https://github.com/facebookresearch/sam2.git"
 
-echo "=== [4/5] Build GroundingDINO CUDA extension (bundled in modules/) ==="
+echo "=== [5/6] Build GroundingDINO CUDA extension (bundled in modules/) ==="
 # Needs a CUDA toolkit (nvcc) matching the torch build. Non-fatal: the tool can
 # still run on the pure-Python fallback, just slower.
 if [ -f "modules/grounding_dino/setup.py" ]; then
@@ -34,7 +48,7 @@ else
     echo "[WARN] modules/grounding_dino/setup.py not found; skipping."
 fi
 
-echo "=== [5/5] Verification ==="
+echo "=== [6/6] Verification ==="
 python - <<'PY'
 import importlib, sys
 ok = True

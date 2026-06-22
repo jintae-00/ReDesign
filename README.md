@@ -58,7 +58,7 @@ cd ReDesign
 
 conda env create -f environment.yml
 conda activate agent_qwen_layerd
-bash post_install.sh          # torch nightly (cu129), paddlepaddle, sam2, GroundingDINO ext
+bash post_install.sh          # PyTorch cu128, PaddlePaddle, diffusers(git), sam2, GroundingDINO ext
 ```
 
 `post_install.sh` ends with an import check (torch, paddle, sam2, diffusers
@@ -104,13 +104,17 @@ python scripts/download_figma_dataset.py          # -> ./figma_data  (909 episod
 # Figma (all 909 episodes)
 python -m REDESIGN.run_agent_figma \
     --data_dir figma_data --output_dir outputs/figma_agent \
-    --qwen_gpus 2,3,4,5 --qwen_pair_size 2 --tool_gpus 6,7
+    --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --tool_gpus <TOOL_GPU_IDS>
 
 # Crello
 python -m REDESIGN.run_agent_crello \
     --data_dir crello_data/records --output_dir outputs/crello_agent \
-    --qwen_gpus 2,3,4,5 --qwen_pair_size 2 --tool_gpus 6,7
+    --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --tool_gpus <TOOL_GPU_IDS>
 ```
+
+Replace `<QWEN_GPU_IDS>` / `<TOOL_GPU_IDS>` with your own comma-separated GPU ids
+(the Qwen layered model and the vision tools run on separate GPUs), e.g.
+`--qwen_gpus 0,1 --tool_gpus 2`. On a single GPU, pass the same id to both.
 
 Outputs are written under `--output_dir/episodes/<id>/` (`parse.json`,
 `history_tree.json`, reconstructions, logs). **The input datasets are never

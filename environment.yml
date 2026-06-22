@@ -13,7 +13,7 @@ dependencies:
       # 핵심 ML/AI 프레임워크 (버전 고정)
       # ============================================================
       - accelerate==1.12.0
-      - diffusers==0.36.0
+      # diffusers is installed from git in post_install.sh (provides QwenImageLayeredPipeline)
       - transformers==4.57.3
       - tokenizers==0.22.1
       - safetensors==0.7.0
