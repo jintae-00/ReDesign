@@ -32,7 +32,7 @@ def render_scene_rgba(elements: List[Dict[str, Any]], canvas_size: Tuple[int, in
     reconstructions (text-only overwrite in composite_elements_transparent).
     Keeping that parity avoids reconstruction mismatches between pipelines.
     """
-    from evaluation_figma import composite_elements_transparent
+    from evaluation.figma_metrics import composite_elements_transparent
 
     sources = {str(e.get("source", "")).lower() for e in elements if isinstance(e, dict)}
     is_agent_scene = ("agent" in sources) and not ("qwen" in sources or "gt" in sources)

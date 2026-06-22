@@ -50,7 +50,7 @@ def _bbox_overlap_over_gt_ratio(gt_bbox: Sequence[int], pred_bbox: Sequence[int]
 
 
 def _pred_union_rgba_and_mask(preds: List[Dict[str, Any]], canvas_size: Tuple[int, int]) -> Tuple[np.ndarray, np.ndarray]:
-    from evaluation_figma import composite_elements_transparent
+    from evaluation.figma_metrics import composite_elements_transparent
 
     if not preds:
         h, w = canvas_size[1], canvas_size[0]

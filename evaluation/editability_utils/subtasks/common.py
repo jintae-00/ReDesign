@@ -125,7 +125,7 @@ def _load_evalfigma_postprocess_fns() -> Tuple[Optional[Callable[..., Any]], Opt
         clean_fn: Optional[Callable[..., Any]] = None
         text_refine_fn: Optional[Callable[..., Any]] = None
         try:
-            mod = importlib.import_module("evaluation_figma")
+            mod = importlib.import_module("evaluation.figma_metrics")
             c = getattr(mod, "clean_alpha_noise", None)
             if callable(c):
                 clean_fn = c

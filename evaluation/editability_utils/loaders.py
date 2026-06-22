@@ -33,7 +33,7 @@ def _resolve_eval_extractors() -> Tuple[Any, Any, Any]:
         return _EVAL_EXTRACTORS
 
     try:
-        mod = importlib.import_module("evaluation_figma")
+        mod = importlib.import_module("evaluation.figma_metrics")
     except Exception as e:
         raise ImportError(
             "Failed to import evaluation_figma. "
