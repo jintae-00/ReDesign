@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """
-run_single_image.py - 단일 이미지에 대해 Agent Parsing (episode_run.py) 실행
+run_single_image.py - Run agent parsing (episode_run.py) on a single image.
 
 Usage:
-    # src 폴더에서 실행 시:
+    # Run from inside the "src" folder:
     python -m REDESIGN.run_single_image
 
-    # GPU 설정 예시:
-    python -m REDESIGN.run_single_image --qwen_gpus 3,4,5,7 --tool_gpus 6,7
+    # Example with GPU configuration:
+    python -m REDESIGN.run_single_image --qwen_gpus <QWEN_GPU_IDS> --tool_gpus <TOOL_GPU_IDS>
+
+    # Replace <QWEN_GPU_IDS> and <TOOL_GPU_IDS> with your own comma-separated
+    # GPU ids (e.g. "0,1").
 """
 from __future__ import annotations
 import argparse
@@ -21,13 +24,13 @@ from typing import List, Optional
 # User Configuration (Hardcoded)
 # =============================================================================
 
-# 처리할 이미지 파일명 (src 폴더 기준 상대 경로)
+# Image filename to process (path relative to the "src" folder)
 TARGET_IMAGE_FILENAME = "Figma_01.png"
 
-# 결과가 저장될 기본 디렉토리 (src 기준 상대 경로)
+# Base directory where results are saved (relative to "src")
 OUTPUT_BASE_DIR = "figma_experiment/single_test"
 
-# 실행 설정
+# Run settings
 DEFAULT_WORKERS = 6
 DEFAULT_LLM_LIMIT = 100
 DEFAULT_MAX_DEPTH = 5
@@ -40,34 +43,34 @@ DEFAULT_MAX_LAYERS = 100
 
 def get_src_root() -> Path:
     """
-    src 디렉토리 루트를 찾습니다.
-    현재 작업 디렉토리(CWD)가 src인 경우 그대로 반환하고,
-    아니면 부모 디렉토리를 탐색합니다.
+    Locate the "src" directory root.
+    If the current working directory (CWD) is "src", return it as is;
+    otherwise look for a "src" subdirectory.
     """
     current = Path.cwd()
-    
-    # 1. 현재 경로가 src인 경우 (가장 일반적)
+
+    # 1. The current path is "src" (the most common case)
     if current.name == "src":
         return current
-    
-    # 2. 현재 경로 하위에 src가 있는 경우
+
+    # 2. The current path contains a "src" subdirectory
     if (current / "src").exists():
         return current / "src"
-        
-    # 3. 상위 경로 탐색 (REDESIGN 내부에서 실행되는 경우 등 대비)
-    # 다만 python -m 으로 실행 시 CWD는 보통 실행 위치입니다.
+
+    # 3. Fall back to the current path (e.g. when run from inside REDESIGN).
+    # Note: with "python -m", the CWD is usually the launch location.
     return current
 
 def resolve_paths():
     src_root = get_src_root()
-    
-    # 이미지 경로 찾기 (src/Figma_01.png)
+
+    # Resolve the image path (src/Figma_01.png)
     image_path = src_root / TARGET_IMAGE_FILENAME
-    
-    # 에피소드 ID (파일명 사용)
+
+    # Episode ID (derived from the filename)
     episode_id = image_path.stem
-        
-    # 출력 경로 설정 (src/figma_experiment/single_test)
+
+    # Output path (src/figma_experiment/single_test)
     output_dir = src_root / OUTPUT_BASE_DIR
     
     return src_root, image_path, output_dir, episode_id
@@ -83,10 +86,10 @@ def setup_gpu_config(
     tool_gpus: Optional[List[int]] = None,
     objectclear_gpu: Optional[int] = None,
 ) -> None:
-    """런타임 GPU 설정을 적용합니다."""
+    """Apply the runtime GPU configuration."""
     try:
         from REDESIGN.tool_gpu_config import set_runtime_config, print_config
-        
+
         if qwen_gpus or qwen_pair_size or tool_gpus or objectclear_gpu:
             set_runtime_config(
                 qwen_gpus=qwen_gpus,
@@ -94,10 +97,10 @@ def setup_gpu_config(
                 tool_gpus=tool_gpus,
                 objectclear_gpu=objectclear_gpu,
             )
-        # 로그가 중복될 수 있으므로 필요시 주석 처리
-        # print_config() 
+        # Commented out to avoid duplicate logging; enable if needed.
+        # print_config()
     except ImportError:
-        pass # REDESIGN 패키지 내부가 아닌 경우 무시
+        pass  # Ignore when not running inside the REDESIGN package
 
 def parse_gpu_list(gpu_str: Optional[str]) -> Optional[List[int]]:
     if not gpu_str: return None
@@ -135,7 +138,7 @@ def run_single_episode(
         "--max_layers", str(DEFAULT_MAX_LAYERS),
     ]
 
-    # 환경변수 설정
+    # Set up environment variables
     env = os.environ.copy()
     if qwen_gpus:
         env["URLD_QWEN_GPUS"] = qwen_gpus
@@ -144,7 +147,7 @@ def run_single_episode(
     if tool_gpus:
         env["URLD_TOOL_GPUS"] = tool_gpus
 
-    # 중요: PYTHONPATH에 src_root 추가 (서브프로세스가 모듈을 찾을 수 있도록)
+    # Important: prepend src_root to PYTHONPATH so the subprocess can import the modules
     env["PYTHONPATH"] = str(src_root) + os.pathsep + env.get("PYTHONPATH", "")
 
     print(f"\n{'='*60}")
@@ -155,7 +158,7 @@ def run_single_episode(
     print(f"{'='*60}\n")
 
     try:
-        # cwd를 src_root(src 폴더)로 설정해야 REDESIGN 모듈을 찾을 수 있습니다.
+        # The cwd must be src_root (the "src" folder) so the REDESIGN module can be found.
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -188,15 +191,29 @@ def run_single_episode(
 # =============================================================================
 
 def main():
-    parser = argparse.ArgumentParser(description="Run Agent Parsing for Single Image")
-    parser.add_argument("--qwen_gpus", type=str, default=None)
-    parser.add_argument("--qwen_pair_size", type=int, default=None)
-    parser.add_argument("--tool_gpus", type=str, default=None)
-    parser.add_argument("--workers", type=int, default=DEFAULT_WORKERS)
-    
+    parser = argparse.ArgumentParser(description="Run agent parsing on a single image")
+    parser.add_argument(
+        "--qwen_gpus", type=str, default=None,
+        help="Comma-separated, user-specific GPU ids to run the Qwen model on "
+             "(e.g. \"0,1\"). Defaults to the configured value when omitted.",
+    )
+    parser.add_argument(
+        "--qwen_pair_size", type=int, default=None,
+        help="Number of GPUs to group together per Qwen worker.",
+    )
+    parser.add_argument(
+        "--tool_gpus", type=str, default=None,
+        help="Comma-separated, user-specific GPU ids for the auxiliary tools "
+             "(e.g. \"0,1\"). Defaults to the configured value when omitted.",
+    )
+    parser.add_argument(
+        "--workers", type=int, default=DEFAULT_WORKERS,
+        help="Number of parallel worker processes.",
+    )
+
     args = parser.parse_args()
 
-    # 1. 경로 확인
+    # 1. Resolve paths
     src_root, image_path, output_dir, episode_id = resolve_paths()
 
     if not image_path.exists():
@@ -204,14 +221,14 @@ def main():
         print(f"Please place 'Figma_01.png' in the 'src' folder.")
         sys.exit(1)
 
-    # 2. GPU Config 설정
+    # 2. Apply GPU configuration
     setup_gpu_config(
         qwen_gpus=parse_gpu_list(args.qwen_gpus),
         qwen_pair_size=args.qwen_pair_size,
         tool_gpus=parse_gpu_list(args.tool_gpus)
     )
 
-    # 3. 실행
+    # 3. Run
     run_single_episode(
         image_path=image_path,
         output_dir=output_dir,

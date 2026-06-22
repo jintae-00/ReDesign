@@ -9,15 +9,22 @@ Uses the same subset_keys as the original run (153816) for consistency.
 Saves per-episode per-model metrics for later visualization.
 
 Usage:
-    # GPU 2: first 3 subtasks
-    CUDA_VISIBLE_DEVICES=2 conda run --no-capture-output -n agent_qwen_layerd \
+    # Replace <GPU_ID> with one of your own GPU ids (e.g. 0).
+    # First 3 subtasks on one GPU
+    CUDA_VISIBLE_DEVICES=<GPU_ID> conda run --no-capture-output -n agent_qwen_layerd \
         python -u scripts/eval_editability_aggressive.py \
         --subtasks delete opacity recolor --num-workers 16
 
-    # GPU 6: last 3 subtasks
-    CUDA_VISIBLE_DEVICES=6 conda run --no-capture-output -n agent_qwen_layerd \
+    # Last 3 subtasks on another GPU
+    CUDA_VISIBLE_DEVICES=<GPU_ID> conda run --no-capture-output -n agent_qwen_layerd \
         python -u scripts/eval_editability_aggressive.py \
         --subtasks rotation transition z_order --num-workers 16
+
+Input directories are configured via the REDESIGN_* environment variables documented
+in the Configuration section below; point REDESIGN_FIGMA_DATA at the downloaded
+``figma_data`` dataset and the agent/qwen/baseline output dirs at the inference
+runner outputs (e.g. ``python -m REDESIGN.run_agent_figma --data_dir figma_data \
+--output_dir <AGENT_OUTPUT_DIR>``).
 """
 
 from __future__ import annotations
@@ -379,7 +386,7 @@ def main():
           flush=True)
 
     # Save subset to output
-    from editability_eval.common_utils import save_json
+    from evaluation.editability_utils.common_utils import save_json
     save_json(OUTPUT_DIR / "atomic_selected_subset.json", original_subset)
 
     # 2. Collect GT episodes

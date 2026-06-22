@@ -170,8 +170,8 @@ def node(state: GraphState) -> Dict[str, Any]:
         base_url="https://gateway.letsur.ai/v1",
         temperature=0,
         model_kwargs={"top_p": 1},
-        max_retries=3,       # 재시도 3회
-        request_timeout=90,  # 타임아웃 90초
+        max_retries=3,       # Retry up to 3 times
+        request_timeout=90,  # Request timeout: 90 seconds
     )
     print(f"[Router VLM] Using model: {vlm_model}")
 
@@ -183,13 +183,13 @@ def node(state: GraphState) -> Dict[str, Any]:
             {"type": "text", "text": "\nRoot Image: "},
             {
                 "type": "image_url",
-                # [수정] 리사이징된 base64 문자열 사용
+                # Use the resized base64 string
                 "image_url": {"url": f"data:image/png;base64,{root_b64}"},
             },
             {"type": "text", "text": "\Current Image: "},
             {
-                "type": "image_url", 
-                # [수정] 리사이징된 base64 문자열 사용
+                "type": "image_url",
+                # Use the resized base64 string
                 "image_url": {"url": f"data:image/png;base64,{current_b64}"},
             },
         ]),
@@ -234,7 +234,7 @@ def node(state: GraphState) -> Dict[str, Any]:
         "raw_llm_output": output,
     }
     
-    # Save router output to layer_dir (4번 수정)
+    # Save router output to layer_dir
     _save_router_output_to_layer_dir(layer_id, full_router_output, state)
     
     # Update state

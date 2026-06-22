@@ -68,14 +68,14 @@ if str(modules_root) not in sys.path:
 
 
 # =============================================================================
-# [수정 36] Constants
+# [Revision 36] Constants
 # =============================================================================
 
 MAX_RETRIES = 3  # Maximum retry attempts per layer before force finalize
 
 
 # =============================================================================
-# [수정 11] Logging Setup
+# [Revision 11] Logging Setup
 # =============================================================================
 
 _episode_logger: Optional[logging.Logger] = None
@@ -141,14 +141,14 @@ class StateManager:
     """
     Thread-safe state management for parallel execution.
     
-    [수정 24] Added _requeue_priority and pending_retries support.
+    [Revision 24] Added _requeue_priority and pending_retries support.
     """
     
     def __init__(self, initial_state: GraphState):
         self._state = dict(initial_state)
         self._lock = threading.RLock()
         self._processing_set: set = set()
-        # [수정 24] Initialize pending_retries
+        # [Revision 24] Initialize pending_retries
         self._state["pending_retries"] = set()
     
     @property
@@ -160,7 +160,7 @@ class StateManager:
         """
         Apply updates atomically and return new state.
         
-        [수정 24] Added _requeue_priority handling.
+        [Revision 24] Added _requeue_priority handling.
         """
         with self._lock:
             for update in updates:
@@ -173,7 +173,7 @@ class StateManager:
                         self._state["layer_queue"] = queue
                         log(f"Enqueued {len(value)} children: {value}", "StateManager")
                     
-                    # [수정 24] Handle _requeue_priority for retry mechanism
+                    # [Revision 24] Handle _requeue_priority for retry mechanism
                     elif key == "_requeue_priority":
                         queue = list(self._state.get("layer_queue", []))
                         layer_id = value
@@ -198,7 +198,7 @@ class StateManager:
                             self._state["layer_queue"] = queue
                             self._state["current_layer_id"] = layer_id
                             
-                            # [수정 24] Remove from pending_retries when dequeued
+                            # [Revision 24] Remove from pending_retries when dequeued
                             pending = set(self._state.get("pending_retries", set()))
                             pending.discard(layer_id)
                             self._state["pending_retries"] = pending
@@ -236,7 +236,7 @@ class StateManager:
                         self._state["parsed_elements"] = elements
                         
                     elif key == "_ocr_fatal_error_count":
-                        # 누적 카운터 — 여러 worker에서 동시에 발생해도 합산
+                        # Cumulative counter - summed up even when raised concurrently by multiple workers
                         self._state["_ocr_fatal_error_count"] = (
                             self._state.get("_ocr_fatal_error_count", 0) + value
                         )
@@ -266,7 +266,7 @@ class StateManager:
             layer_id = queue.pop(0)
             self._state["layer_queue"] = queue
             
-            # [수정 24] Remove from pending_retries
+            # [Revision 24] Remove from pending_retries
             pending = set(self._state.get("pending_retries", set()))
             pending.discard(layer_id)
             self._state["pending_retries"] = pending
@@ -284,7 +284,7 @@ class StateManager:
                 if queue:
                     layer_id = queue.pop(0)
                     dequeued.append(layer_id)
-                    # [수정 24] Remove from pending_retries
+                    # [Revision 24] Remove from pending_retries
                     pending.discard(layer_id)
             
             self._state["layer_queue"] = queue
@@ -358,15 +358,15 @@ class StateManager:
         """
         Check if processing should stop.
         
-        [수정 24] Now checks pending_retries before terminating.
-        [수정 36] Note: retry_count is NOT checked here - it's per-node, not global
+        [Revision 24] Now checks pending_retries before terminating.
+        [Revision 36] Note: retry_count is NOT checked here - it's per-node, not global
         """
         with self._lock:
             queue = self._state.get("layer_queue", [])
             processing = self._state.get("processing_ids", [])
             pending_retries = self._state.get("pending_retries", set())
             
-            # [수정 24] Don't terminate if there are pending retries
+            # [Revision 24] Don't terminate if there are pending retries
             if not queue and not processing and not pending_retries:
                 return True, "All layers processed"
             
@@ -380,7 +380,7 @@ class StateManager:
             if llm_calls >= llm_limit:
                 return True, f"LLM budget exhausted ({llm_limit})"
             
-            # [수정 12] Check max_depth
+            # [Revision 12] Check max_depth
             max_depth = self._state.get("max_depth")
             history_tree = self._state.get("history_tree", {})
             
@@ -457,14 +457,14 @@ def _get_node_function(node_name: str):
 
 
 # =============================================================================
-# [수정 36] Force Finalize Helper Functions
+# [Revision 36] Force Finalize Helper Functions
 # =============================================================================
 
 def _get_unfinished_layers(state: GraphState) -> List[str]:
     """
     Get list of layer IDs that need to be finalized.
     
-    [수정 36] Now traverses entire history_tree to find ALL unfinished layers:
+    [Revision 36] Now traverses entire history_tree to find ALL unfinished layers:
     - Layers in queue
     - Layers in processing (shouldn't exist after gather, but just in case)
     - Leaf nodes in history_tree that are not finalized
@@ -500,7 +500,7 @@ def _get_unfinished_layers(state: GraphState) -> List[str]:
                 unfinished.append(layer_id)
                 seen.add(layer_id)
     
-    # 3. [수정 36] Traverse entire history_tree for unfinished leaf nodes
+    # 3. [Revision 36] Traverse entire history_tree for unfinished leaf nodes
     for layer_id, node in history_tree.items():
         if layer_id in seen:
             continue
@@ -531,7 +531,7 @@ def _force_finalize_layer(layer_id: str, state: GraphState) -> Dict[str, Any]:
     """
     Force finalize a layer using finalize_obj node logic.
     
-    [수정 36] CRITICAL FIX: action_type change is now INCLUDED in return value!
+    [Revision 36] CRITICAL FIX: action_type change is now INCLUDED in return value!
     
     This ensures:
     - action_type = "Finalize_Obj" is properly set in history_tree
@@ -589,7 +589,7 @@ def _force_finalize_layer(layer_id: str, state: GraphState) -> Dict[str, Any]:
 
 def _force_finalize_single_layer(layer_id: str, state: GraphState) -> Dict[str, Any]:
     """
-    [수정 36] Force finalize a single layer (for max retry exceeded case).
+    [Revision 36] Force finalize a single layer (for max retry exceeded case).
     
     Called from process_layer_worker when retry_count >= MAX_RETRIES.
     Same logic as _force_finalize_layer but with different logging.
@@ -764,9 +764,9 @@ def process_layer_worker(
     Worker function to process a single layer through its tool sequence.
     Runs in a separate thread.
     
-    [수정 29] Added GPU timeout error handling and proper error recovery.
-    [수정 35] Added node error retry mechanism.
-    [수정 36] Added retry_count check at start - force finalize if exceeded.
+    [Revision 29] Added GPU timeout error handling and proper error recovery.
+    [Revision 35] Added node error retry mechanism.
+    [Revision 36] Added retry_count check at start - force finalize if exceeded.
     """
     prefix = f"Worker:{layer_id}"
     
@@ -786,7 +786,7 @@ def process_layer_worker(
             log(f"ERROR: {layer_id} not found in history_tree", prefix)
             return
         
-        # [수정 36] ★ Check retry_count at START - force finalize if exceeded
+        # [Revision 36] ★ Check retry_count at START - force finalize if exceeded
         retry_count = node_data.get("retry_count", 0)
         if retry_count >= MAX_RETRIES:
             log(f"retry_count ({retry_count}) >= MAX_RETRIES ({MAX_RETRIES}), force finalizing", prefix)
@@ -839,7 +839,7 @@ def process_layer_worker(
                     
                     log(f"  NODE ERROR: {error_msg}", prefix)
                     
-                    # [수정 36] Check retry_count explicitly
+                    # [Revision 36] Check retry_count explicitly
                     current_retry_count = node_data.get("retry_count", 0)
                     has_real_children = bool([
                         c for c in (node_data.get("children_ids") or [])
@@ -883,7 +883,7 @@ def process_layer_worker(
                     break  # Stop processing this layer
                 
             except TimeoutError as e:
-                # [수정 29] GPU acquisition timeout
+                # [Revision 29] GPU acquisition timeout
                 log(f"  GPU TIMEOUT: {e}", prefix)
                 
                 try:
@@ -897,7 +897,7 @@ def process_layer_worker(
                 break
                 
             except Exception as e:
-                # [수정 29] Check if it's a CUDA error
+                # [Revision 29] Check if it's a CUDA error
                 error_str = str(e).lower()
                 is_cuda_error = any(kw in error_str for kw in [
                     'cuda', 'cudnn', 'gpu', 'device', 'illegal', 'memory'
@@ -942,7 +942,7 @@ def _handle_worker_error(
     prefix: str
 ) -> None:
     """
-    [수정 36] Centralized error handling for worker.
+    [Revision 36] Centralized error handling for worker.
     Handles retry logic or force finalize based on retry_count.
     """
     state = state_manager.state
@@ -1039,10 +1039,10 @@ class EpisodeRunner:
             max_parallel_workers=max_parallel_workers,
         )
         
-        # [수정 24] Initialize pending_retries
+        # [Revision 24] Initialize pending_retries
         self.state["pending_retries"] = set()
         
-        # [수정 11] Setup file logging
+        # [Revision 11] Setup file logging
         global _episode_logger
         _episode_logger = setup_logger(self.state["episode_dir"])
         
@@ -1083,8 +1083,8 @@ class EpisodeRunner:
         """
         Check if episode should terminate.
         
-        [수정 24] Now checks pending_retries.
-        [수정 36] Note: retry_count is per-node, checked in _process_layer
+        [Revision 24] Now checks pending_retries.
+        [Revision 36] Note: retry_count is per-node, checked in _process_layer
         """
         queue = self.state.get("layer_queue", [])
         processing = self.state.get("processing_ids", [])
@@ -1094,7 +1094,7 @@ class EpisodeRunner:
         processing_size = len(processing)
         pending_size = len(pending_retries)
         
-        # [수정 24] Don't terminate if there are pending retries
+        # [Revision 24] Don't terminate if there are pending retries
         if not queue and not processing and not pending_retries:
             return True, f"All layers processed (queue={queue_size}, processing={processing_size}, pending={pending_size})"
         
@@ -1108,7 +1108,7 @@ class EpisodeRunner:
         if llm_calls >= llm_limit:
             return True, f"LLM budget exhausted ({llm_calls}/{llm_limit}), queue={queue_size}, processing={processing_size}"
         
-        # [수정 12] Check max_depth
+        # [Revision 12] Check max_depth
         max_depth = self.state.get("max_depth")
         history_tree = self.state.get("history_tree", {})
         
@@ -1141,7 +1141,7 @@ class EpisodeRunner:
         update = r_add_processing_id(layer_id, self.state)
         self.state = merge_updates(self.state, update)
         
-        # [수정 24] Remove from pending_retries when actually processing
+        # [Revision 24] Remove from pending_retries when actually processing
         pending = set(self.state.get("pending_retries", set()))
         pending.discard(layer_id)
         self.state["pending_retries"] = pending
@@ -1153,7 +1153,7 @@ class EpisodeRunner:
             if not node_data:
                 raise ValueError(f"Layer {layer_id} not found in history_tree")
             
-            # [수정 36] ★ Check retry_count at START
+            # [Revision 36] ★ Check retry_count at START
             retry_count = node_data.get("retry_count", 0)
             if retry_count >= MAX_RETRIES:
                 self._log(f"retry_count ({retry_count}) >= MAX_RETRIES ({MAX_RETRIES}), force finalizing")
@@ -1235,12 +1235,12 @@ class EpisodeRunner:
     
     def _finalize_remaining_layers(self) -> None:
         """
-        [수정 12] [수정 36] Force finalize any unfinished layers on termination.
+        [Revision 12] [Revision 36] Force finalize any unfinished layers on termination.
         
         This ensures all layers produce elements even when terminated
         due to max_depth, max_layers, or LLM budget limits.
         
-        [수정 36] Now includes action_type change in visualization.
+        [Revision 36] Now includes action_type change in visualization.
         """
         unfinished = _get_unfinished_layers(self.state)
         
@@ -1281,7 +1281,7 @@ class EpisodeRunner:
             should_term, reason = self._should_terminate()
             if should_term:
                 self._log(f"\nTerminating: {reason}")
-                # [수정 12] Force finalize remaining layers before final termination
+                # [Revision 12] Force finalize remaining layers before final termination
                 self._finalize_remaining_layers()
                 break
             
@@ -1290,7 +1290,7 @@ class EpisodeRunner:
             
             layer_id = self.state.get("current_layer_id")
             if not layer_id:
-                # [수정 24] Check if there are pending retries we need to wait for
+                # [Revision 24] Check if there are pending retries we need to wait for
                 pending = self.state.get("pending_retries", set())
                 if pending:
                     self._log(f"[Warning] No layer dequeued but pending retries exist: {pending}")
@@ -1406,7 +1406,7 @@ class ParallelEpisodeRunner:
             max_parallel_workers=max_parallel_workers,
         )
         
-        # [수정 11] Setup file logging
+        # [Revision 11] Setup file logging
         global _episode_logger
         _episode_logger = setup_logger(initial_state["episode_dir"])
         
@@ -1448,12 +1448,12 @@ class ParallelEpisodeRunner:
     
     def _finalize_remaining_layers(self) -> None:
         """
-        [수정 12] [수정 36] Force finalize any unfinished layers on termination (parallel mode).
+        [Revision 12] [Revision 36] Force finalize any unfinished layers on termination (parallel mode).
         
-        [수정 36] Gets latest state from state_manager after gather completes.
+        [Revision 36] Gets latest state from state_manager after gather completes.
         This ensures newly added children from completed workers are included.
         """
-        # [수정 36] ★ Get latest state AFTER gather completes
+        # [Revision 36] ★ Get latest state AFTER gather completes
         current_state = self.state_manager.state
         
         # Log queue state for debugging
@@ -1473,7 +1473,7 @@ class ParallelEpisodeRunner:
         for layer_id in unfinished:
             self._log(f"  -> Force finalizing: {layer_id}")
             try:
-                # [수정 36] Get latest state each iteration
+                # [Revision 36] Get latest state each iteration
                 state = self.state_manager.state
                 update = _force_finalize_layer(layer_id, state)
                 self.state_manager.update(update)
@@ -1513,12 +1513,12 @@ class ParallelEpisodeRunner:
                         await asyncio.gather(*active_tasks, return_exceptions=True)
                         self._log("All active tasks completed")
                         
-                        # ★ 추가: gather 후 재확인
+                        # Added: re-check after gather
                         should_term_recheck, _ = self.state_manager.should_terminate()
                         if not should_term_recheck:
                             self._log("New work available after gather, continuing...")
                             active_tasks = []
-                            continue  # 루프 계속
+                            continue  # Keep looping
                     
                     self._log(f"\nTerminating: {reason}")
                     self._finalize_remaining_layers()
@@ -1843,7 +1843,7 @@ def _build_final_verification_update(
     Build state update with verification results as a separate field in history_tree.
     """
     return {
-        "history_tree": {  # ← history_tree 안에 넣어야 함!
+        "history_tree": {  # Must be nested inside history_tree!
             "final_llm_verification": {
                 "verified_at": datetime.now().isoformat(),
                 "reconstruction_info": reconstruction_info,

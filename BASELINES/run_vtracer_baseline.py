@@ -2,18 +2,18 @@
 """
 run_vtracer_baseline.py - VTracer Image-to-SVG Baseline (Figma + Crello unified)
 
-VTracer로 이미지를 SVG로 변환하여 baseline으로 사용.
-output.svg를 저장하고, evaluation에서 개별 SVG element를 rasterize하여 GT matching 수행.
-CPU only — GPU 불필요. 다수 worker로 병렬 처리.
+Converts images to SVG with VTracer for use as a baseline.
+Saves output.svg; evaluation rasterizes each individual SVG element to perform GT matching.
+CPU only -- no GPU required. Runs in parallel across multiple workers.
 
 Usage:
-    # Figma만
+    # Figma only
     python run_vtracer_baseline.py --dataset figma --workers 32
-    # Crello만
+    # Crello only
     python run_vtracer_baseline.py --dataset crello --workers 32
-    # 둘 다 순차 실행
+    # Both, run sequentially
     python run_vtracer_baseline.py --dataset all --workers 32
-    # 제한
+    # Limit the number of items
     python run_vtracer_baseline.py --dataset all --workers 32 --limit 10 --dry_run
 """
 from __future__ import annotations

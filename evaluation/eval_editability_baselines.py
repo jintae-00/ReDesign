@@ -9,18 +9,24 @@ Prerequisites:
     2. Original agent/qwen editability results at --original-run-dir
 
 Usage:
-    CUDA_VISIBLE_DEVICES=7 python scripts/eval_editability_baselines.py \
-        --figma-data ./figma_data \
-        --exp-pairs ... \
-        --match-root ./editability_matches/merge_sweep_fast/merge_max \
+    # Replace <GPU_ID> with one of your own GPU ids (e.g. 0).
+    CUDA_VISIBLE_DEVICES=<GPU_ID> python scripts/eval_editability_baselines.py \
+        --figma-data <FIGMA_DATA_DIR> \
+        --exp-pairs <AGENT_OUTPUT_DIR>:<QWEN_OUTPUT_DIR>:merged \
+        --match-root <MATCH_ROOT_DIR> \
         --models layered multi_tools sparse_verif \
-        --layered-dir ./baseline_layerd_experiment \
-        --multi-tools-dir ./baseline_muilti_tools_experiment \
-        --sparse-verif-dir ./baseline_sparse_verification_agent_experiment \
-        --original-run-dir ./editability_results/random/merge_max \
-        --output ./eval_baselines_editability \
+        --layered-dir <LAYERED_BASELINE_OUTPUT_DIR> \
+        --multi-tools-dir <MULTI_TOOLS_BASELINE_OUTPUT_DIR> \
+        --sparse-verif-dir <SPARSE_VERIF_BASELINE_OUTPUT_DIR> \
+        --original-run-dir <ORIGINAL_EDITABILITY_RESULTS_DIR> \
+        --output <OUTPUT_DIR> \
         --seed 42 --selection-seed 42 --per-episode-elements 2 \
         --num-workers 32 --no-save-triplet-viz
+
+    The agent/qwen/baseline output dirs are produced by running the inference runners
+    first (e.g. ``python -m REDESIGN.run_agent_figma --data_dir figma_data \
+    --output_dir <AGENT_OUTPUT_DIR>``), and ``--figma-data`` should point at the
+    downloaded ``figma_data`` dataset.
 """
 
 from __future__ import annotations
@@ -86,7 +92,7 @@ def _load_baseline_episode_elements(
         extract_omnisvg_elements,
         extract_qwen_elements_cca,
     )
-    from editability_eval.loaders import _attach_gt_metadata
+    from evaluation.editability_utils.loaders import _attach_gt_metadata
 
     gt_elements, canvas_size, _ = extract_gt_elements(
         task.gt_json_path, task.split_dir, logger=None
@@ -116,7 +122,7 @@ def _load_baseline_episode_elements(
             text_refinement=True,
             logger=None,
         )
-        from editability_eval.loaders import _attach_agent_metadata
+        from evaluation.editability_utils.loaders import _attach_agent_metadata
         _attach_agent_metadata(pred_elements, task.pred_dir)
 
     return gt_elements, pred_elements, canvas_size
@@ -306,14 +312,14 @@ def run_baseline_atomic_subtask(
     agent_results: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Run an atomic subtask for a baseline model using pre-computed matches."""
-    from editability_eval.subtasks.common import (
+    from evaluation.editability_utils.subtasks.common import (
         aggregate_results,
         evaluate_image_edit_candidates,
         load_match_payloads,
         sample_candidates,
         summarize_capacity,
     )
-    from editability_eval.subtasks.atomic._shared import (
+    from evaluation.editability_utils.subtasks.atomic._shared import (
         _build_base_candidates,
     )
 
@@ -428,7 +434,7 @@ def run_baseline_atomic_subtask(
     summary = aggregate_results(results)
     print(f"[{model_name}][{subtask_name}] done results={len(results)}")
 
-    from editability_eval.subtasks.common import save_subtask_outputs
+    from evaluation.editability_utils.subtasks.common import save_subtask_outputs
     save_subtask_outputs(
         output_dir=output_dir,
         model=model_name,
@@ -973,15 +979,25 @@ def main():
     parser = argparse.ArgumentParser(
         description="Editability evaluation for baseline models (parallel)"
     )
-    parser.add_argument("--figma-data", type=str, required=True)
-    parser.add_argument("--exp-pairs", type=str, nargs="+", required=True)
-    parser.add_argument("--match-root", type=str, required=True)
+    parser.add_argument("--figma-data", type=str, required=True,
+                        help="Path to the downloaded figma_data dataset directory.")
+    parser.add_argument("--exp-pairs", type=str, nargs="+", required=True,
+                        help="One or more inference-output pairs formatted as "
+                             "agent_dir:qwen_dir:gt_subset_prefix. Use 'merged' as the "
+                             "prefix for the released merged dataset "
+                             "(e.g. <AGENT_OUTPUT_DIR>:<QWEN_OUTPUT_DIR>:merged).")
+    parser.add_argument("--match-root", type=str, required=True,
+                        help="Directory of pre-computed matches produced by "
+                             "before_eval_editability_precompute_matches.py "
+                             "(contains {model}/episodes/{episode_id}.json).")
     parser.add_argument("--models", type=str, nargs="+", required=True,
-                        choices=list(MODEL_CONFIGS.keys()))
+                        choices=list(MODEL_CONFIGS.keys()),
+                        help="Baseline models to evaluate.")
     add_baseline_dir_args(parser)
     parser.add_argument("--original-run-dir", type=str, required=True,
                         help="Path to original agent/qwen editability results")
-    parser.add_argument("--output", type=str, default=None)
+    parser.add_argument("--output", type=str, default=None,
+                        help="Output root directory. Required unless --resume-dir is set.")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--selection-seed", type=int, default=None)
     parser.add_argument("--per-episode-elements", type=int, default=2)
@@ -1089,7 +1105,7 @@ def main():
           f"across {len(selected_episodes)} episodes")
 
     # 2. Copy existing agent/qwen results (only for models NOT being re-evaluated)
-    from editability_eval.common_utils import save_json
+    from evaluation.editability_utils.common_utils import save_json
     models_to_copy = [m for m in ("agent", "qwen") if m not in args.models]
     if models_to_copy and not args.no_copy_existing:
         print(f"\nCopying existing results for: {models_to_copy}")

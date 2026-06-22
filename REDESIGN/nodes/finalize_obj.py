@@ -5,9 +5,9 @@ Used as the final step for atomic objects or backgrounds.
 Optionally includes SVG vectorization for non-photographic elements.
 
 UPDATED: Now saves all outputs to tools_output directory.
-[수정] Added mask_canvas_uri for evaluator compatibility.
-[수정 39] Fixed: child layer_image is already correctly extracted by stack_manager.
-          No need to re-apply parent's mask. Use alpha channel directly.
+Added mask_canvas_uri for evaluator compatibility.
+Fixed: child layer_image is already correctly extracted by stack_manager.
+       No need to re-apply parent's mask. Use alpha channel directly.
 """
 from __future__ import annotations
 from typing import Dict, Any
@@ -67,31 +67,31 @@ def node(state: GraphState) -> Dict[str, Any]:
     elements_dir.mkdir(parents=True, exist_ok=True)
     
     # ==========================================================================
-    # [수정 39] CRITICAL FIX:
-    # Child node의 layer_image.png는 이미 stack_manager에서 올바르게 추출됨.
-    # Parent의 masks_by_id를 다시 적용하면 잘못된 마스크가 적용될 수 있음.
-    # → layer_image의 alpha 채널을 그대로 사용!
+    # CRITICAL FIX:
+    # The child node's layer_image.png has already been correctly extracted by
+    # stack_manager. Re-applying the parent's masks_by_id could apply the wrong mask.
+    # -> Use the layer_image's alpha channel directly!
     # ==========================================================================
-    
-    # 1. BBox 계산 (layer_image의 alpha 채널 기반)
+
+    # 1. Compute the bbox (based on the layer_image's alpha channel)
     bbox = get_tight_bbox_from_alpha(image_path)
     if not bbox:
-        # 이미지 전체를 bbox로 설정
+        # Set the bbox to the entire image
         try:
             with Image.open(image_path) as img:
                 bbox = [0, 0, img.width, img.height]
         except:
             bbox = [0, 0, 100, 100]
 
-    # 2. Canvas 이미지: layer_image 그대로 (투명 배경 처리만)
+    # 2. Canvas image: the layer_image as is (only transparent-background processing)
     canvas_path = str(elements_dir / "canvas_image.png")
     convert_black_to_transparent(image_path, canvas_path)
-    
-    # 3. Crop 이미지: tight bbox로 자르기 (마스크 재적용 없이)
+
+    # 3. Crop image: crop to the tight bbox (without re-applying the mask)
     extracted_path = str(elements_dir / "crop_image.png")
     crop_to_tight_bbox(image_path, extracted_path)
-    
-    # 4. Canvas-size mask: layer_image의 alpha 채널 추출
+
+    # 4. Canvas-size mask: extract the layer_image's alpha channel
     canvas_mask_path = str(elements_dir / "mask_canvas.png")
     try:
         img = Image.open(image_path).convert("RGBA")
@@ -101,13 +101,13 @@ def node(state: GraphState) -> Dict[str, Any]:
         print(f"[Finalize Obj] Failed to save canvas mask: {e}")
         canvas_mask_path = None
 
-    # Artifacts 복사 (tools_output)
+    # Copy artifacts (tools_output)
     tools_extracted_path = tools_output_dir / "finalize_obj_crop.png"
     tools_canvas_path = tools_output_dir / "finalize_obj_canvas.png"
     shutil.copy(extracted_path, tools_extracted_path)
     shutil.copy(canvas_path, tools_canvas_path)
     
-    # Label 및 SVG 처리
+    # Label and SVG handling
     image_context = node_data.get("image_context", "")
     label = image_context[:100] if image_context else "object"
     is_photo = node_data.get("param_is_photo", False)
@@ -123,7 +123,7 @@ def node(state: GraphState) -> Dict[str, Any]:
     
     elem_type = "background" if "bg" in label.lower() or "background" in label.lower() else "object"
     
-    # Element 데이터 구성
+    # Build the element data
     element = {
         "id": element_id,
         "type": elem_type,
@@ -137,11 +137,11 @@ def node(state: GraphState) -> Dict[str, Any]:
     if svg_path:
         element["svg_uri"] = svg_path
     
-    # 메타데이터 저장
+    # Save metadata
     with open(elements_dir / "metadata.json", "w", encoding="utf-8") as f:
         json.dump(element, f, ensure_ascii=False, indent=2)
-    
-    # 요약 정보 저장
+
+    # Save summary information
     finalize_output = {
         "tool_name": "finalize_obj",
         "element_id": element_id,

@@ -1,32 +1,36 @@
 #!/usr/bin/env python3
 """
-run_qwen_baseline.py - Qwen Image Layered Baseline 실험 실행
+BASELINES/run_qwen_figma.py - Qwen Image Layered baseline experiment runner (Figma)
 
-Qwen Image Layered 모델을 baseline으로 특정 split에 대해 실행합니다.
-주어진 qwen_gpus를 qwen_pair_size로 나눠서 병렬 처리합니다.
+Runs the Qwen Image Layered model as a baseline over the Figma dataset splits.
+The provided qwen_gpus are divided into groups of qwen_pair_size for parallel processing.
+
+Note: Replace the GPU id placeholders below (e.g. <QWEN_GPU_IDS>) with your own
+comma-separated GPU ids.
 
 Usage:
-    # 기본 사용
-    python run_qwen_baseline.py --split_idx 0 --qwen_gpus 3,4,5,6 --qwen_pair_size 2
-    
-    # GPU 3,4와 5,6 두 pair로 나눠서 split 0을 병렬 처리
-    # → pair (3,4): frame 0, 2, 4, ...
-    # → pair (5,6): frame 1, 3, 5, ...
-    
-    # Dry run (실행 없이 확인)
-    python run_qwen_baseline.py --split_idx 0 --qwen_gpus 3,4,5,6 --qwen_pair_size 2 --dry_run
-    
-    # 테스트용 (처음 10개만)
-    python run_qwen_baseline.py --split_idx 0 --qwen_gpus 3,4 --qwen_pair_size 2 --limit 10
+    # Basic usage
+    python run_qwen_figma.py --split_idx 0 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2
+
+    # Split the GPUs into two pairs to process split 0 in parallel
+    # e.g. with --qwen_gpus a,b,c,d and --qwen_pair_size 2:
+    # -> pair (a,b): frame 0, 2, 4, ...
+    # -> pair (c,d): frame 1, 3, 5, ...
+
+    # Dry run (preview without executing)
+    python run_qwen_figma.py --split_idx 0 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --dry_run
+
+    # For testing (first 10 frames only)
+    python run_qwen_figma.py --split_idx 0 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --limit 10
 
 Directory Structure:
     Input:
         src/figma_data/process/subset/dino90_obj_5_25_char_50_split_{idx}/valid_frames/*.json
         src/figma_data/process/subset/dino90_obj_5_25_char_50_split_{idx}/unit_images/...
-    
+
     Output:
         src/qwen_experiment/split_{idx}/{frame_id}/
-            - input.png          # 원본 입력 이미지
+            - input.png          # Original input image
             - layer_00.png
             - layer_01.png
             - ...
@@ -58,9 +62,9 @@ from PIL import Image, ImageFilter
 FIGMA_DATA_BASE = "figma_data/process/subset"
 QWEN_EXPERIMENT_BASE = "qwen_experiment_0208"
 SPLIT_PREFIX = "dino80_obj_5_60_char_25_split_"
-NUM_TOTAL_SPLITS = 4  # 합칠 split 수
+NUM_TOTAL_SPLITS = 4  # Number of splits to combine
 
-# Qwen 기본 파라미터
+# Qwen default parameters
 DEFAULT_NUM_LAYERS = 4
 DEFAULT_SEED = 777
 DEFAULT_RESOLUTION = 640
@@ -68,7 +72,7 @@ DEFAULT_NUM_INFERENCE_STEPS = 50
 DEFAULT_TRUE_CFG_SCALE = 4.0
 DEFAULT_ALPHA_THRESHOLD = 0
 
-# Input image 파일명
+# Input image filename
 INPUT_IMAGE_NAME = "input.png"
 
 
@@ -111,12 +115,12 @@ def get_src_root() -> Path:
     elif (current / "src").exists():
         return current / "src"
     else:
-        # 현재 위치가 src 내부라고 가정
+        # Assume the current location is inside src
         return current
 
 
 def get_all_split_paths(src_root: Path) -> Dict[str, Any]:
-    """모든 split의 경로를 합쳐서 반환"""
+    """Return the combined paths for all splits."""
     all_valid_frames_dirs = []
     all_split_dirs = []
     
@@ -138,7 +142,7 @@ def get_all_split_paths(src_root: Path) -> Dict[str, Any]:
 # =============================================================================
 
 def parse_gpu_list(gpu_str: Optional[str]) -> List[int]:
-    """GPU 리스트 문자열 파싱 (예: '2,3,4,5' -> [2, 3, 4, 5])"""
+    """Parse a GPU list string (e.g. '2,3,4,5' -> [2, 3, 4, 5])."""
     if not gpu_str:
         return []
     try:
@@ -148,14 +152,14 @@ def parse_gpu_list(gpu_str: Optional[str]) -> List[int]:
 
 
 def create_gpu_pairs(gpu_ids: List[int], pair_size: int) -> List[Tuple[int, ...]]:
-    """GPU ID 리스트를 pair_size 크기의 튜플들로 분할"""
+    """Split a list of GPU IDs into tuples of size pair_size."""
     if not gpu_ids or pair_size <= 0:
         return []
-    
+
     pairs = []
     for i in range(0, len(gpu_ids), pair_size):
         pair = tuple(gpu_ids[i:i + pair_size])
-        if len(pair) == pair_size:  # 완전한 pair만 사용
+        if len(pair) == pair_size:  # Use complete pairs only
             pairs.append(pair)
     
     return pairs
@@ -167,14 +171,14 @@ def create_gpu_pairs(gpu_ids: List[int], pair_size: int) -> List[Tuple[int, ...]
 
 @dataclass
 class FrameInfo:
-    """프레임 정보를 담는 데이터 클래스"""
+    """Data class holding frame information."""
     frame_id: str
     json_path: Path
     image_path: Path
 
 
 def load_frame_list(paths: Dict[str, Any]) -> List[FrameInfo]:
-    """모든 split의 valid_frames에서 프레임 목록 로드"""
+    """Load the frame list from the valid_frames of all splits."""
     frames = []
     
     for split_dir, vf_dir in zip(paths["split_dirs"], paths["valid_frames_dirs"]):
@@ -210,13 +214,13 @@ def load_frame_list(paths: Dict[str, Any]) -> List[FrameInfo]:
 
 
 def is_frame_completed(output_dir: Path, frame_id: str) -> bool:
-    """프레임이 이미 처리되었는지 확인"""
+    """Check whether a frame has already been processed."""
     metadata_path = output_dir / frame_id / "metadata.json"
     return metadata_path.exists()
 
 
 def is_input_image_missing(output_dir: Path, frame_id: str) -> bool:
-    """완료된 프레임에 input image가 없는지 확인"""
+    """Check whether a completed frame is missing its input image."""
     input_image_path = output_dir / frame_id / INPUT_IMAGE_NAME
     return not input_image_path.exists()
 
@@ -226,26 +230,26 @@ def create_reconstructions(
     logger: Optional[logging.Logger] = None
 ) -> bool:
     """
-    저장된 layer 이미지들을 사용하여 reconstructed.png와 reconstructed_bordered.png를 생성합니다.
-    REDESIGN/reconstruction.py의 로직을 Qwen Layer 구조에 맞게 적용했습니다.
+    Generate reconstructed.png and reconstructed_bordered.png from the saved layer images.
+    Adapts the logic of REDESIGN/reconstruction.py to the Qwen Layer structure.
     """
     try:
-        # 1. Layer 이미지 찾기 및 정렬
+        # 1. Find and sort layer images
         layer_paths = sorted(frame_output_dir.glob("layer_*.png"))
         if not layer_paths:
             return False
 
-        # 2. 캔버스 준비 (첫 번째 레이어 기준 크기)
+        # 2. Prepare canvas (size based on the first layer)
         base_layer = Image.open(layer_paths[0]).convert("RGBA")
         canvas_w, canvas_h = base_layer.size
-        
+
         # ---------------------------------------------------------
         # A. Vanilla Reconstruction (reconstructed.png)
         # ---------------------------------------------------------
         reconstructed = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
-        
-        layers_data = [] # (image_path, pil_image) 튜플 저장
-        
+
+        layers_data = [] # Store (image_path, pil_image) tuples
+
         for p in layer_paths:
             img = Image.open(p).convert("RGBA")
             if img.size != (canvas_w, canvas_h):
@@ -259,42 +263,42 @@ def create_reconstructions(
         # ---------------------------------------------------------
         # B. Bordered Reconstruction (reconstructed_bordered.png)
         # ---------------------------------------------------------
-        # 설정 (reconstruction.py와 동일)
+        # Settings (same as reconstruction.py)
         border_color = (255, 150, 200, 200)  # Light Pink
         glow_color = (255, 180, 220, 100)    # Soft Pink
         border_width = 3
         glow_width = 5
-        
-        # 복사본 생성
+
+        # Create a copy
         result = reconstructed.copy()
-        
-        # Glow Layer (Blur 효과용)
+
+        # Glow Layer (for the blur effect)
         glow_layer = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
-        # Border Layer (선명한 외곽선용)
+        # Border Layer (for the sharp outline)
         border_layer = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
-        
+
         glow_arr_base = np.array(glow_layer)
         border_arr_base = np.array(border_layer)
-        
+
         for _, layer_img in layers_data:
-            # Alpha 채널 추출
+            # Extract the alpha channel
             elem_arr = np.array(layer_img)
             alpha = elem_arr[:, :, 3]
-            
-            # Binary Mask 생성 (Threshold 128)
+
+            # Build a binary mask (threshold 128)
             binary_mask = (alpha > 128).astype(np.uint8) * 255
-            
-            # OpenCV로 윤곽선 찾기
+
+            # Find contours with OpenCV
             contours, _ = cv2.findContours(
-                binary_mask, 
-                cv2.RETR_EXTERNAL, 
+                binary_mask,
+                cv2.RETR_EXTERNAL,
                 cv2.CHAIN_APPROX_SIMPLE
             )
-            
+
             if not contours:
                 continue
-                
-            # Glow 그리기 (여러 번 겹쳐서 그라데이션 효과)
+
+            # Draw the glow (multiple overlapping passes for a gradient effect)
             for i in range(glow_width, 0, -1):
                 alpha_val = int(glow_color[3] * (1 - i / (glow_width + 2)))
                 cv2.drawContours(
@@ -305,23 +309,23 @@ def create_reconstructions(
                     thickness=i * 2
                 )
             
-            # Border 그리기
+            # Draw the border
             cv2.drawContours(
-                border_arr_base, 
-                contours, 
-                -1, 
+                border_arr_base,
+                contours,
+                -1,
                 border_color,
                 thickness=border_width
             )
-            
-        # 배열을 이미지로 변환
+
+        # Convert arrays back to images
         glow_layer = Image.fromarray(glow_arr_base)
         border_layer = Image.fromarray(border_arr_base)
-        
-        # Glow에 Blur 적용
+
+        # Apply blur to the glow
         glow_layer = glow_layer.filter(ImageFilter.GaussianBlur(radius=4))
-        
-        # 합성: Base -> Glow -> Border
+
+        # Composite: Base -> Glow -> Border
         result = Image.alpha_composite(result, glow_layer)
         result = Image.alpha_composite(result, border_layer)
         
@@ -349,18 +353,18 @@ def backfill_missing_files(
     logger: logging.Logger,
 ) -> Dict[str, int]:
     """
-    완료된 프레임들 중 누락된 파일(input image, reconstruction)을 보충
+    Backfill missing files (input image, reconstruction) for completed frames.
     """
     stats = {"input_image": 0, "reconstruction": 0}
-    
+
     for frame in frames:
         frame_output_dir = output_dir / frame.frame_id
-        
-        # 완료된 프레임인지 확인 (metadata 존재 여부)
+
+        # Check whether the frame is completed (metadata present)
         if not is_frame_completed(output_dir, frame.frame_id):
             continue
-        
-        # 1. Input Image 보충
+
+        # 1. Backfill the input image
         input_image_path = frame_output_dir / INPUT_IMAGE_NAME
         if not input_image_path.exists():
             try:
@@ -370,12 +374,12 @@ def backfill_missing_files(
             except Exception as e:
                 logger.warning(f"Failed to backfill input image for {frame.frame_id}: {e}")
 
-        # 2. Reconstruction Image 보충
+        # 2. Backfill the reconstruction images
         recon_path = frame_output_dir / "reconstructed.png"
         border_path = frame_output_dir / "reconstructed_bordered.png"
-        
+
         if not recon_path.exists() or not border_path.exists():
-            # Layer 파일들이 존재하는지 확인
+            # Check whether layer files exist
             if list(frame_output_dir.glob("layer_*.png")):
                 success = create_reconstructions(frame_output_dir, logger)
                 if success:
@@ -398,7 +402,7 @@ def worker_process(
     qwen_params: Dict[str, Any],
 ):
     """
-    개별 GPU pair에서 Qwen 모델을 실행하는 워커 프로세스
+    Worker process that runs the Qwen model on a single GPU pair.
     """
     import os
     import gc
@@ -407,8 +411,8 @@ def worker_process(
     import shutil
     from PIL import Image
     import numpy as np
-    
-    # GPU 설정
+
+    # GPU setup
     os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, gpu_pair))
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -417,7 +421,7 @@ def worker_process(
     pipeline = None
     
     try:
-        # Pipeline 로드
+        # Load pipeline
         print(f"[Worker {worker_id}] Loading Qwen pipeline on GPUs {gpu_pair}...")
         from diffusers import QwenImageLayeredPipeline
         
@@ -430,37 +434,37 @@ def worker_process(
             low_cpu_mem_usage=True,
         )
         print(f"[Worker {worker_id}] Pipeline loaded successfully")
-        
-        # 프레임 처리 루프
+
+        # Frame processing loop
         while True:
             try:
                 item = frame_queue.get(timeout=1.0)
             except:
-                # 큐가 비었는지 확인
+                # Check whether the queue is empty
                 if frame_queue.empty():
                     break
                 continue
-            
-            if item is None:  # 종료 신호
+
+            if item is None:  # Termination signal
                 break
-            
+
             frame_id, image_path = item
             start_time = time.time()
-            
+
             try:
-                # 출력 디렉토리 생성
+                # Create the output directory
                 frame_output_dir = output_dir / frame_id
                 frame_output_dir.mkdir(parents=True, exist_ok=True)
-                
-                # 이미지 로드
+
+                # Load the image
                 image = Image.open(image_path).convert("RGBA")
                 original_size = image.size
-                
-                # Input image 저장 (원본 복사)
+
+                # Save the input image (copy of the original)
                 input_image_dest = frame_output_dir / INPUT_IMAGE_NAME
                 shutil.copy2(image_path, input_image_dest)
-                
-                # Qwen 추론
+
+                # Qwen inference
                 inputs = {
                     "image": image,
                     "generator": torch.Generator(device="cpu").manual_seed(qwen_params["seed"]),
@@ -476,14 +480,14 @@ def worker_process(
                     output = pipeline(**inputs)
                     output_images = output.images[0]
                 
-                # 레이어 저장
+                # Save layers
                 layer_paths = []
                 for i, layer_img in enumerate(output_images):
                     layer_img = layer_img.convert("RGBA")
                     if layer_img.size != original_size:
                         layer_img = layer_img.resize(original_size, Image.LANCZOS)
-                    
-                    # 반투명 픽셀 필터링
+
+                    # Filter out semi-transparent pixels
                     arr = np.array(layer_img)
                     alpha_threshold = qwen_params["alpha_threshold"]
                     mask = arr[:, :, 3] < alpha_threshold
@@ -493,7 +497,7 @@ def worker_process(
                     Image.fromarray(arr).save(layer_path)
                     layer_paths.append(str(layer_path))
                 
-                # 메타데이터 저장
+                # Save metadata
                 elapsed = time.time() - start_time
                 metadata = {
                     "frame_id": frame_id,
@@ -571,7 +575,7 @@ def run_qwen_baseline(
     src_root: Optional[Path] = None,
 ) -> Dict[str, Any]:
     """
-    Qwen Image Layered baseline 실험 실행
+    Run the Qwen Image Layered baseline experiment.
     """
     if src_root is None:
         src_root = get_src_root()
@@ -583,12 +587,12 @@ def run_qwen_baseline(
             print(f"Warning: {vf_dir} not found")
     
     paths["output_dir"].mkdir(parents=True, exist_ok=True)
-    
-    # 로깅 설정
+
+    # Logging setup
     log_file = paths["output_dir"] / "qwen_baseline_all_splits.log"
     logger = setup_logging(log_file)
-    
-    # GPU pair 생성
+
+    # Create GPU pairs
     gpu_pairs = create_gpu_pairs(qwen_gpus, qwen_pair_size)
     if not gpu_pairs:
         raise ValueError(f"Cannot create GPU pairs from {qwen_gpus} with pair_size {qwen_pair_size}")
@@ -602,7 +606,7 @@ def run_qwen_baseline(
     logger.info(f"num_layers: {num_layers}, resolution: {resolution}")
     logger.info(f"dry_run: {dry_run}, limit: {limit}")
     
-    # 프레임 목록 로드
+    # Load the frame list
     frames = load_frame_list(paths)
     logger.info(f"Found {len(frames)} valid frames")
     
@@ -610,7 +614,7 @@ def run_qwen_baseline(
         logger.warning("No valid frames found!")
         return {"error": "No valid frames found"}
     
-    # 완료된 프레임 중 input image 없는 경우 보충
+    # Backfill input images missing from completed frames
     logger.info("Checking for missing input images in completed frames...")
 
 
@@ -624,15 +628,15 @@ def run_qwen_baseline(
 
 
     
-    # 완료된 프레임 필터링
+    # Filter out completed frames
     if skip_completed:
         pending_frames = [f for f in frames if not is_frame_completed(paths["output_dir"], f.frame_id)]
         completed_count = len(frames) - len(pending_frames)
         logger.info(f"Already completed: {completed_count}, Pending: {len(pending_frames)}")
     else:
         pending_frames = frames
-    
-    # Limit 적용
+
+    # Apply limit
     if limit:
         pending_frames = pending_frames[:limit]
         logger.info(f"Limited to {len(pending_frames)} frames")
@@ -656,7 +660,7 @@ def run_qwen_baseline(
             "backfilled_input_images": backfilled_count,
         }
     
-    # 처리할 프레임이 없으면 종료
+    # Exit if there are no frames to process
     if not pending_frames:
         logger.info("No pending frames to process. All done!")
         return {
@@ -666,7 +670,7 @@ def run_qwen_baseline(
             "message": "All frames already completed",
         }
     
-    # Qwen 파라미터
+    # Qwen parameters
     qwen_params = {
         "num_layers": num_layers,
         "seed": seed,
@@ -675,22 +679,22 @@ def run_qwen_baseline(
         "true_cfg_scale": true_cfg_scale,
         "alpha_threshold": alpha_threshold,
     }
-    
-    # 멀티프로세싱 설정
+
+    # Multiprocessing setup
     mp.set_start_method("spawn", force=True)
-    
+
     frame_queue = mp.Queue()
     result_queue = mp.Queue()
-    
-    # 프레임을 큐에 추가
+
+    # Add frames to the queue
     for frame in pending_frames:
         frame_queue.put((frame.frame_id, str(frame.image_path)))
-    
-    # 종료 신호 추가
+
+    # Add termination signals
     for _ in gpu_pairs:
         frame_queue.put(None)
-    
-    # 워커 프로세스 시작
+
+    # Start worker processes
     workers = []
     for i, pair in enumerate(gpu_pairs):
         p = mp.Process(
@@ -702,7 +706,7 @@ def run_qwen_baseline(
         workers.append(p)
         logger.info(f"Started worker {i} on GPUs {pair}")
     
-    # 결과 수집
+    # Collect results
     results = {
         "start_time": datetime.now().isoformat(),
         "gpu_pairs": [list(p) for p in gpu_pairs],
@@ -718,9 +722,9 @@ def run_qwen_baseline(
     try:
         while processed < total:
             try:
-                result = result_queue.get(timeout=600)  # 10분 타임아웃
+                result = result_queue.get(timeout=600)  # 10-minute timeout
             except:
-                # 워커 상태 확인
+                # Check worker status
                 alive = sum(1 for w in workers if w.is_alive())
                 if alive == 0:
                     logger.warning("All workers have stopped")
@@ -744,7 +748,7 @@ def run_qwen_baseline(
                     "error": result["error"],
                 })
             
-            # 중간 결과 저장
+            # Save intermediate results
             if processed % 10 == 0:
                 results["end_time"] = datetime.now().isoformat()
                 results_file = paths["output_dir"] / f"qwen_baseline_results.json"
@@ -755,19 +759,19 @@ def run_qwen_baseline(
         logger.warning("\nInterrupted by user")
     
     finally:
-        # 워커 종료 대기
+        # Wait for workers to finish
         for w in workers:
             w.join(timeout=10)
             if w.is_alive():
                 w.terminate()
-    
-    # 최종 결과 저장
+
+    # Save final results
     results["end_time"] = datetime.now().isoformat()
     results_file = paths["output_dir"] / f"qwen_baseline_results.json"
     with open(results_file, 'w', encoding='utf-8') as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
     
-    # 요약 출력
+    # Print summary
     logger.info("\n" + "=" * 70)
     logger.info("FINAL SUMMARY")
     logger.info("=" * 70)
@@ -794,29 +798,32 @@ def main():
         description="Run Qwen Image Layered Baseline Experiment",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
+Note: Replace the GPU id placeholder <QWEN_GPU_IDS> below with your own
+comma-separated GPU ids (e.g. 0,1,2,3).
+
 Examples:
-    # 기본 실행: GPU 3,4,5,6을 2개씩 pair로 사용
-    python run_qwen_baseline.py --split_idx 0 --qwen_gpus 3,4,5,6 --qwen_pair_size 2
-    
-    # RTX 3090: 3개씩 pair 사용
-    python run_qwen_baseline.py --split_idx 1 --qwen_gpus 0,1,2,3,4,5 --qwen_pair_size 3
-    
-    # Dry run (실행 없이 확인)
-    python run_qwen_baseline.py --split_idx 0 --qwen_gpus 3,4 --qwen_pair_size 2 --dry_run
-    
-    # 테스트용 (처음 10개만)
-    python run_qwen_baseline.py --split_idx 0 --qwen_gpus 3,4 --qwen_pair_size 2 --limit 10
-    
-    # 레이어 수 조정
-    python run_qwen_baseline.py --split_idx 0 --qwen_gpus 3,4 --qwen_pair_size 2 --num_layers 6
+    # Basic run: use the GPUs in pairs of 2
+    python run_qwen_figma.py --split_idx 0 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2
+
+    # RTX 3090: use pairs of 3 GPUs
+    python run_qwen_figma.py --split_idx 1 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 3
+
+    # Dry run (preview without executing)
+    python run_qwen_figma.py --split_idx 0 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --dry_run
+
+    # For testing (first 10 frames only)
+    python run_qwen_figma.py --split_idx 0 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --limit 10
+
+    # Adjust the number of layers
+    python run_qwen_figma.py --split_idx 0 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --num_layers 6
         """
     )
-    
+
     parser.add_argument(
         "--qwen_gpus",
         type=str,
         required=True,
-        help="GPU IDs for Qwen model (comma-separated, e.g., '3,4,5,6')"
+        help="GPU IDs for the Qwen model, comma-separated and user-specific (e.g., '0,1,2,3')"
     )
     parser.add_argument(
         "--qwen_pair_size",
@@ -824,8 +831,8 @@ Examples:
         required=True,
         help="Number of GPUs per Qwen pair (e.g., 2 for A6000, 3 for RTX3090)"
     )
-    
-    # Qwen 파라미터
+
+    # Qwen parameters
     parser.add_argument(
         "--num_layers",
         type=int,
@@ -845,7 +852,7 @@ Examples:
         help=f"Random seed (default: {DEFAULT_SEED})"
     )
     
-    # 실행 옵션
+    # Execution options
     parser.add_argument(
         "--dry_run", "-d",
         action="store_true",
@@ -870,8 +877,8 @@ Examples:
     )
     
     args = parser.parse_args()
-    
-    # GPU 파싱
+
+    # Parse GPUs
     qwen_gpus = parse_gpu_list(args.qwen_gpus)
     if not qwen_gpus:
         print(f"Error: Invalid qwen_gpus: {args.qwen_gpus}")

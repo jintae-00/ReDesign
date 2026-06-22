@@ -8,16 +8,16 @@ from pathlib import Path
 import json
 import argparse
 from datetime import datetime
-from PIL import Image, ImageFilter  # ImageFilter 추가 확인
+from PIL import Image, ImageFilter  # Ensure ImageFilter is imported
 import numpy as np
-import cv2 # cv2 import 확인
+import cv2  # Ensure cv2 is imported
 
 # =============================================================================
 # Configuration
 # =============================================================================
 
-# [NEW] 배경 노이즈 제거를 위한 Alpha 임계값 (0~255)
-# 이 값 미만의 투명도를 가진 픽셀은 합성 시 0(완전 투명)으로 처리됩니다.
+# [NEW] Alpha threshold (0-255) for removing background noise.
+# Pixels with an alpha below this value are treated as 0 (fully transparent) during compositing.
 ALPHA_THRESHOLD = 16 
 
 
@@ -126,7 +126,7 @@ def draw_element_borders(
     verbose: bool = True,
 ) -> Image.Image:
     """Draw fancy pink glow borders around segmented elements' actual contours."""
-    # (이전 코드와 동일, import만 함수 내부가 아닌 상단에서 처리됨)
+    # (Same as before, except imports are now handled at the top of the module rather than inside the function)
     result = image.copy().convert("RGBA")
     canvas_w, canvas_h = result.size
     
@@ -251,7 +251,7 @@ def reconstruct_image_with_borders(
     bordered = draw_element_borders(
         reconstructed, 
         parsed_elements, 
-        src_root,  # NEW: src_root 전달
+        src_root,  # NEW: pass src_root
         verbose=verbose
     )
     
@@ -381,7 +381,7 @@ def reconstruct_image(
                             layer_img = Image.open(img_path).convert("RGBA")
                             
                             # [NEW] Alpha Thresholding Logic
-                            # Alpha 값이 낮은 픽셀(노이즈)을 0으로 만들어 중첩 노이즈 제거
+                            # Zero out low-alpha (noise) pixels to remove compositing noise
                             arr = np.array(layer_img)
                             mask = arr[:, :, 3] < ALPHA_THRESHOLD
                             arr[mask] = [0, 0, 0, 0]
@@ -408,7 +408,7 @@ def reconstruct_image(
                         if img_path.exists():
                             layer_img = Image.open(img_path).convert("RGBA")
                             
-                            # [NEW] Text도 마찬가지로 Cleaning 적용
+                            # [NEW] Apply the same cleaning to text as well
                             arr = np.array(layer_img)
                             mask = arr[:, :, 3] < ALPHA_THRESHOLD
                             arr[mask] = [0, 0, 0, 0]

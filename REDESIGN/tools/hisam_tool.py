@@ -2,11 +2,11 @@
 """
 HiSAM - Thread-safe with ToolGPUManager
 
-[수정 사항]
-1. 클로저 late binding 문제 해결 (함수 팩토리 사용)
-2. retry_helper 모듈 사용으로 통합 재시도 로직 적용
-3. 박스별 predictor.reset_image() + empty_cache()로 GPU 메모리 누수 방지
-4. OOM 시 다른 모델 eviction 활성화
+[Changes]
+1. Fix the closure late-binding problem (using a function factory).
+2. Use the retry_helper module for unified retry logic.
+3. Prevent GPU memory leaks via per-box predictor.reset_image() + empty_cache().
+4. Enable eviction of other models on OOM.
 """
 import cv2
 import numpy as np
@@ -31,9 +31,9 @@ def _clip_box_with_pad(x1, y1, x2, y2, W, H, pad_px: int):
 
 def _create_hisam_inference_fn(hisam, crop):
     """
-    HiSAM inference 함수 생성 (클로저 문제 해결)
+    Create the HiSAM inference function (fixes the closure problem).
 
-    for 루프 밖에서 함수를 생성하여 late binding 문제 방지
+    Building the function outside the for loop avoids the late-binding problem.
     """
     def run_inference():
         return hisam(input_img=crop)
@@ -41,7 +41,7 @@ def _create_hisam_inference_fn(hisam, crop):
 
 
 def _reset_predictor(hisam):
-    """predictor 내부 캐시된 image features 해제"""
+    """Release the image features cached inside the predictor."""
     try:
         svc = hisam.hisam_service
         if hasattr(svc, 'predictor') and hasattr(svc.predictor, 'reset_image'):
@@ -81,7 +81,7 @@ def run_hisam_union(
 
 
         per_id_raw = {det_id: np.zeros((H, W), np.uint8) for det_id in det_ids}
-        union_dil = np.zeros((H, W), np.uint8) # Inpainting용 (Dilated)
+        union_dil = np.zeros((H, W), np.uint8) # For inpainting (dilated)
 
         for det_id, b in zip(det_ids or [], boxes or []):
             if b is None or len(b) != 4:
@@ -92,7 +92,7 @@ def run_hisam_union(
             if crop.size == 0:
                 continue
 
-            # ★ 클로저 문제 해결: 함수 팩토리 사용
+            # Fix the closure problem: use a function factory
             inference_fn = _create_hisam_inference_fn(hisam, crop)
 
             try:
@@ -108,7 +108,7 @@ def run_hisam_union(
                 )
             except Exception as e:
                 print(f"[HiSAM] inference failed for det_id={det_id}: {e}")
-                # 실패 시에도 predictor 캐시 해제
+                # Release the predictor cache even on failure
                 _reset_predictor(hisam)
                 del crop
                 if torch.cuda.is_available():
@@ -120,17 +120,17 @@ def run_hisam_union(
 
             m_raw = (np.array(m_pil) > 127).astype(np.uint8)
 
-            # 1. 개별 ID 마스크는 Original(Raw)로 저장
+            # 1. Store the per-ID mask as the original (raw)
             per_id_raw[det_id][y1:y2, x1:x2] = np.maximum(per_id_raw[det_id][y1:y2, x1:x2], m_raw)
 
-            # 2. Union 마스크는 Inpainting을 위해 Dilation 적용
+            # 2. Apply dilation to the union mask for inpainting
             h_crop = y2 - y1
             dilate_px = max(1, int(0.01 * h_crop))
             kernel = np.ones((dilate_px * 2 + 1, dilate_px * 2 + 1), np.uint8)
             m_dilated = cv2.dilate(m_raw, kernel, iterations=1)
             union_dil[y1:y2, x1:x2] = np.maximum(union_dil[y1:y2, x1:x2], m_dilated)
 
-            # ★ 박스별 GPU 메모리 정리: predictor 캐시 해제 + 중간 변수 삭제
+            # Per-box GPU memory cleanup: release the predictor cache + delete intermediates
             del crop, m_pil, m_raw, m_dilated, kernel
             _reset_predictor(hisam)
             if torch.cuda.is_available():
@@ -139,10 +139,10 @@ def run_hisam_union(
                 except Exception:
                     pass
 
-        # 추론 완료 후 원본 이미지 해제
+        # Release the original image after inference completes
         del img
 
-        # masks_by_id 저장 시 per_id_raw(원본) 사용
+        # Use per_id_raw (original) when saving masks_by_id
         base = Path(image_path)
         masks_by_id = {}
         for det_id in det_ids:
@@ -152,7 +152,7 @@ def run_hisam_union(
                 cv2.imwrite(m_path, m_full * 255)
                 masks_by_id[det_id] = m_path
 
-        # union_path 저장 시 union_dil(확장) 사용
+        # Use union_dil (dilated) when saving union_path
         if vis_dir:
             vis_dir.mkdir(parents=True, exist_ok=True)
             union_path = str(vis_dir / f"{step:03d}_HiSAM_union.png")

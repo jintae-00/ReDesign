@@ -18,12 +18,12 @@ evaluation**.
 ReDesign/
 ├── REDESIGN/            # the agent (inference entrypoints, nodes, tools, graph)
 ├── BASELINES/           # baseline methods compared in the paper
+│   └── tool_backends/   #   tool wrappers used by the layered / multi-tools baselines
 ├── evaluation/          # accuracy + editability evaluation
-├── editability_eval/    # editability task/matching framework (dependency of evaluation/)
+│   └── editability_utils/  #   editability task/matching support library
 ├── modules/             # third-party tool backends (code only; checkpoints downloaded)
-├── tool_learning_wo_qwen/  # shared tool wrappers used by some baselines
 ├── scripts/             # download_checkpoints.py, download_figma_dataset.py
-├── figma_data/          # Figma-909 dataset (downloaded; see below) + dataset card
+├── figma_data/          # Figma-909 dataset (downloaded on demand) + dataset card → HuggingFace
 ├── crello_data/         # Crello download guide (not redistributed)
 ├── config.py            # resolves modules/ + weights/ paths, loads .env
 ├── environment.yml      # conda environment
@@ -32,6 +32,23 @@ ReDesign/
 ├── ATTRIBUTION.md       # dataset & third-party attribution
 └── LICENSE
 ```
+
+### How the pieces connect (data flow)
+
+Evaluation scores **inference outputs**, so the order is always
+**download → inference → evaluation**. The directory placeholders used in the
+commands below are produced as follows:
+
+| Placeholder | Produced by | Contents |
+|---|---|---|
+| `figma_data/` | `scripts/download_figma_dataset.py` | the GT dataset (909 episodes) |
+| `<AGENT_OUTPUT_DIR>` | `python -m REDESIGN.run_agent_figma --output_dir <AGENT_OUTPUT_DIR>` | agent predictions (`episodes/<id>/parse.json`, …) |
+| `<QWEN_OUTPUT_DIR>` | `python -m BASELINES.run_qwen_figma … <QWEN_OUTPUT_DIR>` | Qwen baseline layer outputs |
+| `<*_BASELINE_OUTPUT_DIR>` | the corresponding `BASELINES/run_*` script | that baseline's predictions |
+| `<MATCH_ROOT>` | `evaluation/before_eval_editability_precompute_matches.py` | GT↔prediction element matches (editability pre-step) |
+
+So a full Figma run is: download `figma_data` → run the agent to get
+`<AGENT_OUTPUT_DIR>` → pass both to the evaluation scripts.
 
 ## 1. Environment
 

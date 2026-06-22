@@ -1,11 +1,11 @@
 # REDESIGN/tools/objectclear_tool.py
 """
-ObjectClear - 전용 GPU에서 독립 실행
+ObjectClear - runs independently on a dedicated GPU
 
-[전략]
-- GPU 7 전용 사용 (다른 tool과 분리)
-- 프로세스간 파일 락으로 동시 실행 방지
-- ToolGPUManager 우회하여 메모리 충돌 원천 차단
+[Strategy]
+- Use a dedicated GPU (isolated from other tools).
+- Prevent concurrent execution via an inter-process file lock.
+- Bypass ToolGPUManager to eliminate memory conflicts at the source.
 """
 import torch
 import gc
@@ -17,23 +17,23 @@ import numpy as np
 from ..tool_gpu_config import OBJECTCLEAR_GPU
 
 
-# 락 파일 경로
+# Lock file path
 _LOCK_FILE = Path(f"/tmp/objectclear_gpu_{OBJECTCLEAR_GPU}.lock")
 
-# 모델 캐시 (프로세스 내 재사용)
+# Model cache (reused within the process)
 _cached_pipe = None
 _cached_gpu_id = None
 
 
 def _get_or_load_pipe(gpu_id: int, device: str):
-    """모델 로드 (프로세스 내 캐싱)"""
+    """Load the model (cached within the process)."""
     global _cached_pipe, _cached_gpu_id
     
     if _cached_pipe is not None and _cached_gpu_id == gpu_id:
         print(f"[ObjectClear] Using cached model on GPU {gpu_id}")
         return _cached_pipe
     
-    # 기존 캐시 정리
+    # Clear the existing cache
     if _cached_pipe is not None:
         del _cached_pipe
         _cached_pipe = None
@@ -126,28 +126,28 @@ def run_objectclear(
                 pipe.enable_vae_tiling()
             
             # ----------------------------------------------------------------
-            # [수정] Alpha 반영 방식 (Premultiplied Alpha) -> 노이즈 제거
+            # Apply alpha via premultiplied alpha to remove noise
             # ----------------------------------------------------------------
             raw_img = Image.open(image_path).convert("RGBA")
             raw_arr = np.array(raw_img)
 
-            # 0~1 스케일로 정규화된 Alpha
+            # Alpha normalized to the 0-1 range
             alpha = raw_arr[:, :, 3].astype(np.float32) / 255.0
 
-            # RGB에 Alpha를 곱함 (Broadcasting)
+            # Multiply RGB by alpha (broadcasting)
             clean_rgb = raw_arr[:, :, :3].astype(np.float32) * alpha[..., None]
 
-            # [수정됨] 변수명을 img -> image로 변경하여 이후 로직과 연결
+            # Use the variable name `image` so it connects with the logic below
             image = Image.fromarray(clean_rgb.astype(np.uint8), mode="RGB")
-            
+
             mask = Image.open(mask_path).convert("L")
-            
-            # 이제 image 변수가 존재하므로 에러가 발생하지 않음
+
+            # The `image` variable now exists, so no error occurs
             orig_w, orig_h = image.size
             print(f"[ObjectClear] Original size: {orig_w}x{orig_h}")
             
             # ----------------------------------------------------------------
-            # ★ 수정된 Padding 로직 (Edge Extend 방식)
+            # Padding logic (edge-extend approach)
             # ----------------------------------------------------------------
             target_w = (orig_w + 7) // 8 * 8
             target_h = (orig_h + 7) // 8 * 8
@@ -157,17 +157,17 @@ def run_objectclear(
                 is_padded = True
                 print(f"[ObjectClear] Padding image to {target_w}x{target_h} using Edge Extend...")
                 
-                # 1. 새 도화지 생성
+                # 1. Create a new canvas
                 new_image = Image.new("RGB", (target_w, target_h))
                 new_image.paste(image, (0, 0))
-                
-                # 2. 오른쪽 가장자리 채우기 (마지막 열 픽셀 복사)
+
+                # 2. Fill the right edge (copy the last column of pixels)
                 if target_w > orig_w:
                     edge_right = image.crop((orig_w - 1, 0, orig_w, orig_h))
                     edge_right_stretched = edge_right.resize((target_w - orig_w, orig_h))
                     new_image.paste(edge_right_stretched, (orig_w, 0))
                 
-                # 3. 아래쪽 가장자리 채우기 (마지막 행 픽셀 복사, 확장된 오른쪽 영역 포함)
+                # 3. Fill the bottom edge (copy the last row of pixels, including the extended right region)
                 if target_h > orig_h:
                     edge_bottom = new_image.crop((0, orig_h - 1, target_w, orig_h))
                     edge_bottom_stretched = edge_bottom.resize((target_w, target_h - orig_h))
@@ -175,7 +175,7 @@ def run_objectclear(
                 
                 image = new_image
                 
-                # 4. 마스크 패딩 (마스크는 반드시 검은색(0)으로 패딩하여 생성 영역에서 제외)
+                # 4. Pad the mask (the mask must be padded with black (0) to exclude it from the generated region)
                 new_mask = Image.new("L", (target_w, target_h), 0)
                 new_mask.paste(mask, (0, 0))
                 mask = new_mask
@@ -205,7 +205,7 @@ def run_objectclear(
                 pass
             
             # ----------------------------------------------------------------
-            # ★ Crop 로직
+            # Crop logic
             # ----------------------------------------------------------------
             if is_padded:
                 print(f"[ObjectClear] Cropping output back to {orig_w}x{orig_h}...")

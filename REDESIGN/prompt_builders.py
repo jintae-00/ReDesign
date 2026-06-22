@@ -4,7 +4,7 @@ Prompt builders for URLD (Unified Recursive Layer Decomposition) Pipeline
 
 Builds prompts with ancestry context for router_vlm node.
 
-[수정 27] Verifier response parsing simplified:
+[Revision 27] Verifier response parsing simplified:
 - Removed _normalize_verifier_result()
 - Removed _default_verifier_result()
 - parse_verifier_response() now returns raw JSON with minimal processing
@@ -96,7 +96,7 @@ def build_router_user_prompt(
     # 2. Failed Attempts
     failed_attempts_context = _format_failed_attempts(layer_id, state)
     
-    # 3. [수정 35] Node Error Context
+    # 3. [Revision 35] Node Error Context
     node_error_context = _format_node_errors(layer_id, state)
     
     # 4. Parent action
@@ -109,7 +109,7 @@ def build_router_user_prompt(
     prompt = ROUTER_VLM_USER_PROMPT_TEMPLATE.format(
         ancestry_json=ancestry_json,
         failed_attempts_context=failed_attempts_context,
-        node_error_context=node_error_context,  # [수정 35] NEW
+        node_error_context=node_error_context,  # [Revision 35] NEW
         layer_id=layer_id,
         depth=node.get("depth", 0),
         parent_action=parent_action,
@@ -141,7 +141,7 @@ def build_ancestry_summary(layer_id: str, state: Dict[str, Any]) -> str:
 def _format_node_errors(layer_id: str, state: Dict[str, Any]) -> str:
     """
     Format node execution errors from failed_attempts.
-    [수정 35] Extracts node_execution_error entries for Router VLM.
+    [Revision 35] Extracts node_execution_error entries for Router VLM.
     """
     tree = state.get("history_tree", {})
     node = tree.get(layer_id, {})
@@ -180,9 +180,9 @@ def _format_failed_attempts(layer_id: str, state: Dict[str, Any]) -> str:
     """
     Format failed attempts for the current layer into a readable string.
     
-    [수정 34] Enhanced to show all historical failed attempts for retry decision.
-    [수정 38] Added params output for hyperparameter (qwen_len, etc.) tracking.
-    [수정 39] Added ACTION DIVERSITY analysis - detect consecutive same-action failures
+    [Revision 34] Enhanced to show all historical failed attempts for retry decision.
+    [Revision 38] Added params output for hyperparameter (qwen_len, etc.) tracking.
+    [Revision 39] Added ACTION DIVERSITY analysis - detect consecutive same-action failures
              and recommend considering alternative approaches.
     
     Crucial for the Router to learn from immediate past mistakes and avoid repeating.

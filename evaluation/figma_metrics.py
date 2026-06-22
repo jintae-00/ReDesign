@@ -12,14 +12,19 @@ Each pair specifies its own agent, qwen, and GT subset prefix.
 Splits are auto-detected per pair.
 
 Usage:
+    # Replace <GPU_IDS> with a comma-separated list of your own GPU ids (e.g. 0,1,2,3).
     python evaluation_figma.py \
-        --figma-data ./figma_data \
+        --figma-data <FIGMA_DATA_DIR> \
         --exp-pairs \
-            ./figma_experiment_0131:./qwen_experiment:dino90_obj_5_25_char_50 \
-            ./figma_experiment_0208:./qwen_experiment_0208:dino80_obj_5_60_char_25 \
-        --output ./evaluation_figma_results \
+            <AGENT_OUTPUT_DIR>:<QWEN_OUTPUT_DIR>:merged \
+        --output <OUTPUT_DIR> \
         --matching optimal \
-        --num-workers 8
+        --num-workers 8 --gpu-ids <GPU_IDS>
+
+    The agent/qwen output dirs are produced by running the inference runners first
+    (e.g. ``python -m REDESIGN.run_agent_figma --data_dir figma_data \
+    --output_dir <AGENT_OUTPUT_DIR>``), and ``--figma-data`` should point at the
+    downloaded ``figma_data`` dataset.
 """
 
 import argparse
@@ -98,14 +103,14 @@ BACKGROUND_L1_THRESHOLD = 0.5
 
 # Optimal Matching Hyperparameters
 MERGE_IOU_THRESHOLD = 0.05
-CONTAINMENT_MERGE_THRESHOLD = 0.5  # 0.75 이상 포함되면 무조건 병합 
-OPTIONAL_MERGE_THRESHOLD = 0.1     # 0.1~0.75 사이면 조합 생성 후보 
+CONTAINMENT_MERGE_THRESHOLD = 0.5  # Always merge if containment is 0.75 or higher
+OPTIONAL_MERGE_THRESHOLD = 0.1     # Candidate for combination generation if between 0.1 and 0.75
 LAMBDA_L1 = 0.7
 LAMBDA_IOU = 0.3
 PENALTY_GT_MERGE = 0.05
 PENALTY_PE_MERGE = 0.0
 DUMMY_COST = 0.4
-MAX_MERGE_SIZE = None  # 제한 없음
+MAX_MERGE_SIZE = None  # No limit
 
 
 def _json_safe_default(obj):
@@ -379,34 +384,34 @@ def extract_gt_elements(
     # -------------------------------------------------------------------------
     def place_image_numpy(src_img: Image.Image, x: int, y: int, W: int, H: int) -> Optional[Image.Image]:
         """
-        NumPy 배열 슬라이싱을 사용하여 작은 이미지를 큰 캔버스에 배치합니다.
-        PIL.Image.new() + paste() 보다 훨씬 빠르며 메모리 효율적입니다.
+        Places a small image onto a large canvas using NumPy array slicing.
+        Much faster and more memory-efficient than PIL.Image.new() + paste().
         """
-        # 원본 이미지 배열 변환
+        # Convert source image to array
         src_arr = np.array(src_img)
         h_src, w_src = src_arr.shape[:2]
         
-        # 1. 캔버스 범위 내 유효 좌표 계산 (Clipping)
+        # 1. Compute valid coordinates within canvas bounds (Clipping)
         x1 = max(0, x)
         y1 = max(0, y)
         x2 = min(W, x + w_src)
         y2 = min(H, y + h_src)
         
-        # 유효 영역이 없으면(화면 밖) None 반환
+        # Return None if there is no valid region (off-screen)
         if x2 <= x1 or y2 <= y1:
             return None
             
-        # 2. 소스 이미지 내에서 가져올 영역 계산
-        # (캔버스 밖으로 나간 만큼 소스에서도 잘라내야 함)
+        # 2. Compute the region to take from the source image
+        # (Crop the source by as much as it extends beyond the canvas)
         src_x1 = x1 - x
         src_y1 = y1 - y
         src_x2 = src_x1 + (x2 - x1)
         src_y2 = src_y1 + (y2 - y1)
         
-        # 3. 빈 캔버스 생성 (NumPy Zeros) -> 매우 빠름
+        # 3. Create an empty canvas (NumPy Zeros) -> very fast
         canvas_arr = np.zeros((H, W, 4), dtype=np.uint8)
         
-        # 4. 배열 직접 할당 (Copy)
+        # 4. Direct array assignment (Copy)
         canvas_arr[y1:y2, x1:x2] = src_arr[src_y1:src_y2, src_x1:src_x2]
         
         return Image.fromarray(canvas_arr, "RGBA")
@@ -422,7 +427,7 @@ def extract_gt_elements(
                 bg_img = Image.open(bg_path).convert("RGBA")
                 bg_img = clean_alpha_noise(bg_img)
                 
-                # 배경도 NumPy 방식으로 배치 (일관성 및 속도)
+                # Place the background using the NumPy approach too (consistency and speed)
                 canvas = place_image_numpy(bg_img, 0, 0, canvas_w, canvas_h)
                 
                 if canvas is not None:
@@ -456,7 +461,7 @@ def extract_gt_elements(
             img = Image.open(img_path).convert("RGBA")
             img = clean_alpha_noise(img)
             
-            # 좌표 계산
+            # Coordinate calculation
             if unit.get("is_background"):
                 paste_x = int(round(unit["render_x"] - origin_x))
                 paste_y = int(round(unit["render_y"] - origin_y))
@@ -464,7 +469,7 @@ def extract_gt_elements(
                 paste_x = int(round(unit.get("original_render_x", unit["render_x"]) - origin_x))
                 paste_y = int(round(unit.get("original_render_y", unit["render_y"]) - origin_y))
             
-            # [최적화] NumPy Helper 함수 사용
+            # [Optimization] Use the NumPy helper function
             canvas = place_image_numpy(img, paste_x, paste_y, canvas_w, canvas_h)
             
             if canvas is None:
@@ -473,7 +478,7 @@ def extract_gt_elements(
             mask = np.array(canvas.getchannel("A")).astype(np.float32) / 255.0
             
             if mask.sum() > MIN_ELEMENT_AREA:
-                # BBox는 캔버스 경계 내로 클리핑하여 저장
+                # Store BBox clipped to the canvas boundaries
                 x1 = max(0, paste_x)
                 y1 = max(0, paste_y)
                 x2 = min(canvas_w, paste_x + img.width)
@@ -498,41 +503,41 @@ def extract_gt_elements(
 
 def apply_soft_kmeans_refinement(elem: Dict) -> Dict:
     """
-    K-Means로 색상을 분리하되, 'Soft-Thresholding'을 적용하여 
-    텍스트의 획(Stroke)이 얇아지는 것을 방지하고 IoU를 보존합니다.
+    Separates colors with K-Means while applying 'Soft-Thresholding' to
+    prevent text strokes from becoming thin and to preserve IoU.
     """
-    # 원본 데이터 추출
+    # Extract source data
     img_pil = elem["image"].convert("RGBA")
     img_arr = np.array(img_pil).astype(np.float32)
     
     alpha = img_arr[..., 3]
     rgb = img_arr[..., :3]
     
-    # 유효 픽셀(알파가 10 이상)만 대상으로 군집화 수행
+    # Perform clustering only on valid pixels (alpha 10 or higher)
     valid_mask = alpha > 16 
     if np.sum(valid_mask) < 32: 
         return elem
 
-    # 1. K-Means로 전경/배경 대표 색상 추출
+    # 1. Extract representative foreground/background colors with K-Means
     pixels = rgb[valid_mask]
     try:
         from sklearn.cluster import MiniBatchKMeans
         kmeans = MiniBatchKMeans(n_clusters=2, random_state=42, n_init=3).fit(pixels)
-        centers = kmeans.cluster_centers_ # [2, 3] 형태
+        centers = kmeans.cluster_centers_ # [2, 3] shape
     except Exception:
-        # sklearn이 없거나 에러 발생 시 원본 반환
+        # Return original if sklearn is missing or an error occurs
         return elem
 
-    # 2. 전경(글자) 중심점 찾기 (알파값이 높고 진한 곳의 라벨을 전경으로 가정)
+    # 2. Find the foreground (text) center (assume the label in high-alpha, dense areas is the foreground)
     full_labels = np.full(alpha.shape, -1, dtype=int)
     full_labels[valid_mask] = kmeans.labels_
     
-    # 더 확실한 전경 영역(알파 > 220)에서 가장 많이 등장한 라벨을 전경으로 선택
+    # Select the most frequent label in the more confident foreground region (alpha > 220) as the foreground
     core_mask = alpha > 200
     if np.sum(core_mask) < 10: 
         core_mask = valid_mask
     
-    # core_mask 영역의 라벨들 중 빈도수가 높은 것을 foreground로 설정
+    # Set the most frequent label among the core_mask region as the foreground
     valid_labels = full_labels[core_mask]
     valid_labels = valid_labels[valid_labels != -1]
     
@@ -545,38 +550,38 @@ def apply_soft_kmeans_refinement(elem: Dict) -> Dict:
     C_fg = centers[fg_label]
     C_bg = centers[bg_label]
 
-    # 3. 모든 픽셀에 대해 전경색/배경색과의 거리 계산
+    # 3. Compute distance to foreground/background colors for every pixel
     dist_fg = np.linalg.norm(rgb - C_fg, axis=2)
     dist_bg = np.linalg.norm(rgb - C_bg, axis=2)
 
-    # 4. Soft-Weighting 로직
-    # ratio가 0에 가까울수록 전경, 1에 가까울수록 배경
+    # 4. Soft-Weighting logic
+    # The closer ratio is to 0, the more foreground; the closer to 1, the more background
     ratio = dist_fg / (dist_fg + dist_bg + 1e-6)
     
-    # protection_threshold: 이 값보다 전경에 가까우면(ratio가 작으면) 알파값을 건드리지 않음
-    # 값을 높일수록(예: 0.6~0.7) 텍스트가 더 두껍게 유지됨
+    # protection_threshold: if closer to foreground than this value (smaller ratio), the alpha is left untouched
+    # Higher values (e.g., 0.6~0.7) keep text thicker
     protection_threshold = 0.6
     
     new_alpha = alpha.copy()
     
-    # 배경에 훨씬 가까운 애들만 골라냅니다 (ratio > threshold)
+    # Select only those much closer to the background (ratio > threshold)
     kill_indices = (ratio > protection_threshold) & (valid_mask)
     
-    # 5. 급격하게 지우지 않고, ratio에 따라 부드럽게 감쇄 (Linear Decay)
+    # 5. Instead of erasing abruptly, decay smoothly according to ratio (Linear Decay)
     if np.any(kill_indices):
         decay = (1.0 - ratio[kill_indices]) / (1.0 - protection_threshold)
-        # 제곱을 해서 경계면을 더 부드럽게 처리
+        # Square it to make the boundary smoother
         new_alpha[kill_indices] = new_alpha[kill_indices] * (decay ** 2)
 
-    # 6. 결과 반영
+    # 6. Apply the result
     new_img_arr = np.array(img_pil)
     new_img_arr[..., 3] = np.clip(new_alpha, 0, 255).astype(np.uint8)
     
     new_elem = elem.copy()
     new_elem["image"] = Image.fromarray(new_img_arr)
-    # 0~1 range float32 mask 업데이트
+    # Update the 0~1 range float32 mask
     new_elem["mask"] = (new_alpha / 255.0).astype(np.float32)
-    # area 재계산
+    # Recompute area
     new_elem["area"] = float(np.sum(new_elem["mask"] > 0))
     
     return new_elem
@@ -632,8 +637,8 @@ def extract_agent_elements(
         
         elem_id = elem.get("id")
         
-        # 1순위: canvas_image.png (텍스트 복구용 또는 전체 배치용)
-        # 2순위: extracted.png 또는 crop_image.png (일반 객체용)
+        # Priority 1: canvas_image.png (for text recovery or full placement)
+        # Priority 2: extracted.png or crop_image.png (for general objects)
         potential_files = [
             episode_dir / "elements" / elem_id / "canvas_image.png",
             episode_dir / "elements" / elem_id / "extracted.png",
@@ -646,7 +651,7 @@ def extract_agent_elements(
                 img_path = p
                 break
         
-        # 만약 위 경로에 없다면 JSON에 적힌 파일명이라도 활용
+        # If not found at the paths above, fall back to the filename recorded in the JSON
         if img_path is None:
             json_uri = elem.get("canvas_image_uri") or elem.get("extracted_image_uri")
             if json_uri:
@@ -664,22 +669,22 @@ def extract_agent_elements(
             elem_img = Image.open(img_path).convert("RGBA")
             elem_img = clean_alpha_noise(elem_img)
             
-            # 캔버스 크기 (W, H)
+            # Canvas size (W, H)
             canvas_arr = np.zeros((H, W, 4), dtype=np.uint8)
             x1_b, y1_b, x2_b, y2_b = [int(b) for b in bbox]
 
             if elem.get("canvas_image_uri") and elem_img.size == (W, H):
-                # [핵심 수정] 전체 캔버스 이미지를 가져오더라도 bbox 영역만 남기고 나머지는 제거
+                # [Key fix] Even when loading the full canvas image, keep only the bbox region and remove the rest
                 full_arr = np.array(elem_img)
-                # bbox 영역만 복사 (나머지는 초기값인 0,0,0,0 유지)
+                # Copy only the bbox region (the rest stays at the initial 0,0,0,0)
                 y1_clip, y2_clip = max(0, y1_b), min(H, y2_b)
                 x1_clip, x2_clip = max(0, x1_b), min(W, x2_b)
                 
                 canvas_arr[y1_clip:y2_clip, x1_clip:x2_clip] = full_arr[y1_clip:y2_clip, x1_clip:x2_clip]
                 canvas = Image.fromarray(canvas_arr, "RGBA")
             else:
-                # extracted_image(Crop된 이미지)인 경우 기존 로직 유지
-                # (이미 잘려 있으므로 노이즈가 적음)
+                # For extracted_image (a cropped image), keep the existing logic
+                # (Already cropped, so there is less noise)
                 x1, y1 = int(bbox[0]), int(bbox[1])
                 if x1 < W and y1 < H:
                     elem_arr = np.array(elem_img)
@@ -702,7 +707,7 @@ def extract_agent_elements(
                     y2 = min(H, y1 + elem_img.height)
                     
                     if x1 < W and y1 < H:
-                        # [FIX] crop → correct → numpy 직접 복사
+                        # [FIX] crop -> correct -> direct numpy copy
                         region = canvas.crop((x1, y1, x2, y2))
                         corrected_region = apply_original_alpha_to_element(
                             region, 
@@ -711,7 +716,7 @@ def extract_agent_elements(
                             canvas_size,
                             mode="zero_mask"
                         )
-                        # paste(img, pos, mask) 대신 numpy 직접 복사
+                        # Direct numpy copy instead of paste(img, pos, mask)
                         canvas_arr = np.array(canvas)
                         corrected_arr = np.array(corrected_region)
                         rh, rw = corrected_arr.shape[:2]
@@ -1123,11 +1128,11 @@ def apply_original_alpha_to_element(
         orig_alpha_float = orig_region.astype(np.float32)
         
         if mode == "zero_mask":
-            # 원본에서 alpha가 거의 없었던 곳(<=16)을 강제로 투명하게, 나머지는 그대로
+            # Force areas that had almost no alpha in the original (<=16) to transparent, keep the rest as-is
             orig_transparent = orig_alpha_float <= 16
             new_alpha = elem_alpha.copy()
             new_alpha[orig_transparent] = 0
-            # RGBA 전체를 0으로 (RGB 오염 방지)
+            # Zero out the entire RGBA (prevents RGB contamination)
             elem_arr[orig_transparent] = [0, 0, 0, 0]
         elif mode == "replace":
             mask = elem_alpha > ALPHA_THRESHOLD
@@ -1252,10 +1257,10 @@ def generate_combinatorial_groups(
     n_gt = len(gt_elements)
     n_pred = len(pred_elements)
 
-    # 1. Coverage Matrix 계산
-    # gt_side_coverage[i, j]: GT[i]가 Pred[j]를 얼마나 포함하는가 (GT에 의한 Pred 커버리지)
+    # 1. Compute the Coverage Matrix
+    # gt_side_coverage[i, j]: how much GT[i] contains Pred[j] (Pred coverage by GT)
     gt_side_coverage = np.zeros((n_gt, n_pred))
-    # pred_side_coverage[j, i]: Pred[j]가 GT[i]를 얼마나 포함하는가 (Pred에 의한 GT 커버리지)
+    # pred_side_coverage[j, i]: how much Pred[j] contains GT[i] (GT coverage by Pred)
     pred_side_coverage = np.zeros((n_pred, n_gt))
 
     # Auto downscale masks for coverage computation when element count is high
@@ -1318,7 +1323,7 @@ def generate_combinatorial_groups(
             gt_side_coverage[i, j] = inter / pred_areas[j]
             pred_side_coverage[j, i] = inter / gt_areas[i]
 
-    # 그룹 초기화 (기본적으로 자기 자신은 단독 그룹으로 포함)
+    # Initialize groups (by default, each element is included as its own singleton group)
     gt_groups_set = set()
     for i in range(n_gt):
         gt_groups_set.add(tuple([i]))
@@ -1328,29 +1333,29 @@ def generate_combinatorial_groups(
         pred_groups_set.add(tuple([j]))
 
     # ---------------------------------------------------------
-    # 로직 수정: 교차 커버리지를 이용하여 "상대방" 그룹을 생성해야 함
+    # Logic fix: use cross coverage to build the "opposite side" groups
     # ---------------------------------------------------------
 
-    # 1. Pred 병합 그룹 생성 (Over-segmentation 해결)
-    # 하나의 GT(i)가 여러 Pred(j1, j2...)를 포함하고 있다면, 이 Pred들은 하나의 그룹이 되어야 함
+    # 1. Build Pred merge groups (resolves over-segmentation)
+    # If a single GT(i) contains multiple Preds (j1, j2...), those Preds should form one group
     for i in range(n_gt):
-        # GT i에 의해 확실히 포함되는 Pred들의 인덱스
+        # Indices of Preds definitely contained by GT i
         mandatory = np.where(gt_side_coverage[i] >= CONTAINMENT_MERGE_THRESHOLD)[0].tolist()
-        
-        # 부분적으로 포함되는 Pred들 (조합 후보)
-        optional = np.where((gt_side_coverage[i] >= OPTIONAL_MERGE_THRESHOLD) & 
+
+        # Partially contained Preds (combination candidates)
+        optional = np.where((gt_side_coverage[i] >= OPTIONAL_MERGE_THRESHOLD) &
                             (gt_side_coverage[i] < CONTAINMENT_MERGE_THRESHOLD))[0].tolist()
-        
-        # Mandatory가 있거나 Optional이 있으면 조합 생성
+
+        # Generate combinations if there are Mandatory or Optional items
         base_group = mandatory
-        
-        # 조합 생성 (속도를 위해 Optional 개수가 너무 많으면 제한하거나, 전체 사용)
-        # 여기서는 Pred Group을 만듭니다. (GT 인덱스 i는 포함하지 않음!)
+
+        # Generate combinations (for speed, limit when there are too many Optional items, or use all)
+        # Here we build the Pred Group. (GT index i is NOT included!)
         if not optional:
             if len(base_group) > 1:
                 pred_groups_set.add(tuple(sorted(base_group)))
         else:
-            # Optional 요소들에 대한 PowerSet 조합
+            # PowerSet combinations over the Optional elements
             limit_optional = optional[:5] 
             for r in range(len(limit_optional) + 1):
                 for combo in combinations(limit_optional, r):
@@ -1358,10 +1363,10 @@ def generate_combinatorial_groups(
                     if len(new_group) > 0:
                         pred_groups_set.add(tuple(new_group))
 
-    # 2. GT 병합 그룹 생성 (Under-segmentation 해결)
-    # 하나의 Pred(j)가 여러 GT(i1, i2...)를 포함하고 있다면, 이 GT들은 하나의 그룹이 되어야 함
+    # 2. Build GT merge groups (resolves under-segmentation)
+    # If a single Pred(j) contains multiple GTs (i1, i2...), those GTs should form one group
     for j in range(n_pred):
-        # Pred j에 의해 확실히 포함되는 GT들의 인덱스
+        # Indices of GTs definitely contained by Pred j
         mandatory = np.where(pred_side_coverage[j] >= CONTAINMENT_MERGE_THRESHOLD)[0].tolist()
         
         optional = np.where((pred_side_coverage[j] >= OPTIONAL_MERGE_THRESHOLD) & 
@@ -1369,7 +1374,7 @@ def generate_combinatorial_groups(
         
         base_group = mandatory
         
-        # 여기서는 GT Group을 만듭니다. (Pred 인덱스 j는 포함하지 않음!)
+        # Here we build the GT Group. (Pred index j is NOT included!)
         if not optional:
             if len(base_group) > 1:
                 gt_groups_set.add(tuple(sorted(base_group)))
@@ -1381,7 +1386,7 @@ def generate_combinatorial_groups(
                     if len(new_group) > 0:
                         gt_groups_set.add(tuple(new_group))
 
-    # set -> list 변환
+    # set -> list conversion
     gt_groups = [list(g) for g in gt_groups_set]
     pred_groups = [list(p) for p in pred_groups_set]
 
@@ -1430,7 +1435,7 @@ def compute_matching_cost(
     union = roi.sum()
     iou = float(intersection / (union + 1e-6))
     
-    # Raw RGB on alpha region (LayerD 방식과 동일)
+    # Raw RGB on alpha region (same as the LayerD approach)
     gt_arr = np.array(gt_composite.convert("RGBA")).astype(np.float32) / 255.0
     pred_arr = np.array(pred_composite.convert("RGBA")).astype(np.float32) / 255.0
     
@@ -1478,7 +1483,7 @@ def build_cost_matrix_gpu(
                      f"(elements={total_elements}, groups={total_groups})")
 
     # -------------------------------------------------------------------------
-    # 1. Mask Tensor 준비 (IoU 계산용)
+    # 1. Prepare Mask Tensors (for IoU computation)
     # -------------------------------------------------------------------------
     def get_mask_tensor(elems):
         tensors = []
@@ -1493,10 +1498,10 @@ def build_cost_matrix_gpu(
     pred_masks_gpu = get_mask_tensor(pred_elements)
 
     # -------------------------------------------------------------------------
-    # 2. RGB Tensor 준비 (Compositing을 위해 일단 Premultiplied로 준비)
+    # 2. Prepare RGB Tensors (first prepared as Premultiplied for Compositing)
     # -------------------------------------------------------------------------
-    # Compositing 과정 자체는 Alpha 연산이 필요하므로 입력은 Premultiplied로 준비합니다.
-    # 나중에 비교 직전에 Un-multiply 할 것입니다.
+    # The compositing process itself requires Alpha operations, so the input is prepared as Premultiplied.
+    # We will Un-multiply later, right before comparison.
     def get_prem_rgb_tensor_cpu(elems):
         tensors = []
         for e in elems:
@@ -1506,7 +1511,7 @@ def build_cost_matrix_gpu(
 
             alpha = img_rgba[..., 3:4]
             rgb = img_rgba[..., :3]
-            rgb_prem = rgb * alpha  # Compositing용
+            rgb_prem = rgb * alpha  # For compositing
 
             tensors.append(torch.from_numpy(rgb_prem).permute(2, 0, 1))
         return torch.stack(tensors)
@@ -1515,11 +1520,11 @@ def build_cost_matrix_gpu(
     pred_rgbs_cpu = get_prem_rgb_tensor_cpu(pred_elements)
 
     # -------------------------------------------------------------------------
-    # 3. 그룹 렌더링 & Un-multiply (순수 RGB 복원)
+    # 3. Group rendering & Un-multiply (restore pure RGB)
     # -------------------------------------------------------------------------
     def render_groups_unmultiplied(groups, masks_gpu, rgbs_cpu):
         grp_masks = []
-        grp_rgbs = []   # 순수 RGB (Non-premultiplied)
+        grp_rgbs = []   # Pure RGB (Non-premultiplied)
         grp_bboxes = []
 
         for idx_list in groups:
@@ -1529,9 +1534,9 @@ def build_cost_matrix_gpu(
 
             sorted_indices = sorted(idx_list)
 
-            # 캔버스 초기화 (Premultiplied 상태로 누적)
-            # canvas_rgb: 누적된 RGB*Alpha
-            # canvas_alpha: 누적된 Alpha
+            # Initialize canvas (accumulated in Premultiplied state)
+            # canvas_rgb: accumulated RGB*Alpha
+            # canvas_alpha: accumulated Alpha
             canvas_rgb = torch.zeros((3, cH, cW), device=device)
             canvas_alpha = torch.zeros((1, cH, cW), device=device)
 
@@ -1549,21 +1554,21 @@ def build_cost_matrix_gpu(
                 canvas_rgb = src_rgb + canvas_rgb * (1.0 - src_a)
                 
                 # Alpha Compositing: Out_A = Src_A + Dst_A * (1 - Src_A)
-                # (정확한 Alpha 합성을 위해 필요)
+                # (Required for accurate Alpha compositing)
                 canvas_alpha = src_a + canvas_alpha * (1.0 - src_a)
             
-            # [핵심 수정] Un-multiply: RGB_pure = RGB_prem / Alpha
-            # Alpha가 0에 가까운 곳은 나눗셈 오류 방지를 위해 0 처리
+            # [Key fix] Un-multiply: RGB_pure = RGB_prem / Alpha
+            # Where Alpha is near 0, set to 0 to avoid division errors
             safe_alpha = torch.clamp(canvas_alpha, min=1e-6)
             pure_rgb = canvas_rgb / safe_alpha
             
-            # Alpha가 거의 없는 곳(완전 투명)은 RGB도 0으로 마스킹 (노이즈 방지)
+            # Where Alpha is almost absent (fully transparent), mask RGB to 0 as well (prevents noise)
             is_transparent = canvas_alpha < 1e-3
             pure_rgb = torch.where(is_transparent.expand(3, -1, -1), torch.zeros_like(pure_rgb), pure_rgb)
             
-            grp_rgbs.append(pure_rgb)  # GPU에 유지
-            
-            # 3-3. BBox 계산
+            grp_rgbs.append(pure_rgb)  # Keep on GPU
+
+            # 3-3. BBox computation
             coords = torch.nonzero(union_mask > 0)
             if coords.shape[0] > 0:
                 y1, x1 = coords.min(dim=0)[0]
@@ -1574,12 +1579,12 @@ def build_cost_matrix_gpu(
                 
         return grp_masks, grp_rgbs, grp_bboxes
 
-    # 렌더링 수행 (결과는 순수 RGB, GPU에 유지)
+    # Perform rendering (results are pure RGB, kept on GPU)
     gt_grp_masks, gt_grp_rgbs, gt_grp_bboxes = render_groups_unmultiplied(gt_groups, gt_masks_gpu, gt_rgbs_cpu)
     pred_grp_masks, pred_grp_rgbs, pred_grp_bboxes = render_groups_unmultiplied(pred_groups, pred_masks_gpu, pred_rgbs_cpu)
 
     # -------------------------------------------------------------------------
-    # 4. Cost Matrix 계산
+    # 4. Compute the Cost Matrix
     # -------------------------------------------------------------------------
     cost_matrix = np.full((n_gt_grp, n_pred_grp), 10000.0, dtype=np.float64)
     l1_matrix = np.zeros((n_gt_grp, n_pred_grp))
@@ -1618,7 +1623,7 @@ def build_cost_matrix_gpu(
             g_m_roi = gm[ry1:ry2, rx1:rx2]
             p_m_roi = pm[ry1:ry2, rx1:rx2]
 
-            # IoU (Full Mask Union 기반)
+            # IoU (based on Full Mask Union)
             g_bin = g_m_roi > 0
             p_bin = p_m_roi > 0
             inter = torch.logical_and(g_bin, p_bin).sum()
@@ -1839,18 +1844,18 @@ def solve_optimal_matching_hungarian(
     cost_matrix, gt_groups, pred_groups, 
     n_gt_elements, n_pred_elements, logger=None
 ):
-    """Hungarian Algorithm - 최적 + 빠름"""
+    """Hungarian Algorithm - optimal + fast"""
     from scipy.optimize import linear_sum_assignment
-    
-    # Cost matrix를 square로
+
+    # Make the cost matrix square
     max_dim = max(len(gt_groups), len(pred_groups))
     padded = np.full((max_dim, max_dim), 999.0)
     padded[:len(gt_groups), :len(pred_groups)] = cost_matrix
     
-    # Hungarian (O(n³), 하지만 실제로는 매우 빠름)
+    # Hungarian (O(n³), but very fast in practice)
     row_ind, col_ind = linear_sum_assignment(padded)
     
-    # Element 중복 체크하며 결과 필터링
+    # Filter results while checking for duplicate Elements
     matched_pairs = []
     used_gt = set()
     used_pred = set()
@@ -1930,20 +1935,20 @@ def match_elements_optimal(
     
     device = "cuda:0" if torch.cuda.is_available() else "cpu" [cite: 1]
     
-    # 1. 가시 영역 마스크 계산
+    # 1. Compute visible region masks
     gt_with_visible = compute_visible_masks(gt_elements, canvas_size)
     pred_with_visible = compute_visible_masks(pred_elements, canvas_size, apply_alpha_cleaning=apply_pred_alpha_cleaning)
     
-    # 2. Containment 기반 그룹 생성 (개선된 로직) 
+    # 2. Containment-based group generation (improved logic)
     gt_groups, pred_groups = generate_combinatorial_groups(gt_with_visible, pred_with_visible, logger=logger)
     
-    # 3. GPU 가속 비용 행렬 생성 (개선된 로직) 
+    # 3. GPU-accelerated cost matrix generation (improved logic)
     cost_matrix, l1_matrix, iou_matrix = build_cost_matrix_gpu(
         gt_with_visible, pred_with_visible, gt_groups, pred_groups, canvas_size, device=device, logger=logger
     )
     
 
-    # 4. 최적 매칭 (기존 로직 유지) 
+    # 4. Optimal matching (keep existing logic)
     matched_group_pairs = solve_optimal_matching_hungarian(
         cost_matrix, gt_groups, pred_groups, len(gt_with_visible), len(pred_with_visible), logger=logger
     )
@@ -1999,11 +2004,11 @@ def match_elements_optimal(
         merged_gt = {
             "id": f"merged_gt_{'_'.join(str(i) for i in gt_idx_list)}",
             "type": elem_type,
-            "mask": gt_full_mask,      # 가려짐 없는 전체 마스크
-            "image": gt_full_img,      # 가려짐 없는 전체 이미지
+            "mask": gt_full_mask,      # Full mask without occlusion
+            "image": gt_full_img,      # Full image without occlusion
             "bbox": merged_bbox,
             "area": float(gt_full_mask.sum()),
-            "visible_mask": gt_union_mask, # 매칭용 가시 마스크는 참조용으로 유지
+            "visible_mask": gt_union_mask, # Keep the matching visible mask for reference
             "visible_area": float(gt_union_mask.sum()),
             "z_index": min(gt_with_visible[i].get("z_index", 0) for i in gt_idx_list),
         }
@@ -2062,8 +2067,8 @@ def resize_mask_if_needed(mask: np.ndarray, target_shape: Tuple[int, int]) -> np
 
 def calc_soft_iou(mask1: np.ndarray, mask2: np.ndarray, eps: float = 1e-8) -> float:
     """
-    Soft IoU (LayerD 방식)
-    Alpha 값(0~1 연속값)을 그대로 사용
+    Soft IoU (LayerD approach)
+    Uses Alpha values (continuous 0~1) directly
     """
     m1 = mask1.astype(np.float32)
     m2 = mask2.astype(np.float32)
@@ -2082,8 +2087,8 @@ def calc_soft_iou(mask1: np.ndarray, mask2: np.ndarray, eps: float = 1e-8) -> fl
 
 def calc_binary_iou(mask1: np.ndarray, mask2: np.ndarray, eps: float = 1e-8) -> float:
     """
-    Binary IoU (기존 방식)
-    Alpha를 0/1로 이진화 후 계산
+    Binary IoU (existing approach)
+    Binarizes Alpha to 0/1 before computing
     """
     bin1 = mask1 > 0
     bin2 = mask2 > 0
@@ -2095,7 +2100,7 @@ def calc_binary_iou(mask1: np.ndarray, mask2: np.ndarray, eps: float = 1e-8) -> 
 
 
 # =============================================================================
-# Visual Quality 계산 함수 (LayerD 방식)
+# Visual Quality computation function (LayerD approach)
 # =============================================================================
 
 def compute_visual_quality_no_composite(
@@ -2107,11 +2112,11 @@ def compute_visual_quality_no_composite(
     """
     Visual Quality Calculation with Pre-multiplied Alpha (Min-Error Strategy)
     
-    - RGB 값에 Alpha를 곱한 Pre-multiplied RGB를 사용합니다.
-    - Black 배경과 White 배경에 대해 정식 Alpha Compositing을 수행한 뒤,
-      두 경우 중 더 오차가 적은(Min) 값을 선택합니다.
-    - 이는 객체가 어두운 배경이나 밝은 배경 중 적어도 한 곳에서는 
-      아티팩트 없이 자연스럽게 보이는지를 평가합니다.
+    - Uses Pre-multiplied RGB, i.e., RGB values multiplied by Alpha.
+    - Performs proper Alpha Compositing over both a Black and a White background,
+      then selects the value with the smaller error (Min) of the two cases.
+    - This evaluates whether the object appears natural without artifacts on at
+      least one of a dark or a bright background.
     
     Args:
         gt_rgba: GT RGBA [H, W, 4], uint8
@@ -2126,7 +2131,7 @@ def compute_visual_quality_no_composite(
     pred_float = pred_rgba.astype(np.float32) / 255.0
     
     # 2. Extract & Pre-multiply Alpha
-    # (H, W, 1) 형태로 유지하여 브로드캐스팅 가능하게 함
+    # Keep in (H, W, 1) shape so it can broadcast
     gt_alpha = gt_float[..., 3:4]
     pred_alpha = pred_float[..., 3:4]
     
@@ -2156,7 +2161,7 @@ def compute_visual_quality_no_composite(
     
     # Case 1: Black Background (0, 0, 0)
     # Formula: Color * Alpha + Black * (1 - Alpha) 
-    # Black=0 이므로 Color * Alpha (즉, Premultiplied 그 자체)
+    # Since Black=0, this is Color * Alpha (i.e., Premultiplied itself)
     gt_img_b = gt_prem
     pred_img_b = pred_prem
     
@@ -2167,7 +2172,7 @@ def compute_visual_quality_no_composite(
     
     # 5. Helper Function for Metrics
     def calc_metrics(p_gt_full, p_pred_full):
-        # ROI 영역 내의 픽셀만 추출하여 비교
+        # Extract only the pixels within the ROI region for comparison
         p_gt = p_gt_full[roi_mask]
         p_pred = p_pred_full[roi_mask]
         
@@ -2175,7 +2180,7 @@ def compute_visual_quality_no_composite(
         val_l2 = float(mean_squared_error(p_gt, p_pred))
         val_psnr = float(peak_signal_noise_ratio(p_gt, p_pred, data_range=1.0))
         
-        # inf는 그대로 보존 → 집계 시 유한 최댓값으로 대체
+        # Preserve inf as-is -> replaced with the finite maximum during aggregation
         return val_l1, val_l2, val_psnr
 
     # 6. Calculate & Select Best (Min Error / Max PSNR)
@@ -2189,7 +2194,7 @@ def compute_visual_quality_no_composite(
     }
 
 # =============================================================================
-# Element-wise Dual 메트릭 계산
+# Element-wise Dual metric computation
 # =============================================================================
 
 def compute_element_metrics_dual(
@@ -2198,13 +2203,13 @@ def compute_element_metrics_dual(
     canvas_size: Tuple[int, int],
 ) -> Dict[str, Any]:
     """
-    Element-wise 메트릭을 2가지 방식으로 계산
-    
+    Computes Element-wise metrics in two ways
+
     Returns:
         {
             "visual_quality": {
-                "gt_region": {"l1", "l2", "psnr"},   # GT 영역만
-                "union_region": {"l1", "l2", "psnr"} # 합집합 영역
+                "gt_region": {"l1", "l2", "psnr"},   # GT region only
+                "union_region": {"l1", "l2", "psnr"} # Union region
             },
             "iou": {
                 "soft": float,   # Soft IoU (LayerD)
@@ -2216,20 +2221,20 @@ def compute_element_metrics_dual(
     W, H = canvas_size
     
     # =========================================================================
-    # GT 이미지 준비
+    # Prepare GT image
     # =========================================================================
     gt_img = gt_elem["image"].convert("RGBA")
     if gt_img.size != (W, H):
         gt_img = gt_img.resize((W, H), Image.LANCZOS)
     gt_rgba = np.array(gt_img)
     
-    # GT 마스크
+    # GT mask
     gt_mask = gt_elem["mask"]
     if gt_mask.shape != (H, W):
         gt_mask = cv2.resize(gt_mask.astype(np.float32), (W, H), interpolation=cv2.INTER_LINEAR)
     
     # =========================================================================
-    # Pred 합성 이미지 준비
+    # Prepare composited Pred image
     # =========================================================================
     pred_canvas = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     pred_mask = np.zeros((H, W), dtype=np.float32)
@@ -2250,21 +2255,21 @@ def compute_element_metrics_dual(
     pred_rgba = np.array(pred_canvas)
     
     # =========================================================================
-    # 영역 계산
+    # Area computation
     # =========================================================================
     gt_area = float((gt_mask > 0).sum())
     pred_area = float((pred_mask > 0).sum())
     union_area = float(((gt_mask > 0) | (pred_mask > 0)).sum())
     
     # =========================================================================
-    # Visual Quality 계산 (Alpha Composite 없이!)
+    # Visual Quality computation (without Alpha Composite!)
     # =========================================================================
     vq_intersection  = compute_visual_quality_no_composite(gt_rgba, pred_rgba, region="intersection")
     vq_union_region = compute_visual_quality_no_composite(gt_rgba, pred_rgba, region="union")
     vq_gt_region = compute_visual_quality_no_composite(gt_rgba, pred_rgba, region="gt")
 
     # =========================================================================
-    # IoU 계산
+    # IoU computation
     # =========================================================================
     soft_iou = calc_soft_iou(gt_mask, pred_mask)
     binary_iou = calc_binary_iou(gt_mask, pred_mask)
@@ -2287,7 +2292,7 @@ def compute_element_metrics_dual(
     }
 
 # =============================================================================
-# Panoptic Quality (PQ, SQ, RQ) 계산
+# Panoptic Quality (PQ, SQ, RQ) computation
 # =============================================================================
 
 def compute_panoptic_quality_dual(
@@ -2297,10 +2302,10 @@ def compute_panoptic_quality_dual(
     iou_threshold: float = 0.5,
 ) -> Dict[str, Dict[str, float]]:
     """
-    PQ를 두 가지 IoU 방식으로 계산 (Kirillov et al., CVPR 2019 표준)
-    
-    IoU > iou_threshold인 매칭만 TP로 분류.
-    IoU ≤ iou_threshold인 매칭은 FP+FN으로 분류.
+    Computes PQ with two IoU methods (Kirillov et al., CVPR 2019 standard)
+
+    Only matches with IoU > iou_threshold are classified as TP.
+    Matches with IoU <= iou_threshold are classified as FP+FN.
     
     Returns:
         {
@@ -2311,7 +2316,7 @@ def compute_panoptic_quality_dual(
     results = {}
     
     for iou_type in ["soft", "binary"]:
-        # IoU threshold 기반 TP/FP/FN 분류
+        # TP/FP/FN classification based on the IoU threshold
         tp_pairs = []
         poor_matches = 0
         
@@ -2323,7 +2328,7 @@ def compute_panoptic_quality_dual(
                 poor_matches += 1
         
         tp_count = len(tp_pairs)
-        # Poor match는 FP와 FN 양쪽에 가산 (Kirillov et al. 표준)
+        # Poor matches are added to both FP and FN (Kirillov et al. standard)
         fn = len(unmatched_gt) + poor_matches
         fp = len(unmatched_pred) + poor_matches
         
@@ -2351,16 +2356,16 @@ def compute_panoptic_quality_dual(
 
 
 # =============================================================================
-# Element 메트릭 집계
+# Element metric aggregation
 # =============================================================================
 
 def aggregate_element_metrics_dual(matched_pairs: List[Dict]) -> Dict[str, Any]:
     """
-    전체 매칭 페어에 대해 Dual 메트릭 집계
-    
-    - NaN 값은 집계에서 제외
-    - PSNR의 inf 값은 유한 최댓값으로 대체 후 집계
-    
+    Aggregates Dual metrics over all matched pairs
+
+    - NaN values are excluded from aggregation
+    - PSNR inf values are replaced with the finite maximum before aggregation
+
     Returns:
         {
             "visual_quality": {
@@ -2368,7 +2373,7 @@ def aggregate_element_metrics_dual(matched_pairs: List[Dict]) -> Dict[str, Any]:
                 "union_region": {"l1", "l2", "psnr"}
             },
             "iou": {"soft", "binary"},
-            (각각 simple_avg, weighted_avg 포함)
+            (each including simple_avg, weighted_avg)
         }
     """
     if not matched_pairs:
@@ -2382,8 +2387,8 @@ def aggregate_element_metrics_dual(matched_pairs: List[Dict]) -> Dict[str, Any]:
         }
     
     def _aggregate_values(values, weights, is_psnr=False):
-        """NaN 제거, PSNR inf→max_finite 대체 후 평균 계산"""
-        # NaN 제거
+        """Remove NaN, replace PSNR inf with max_finite, then compute the average"""
+        # Remove NaN
         clean = [(v, w) for v, w in zip(values, weights) if not np.isnan(v)]
         if not clean:
             return float('nan'), float('nan')
@@ -2391,7 +2396,7 @@ def aggregate_element_metrics_dual(matched_pairs: List[Dict]) -> Dict[str, Any]:
         vals = [v for v, w in clean]
         wts = [w for v, w in clean]
         
-        # PSNR: inf → 유한 최댓값으로 대체
+        # PSNR: replace inf with the finite maximum
         if is_psnr:
             finite_vals = [v for v in vals if np.isfinite(v)]
             if finite_vals:
@@ -2404,7 +2409,7 @@ def aggregate_element_metrics_dual(matched_pairs: List[Dict]) -> Dict[str, Any]:
         weighted = float(np.average(vals, weights=wts)) if sum(wts) > 0 else simple
         return simple, weighted
     
-    # Visual Quality 집계
+    # Visual Quality aggregation
     vq_result = {
         "intersection_region": {"simple_avg": {}, "weighted_avg": {}},
         "union_region": {"simple_avg": {}, "weighted_avg": {}},
@@ -2428,7 +2433,7 @@ def aggregate_element_metrics_dual(matched_pairs: List[Dict]) -> Dict[str, Any]:
             vq_result[region]["simple_avg"][metric] = simple
             vq_result[region]["weighted_avg"][metric] = weighted
     
-    # IoU 집계
+    # IoU aggregation
     iou_result = {"simple_avg": {}, "weighted_avg": {}}
     
     for iou_type in ["soft", "binary"]:
@@ -2453,11 +2458,11 @@ def aggregate_element_metrics_dual(matched_pairs: List[Dict]) -> Dict[str, Any]:
 
 
 # =============================================================================
-# 로깅 함수
+# Logging functions
 # =============================================================================
 
 def log_dual_metrics(matched_pairs: List[Dict], pq_dual: Dict, logger=None):
-    """두 방식의 메트릭을 로깅"""
+    """Log the metrics for both methods"""
     
     def log(msg):
         if logger:
@@ -2466,7 +2471,7 @@ def log_dual_metrics(matched_pairs: List[Dict], pq_dual: Dict, logger=None):
             print(msg)
     
     def _clean(vals, is_psnr=False):
-        """NaN 제거, PSNR이면 inf→max_finite 대체"""
+        """Remove NaN; for PSNR, replace inf with max_finite"""
         clean = [v for v in vals if v is not None and not np.isnan(v)]
         if not clean:
             return [0.0]
@@ -2481,7 +2486,7 @@ def log_dual_metrics(matched_pairs: List[Dict], pq_dual: Dict, logger=None):
         log("  No matched pairs to log.")
         return
     
-    # 데이터 수집
+    # Collect data
     inter_l1s, inter_l2s, inter_psnrs = [], [], []
     union_l1s, union_l2s, union_psnrs = [], [], []
     gt_l1s, gt_l2s, gt_psnrs = [], [], []
@@ -2509,7 +2514,7 @@ def log_dual_metrics(matched_pairs: List[Dict], pq_dual: Dict, logger=None):
         soft_ious.append(iou.get("soft", 0))
         binary_ious.append(iou.get("binary", 0))
     
-    # NaN/inf 정리
+    # Clean up NaN/inf
     c_inter_l1 = _clean(inter_l1s); c_inter_l2 = _clean(inter_l2s); c_inter_psnr = _clean(inter_psnrs, is_psnr=True)
     c_union_l1 = _clean(union_l1s); c_union_l2 = _clean(union_l2s); c_union_psnr = _clean(union_psnrs, is_psnr=True)
     c_gt_l1 = _clean(gt_l1s); c_gt_l2 = _clean(gt_l2s); c_gt_psnr = _clean(gt_psnrs, is_psnr=True)
@@ -2545,7 +2550,7 @@ def log_dual_metrics(matched_pairs: List[Dict], pq_dual: Dict, logger=None):
 
 
 def print_dual_comparison(summary: Dict, method: str):
-    """Dual 메트릭 비교 테이블 출력"""
+    """Print the Dual metric comparison table"""
     print(f"\n{'='*95}")
     print(f"  {method.upper()} - DUAL METRIC COMPARISON")
     print(f"{'='*95}")
@@ -2574,20 +2579,20 @@ def print_dual_comparison(summary: Dict, method: str):
 
 
 # =============================================================================
-# 여러 에피소드 결과 집계
+# Aggregating results across multiple episodes
 # =============================================================================
 
 def aggregate_results(results: List[Dict]) -> Dict[str, Any]:
-    """여러 에피소드 결과를 집계 (Dual 메트릭 포함)
-    
-    - NaN 값은 집계에서 제외
-    - PSNR의 inf 값은 유한 최댓값으로 대체 후 집계
+    """Aggregate results across multiple episodes (including Dual metrics)
+
+    - NaN values are excluded from aggregation
+    - PSNR inf values are replaced with the finite maximum before aggregation
     """
     if not results:
         return {}
     
     def _safe_mean(vals, is_psnr=False):
-        """NaN 제거 후 평균. PSNR이면 inf→max_finite 대체."""
+        """Average after removing NaN. For PSNR, replace inf with max_finite."""
         clean = [v for v in vals if not np.isnan(v)]
         if not clean:
             return float('nan')
@@ -2600,7 +2605,7 @@ def aggregate_results(results: List[Dict]) -> Dict[str, Any]:
                 return float('nan')
         return float(np.mean(clean))
     
-    # 기존 집계 (하위 호환성)
+    # Existing aggregation (backward compatibility)
     all_simple, all_weighted = {}, {}
     for key in ["l1", "l2", "psnr", "iou"]:
         simple_vals = [r["element_metrics"]["simple_avg"].get(key, 0) for r in results]
@@ -2626,10 +2631,10 @@ def aggregate_results(results: List[Dict]) -> Dict[str, Any]:
     comp_agg["num_episodes"] = len(results_with_comp)
     
     # =========================================================================
-    # [NEW] Dual 메트릭 집계
+    # [NEW] Dual metric aggregation
     # =========================================================================
     vq_agg = {
-        # [수정] 키 이름 변경
+        # [Fix] Renamed keys
         "intersection_region": {"simple_avg": {}, "weighted_avg": {}},
         "union_region": {"simple_avg": {}, "weighted_avg": {}},
     }
@@ -2659,24 +2664,24 @@ def aggregate_results(results: List[Dict]) -> Dict[str, Any]:
     
     return {
         "num_episodes": len(results),
-        # 기존 필드
+        # Existing fields
         "element_metrics": {"simple_avg": all_simple, "weighted_avg": all_weighted},
         "panoptic_quality": {"pq": float(np.mean(pq_vals)), "sq": float(np.mean(sq_vals)), "rq": float(np.mean(rq_vals))},
         "composite_metrics": comp_agg,
-        # [NEW] Dual 필드
+        # [NEW] Dual fields
         "element_metrics_dual": {"visual_quality": vq_agg, "iou": iou_agg},
         "panoptic_quality_dual": pq_dual_agg,
     }
 
 # =============================================================================
-# 테스트
+# Test
 # =============================================================================
 
 # if __name__ == "__main__":
 #     print("Dual Metrics Module - Test")
 #     print("=" * 50)
     
-#     # 테스트용 마스크 생성
+#     # Create test masks
 #     mask1 = np.zeros((100, 100), dtype=np.float32)
 #     mask1[20:80, 20:80] = 0.8  # Semi-transparent
     
@@ -2692,7 +2697,7 @@ def aggregate_results(results: List[Dict]) -> Dict[str, Any]:
 #     print(f"  Difference:        {soft_iou - binary_iou:.4f}")
 #     print(f"  (Soft IoU is typically higher because it considers partial alpha values)")
     
-#     # 테스트용 RGBA 이미지 생성
+#     # Create test RGBA images
 #     gt_rgba = np.zeros((100, 100, 4), dtype=np.uint8)
 #     gt_rgba[20:80, 20:80, :3] = [200, 100, 50]  # RGB
 #     gt_rgba[20:80, 20:80, 3] = 200  # Alpha
@@ -2717,11 +2722,11 @@ def composite_elements(
     canvas_size: Tuple[int, int],
     use_overwrite: bool = False
 ) -> Tuple[np.ndarray, np.ndarray]:
-    # 1. 투명 캔버스에 요소들 배치 (PIL Image RGBA 반환)
+    # 1. Place elements on a transparent canvas (returns a PIL Image RGBA)
     canvas_rgba_pil, total_mask = composite_elements_transparent(elements, canvas_size, use_overwrite=use_overwrite)
-    
-    # 2. 배경(검정)과 섞지 않고, 순수 RGBA 값을 0~1 float로 변환하여 반환
-    # (H, W, 4) Shape 유지
+
+    # 2. Without blending with a (black) background, convert the pure RGBA values to 0~1 float and return
+    # Keep the (H, W, 4) shape
     composite_arr = np.array(canvas_rgba_pil).astype(np.float32) / 255.0
     
     return composite_arr, total_mask
@@ -2741,31 +2746,31 @@ def composite_elements_transparent(
     for elem in sorted_elems:
         elem_img = elem["image"].convert("RGBA")
         
-        # 1. 크기 보정
+        # 1. Size correction
         if elem_img.size != (W, H):
             elem_img = elem_img.resize((W, H), Image.LANCZOS)
         
-        # 2. 합성 로직 분기
-        # use_overwrite가 True여도, 'text' 타입에만 적용하여 Halo 현상 방지
-        # (이미지가 Flatten된 원본에서 왔다면, 텍스트는 배경색과 이미 섞여있으므로 덮어써야 함)
+        # 2. Compositing logic branch
+        # Even when use_overwrite is True, apply it only to the 'text' type to prevent the Halo effect
+        # (If the image came from a flattened original, text is already blended with the background color, so it should be overwritten)
         is_text = elem.get("type") == "text"
         
         if use_overwrite and is_text:
             # [Overwrite Logic] Text Only
-            # 마스크 영역(Alpha > 0)을 255로 이진화하여 '구멍'을 뚫고, 그 자리에 픽셀을 1:1로 채움
+            # Binarize the mask region (Alpha > 0) to 255 to punch a 'hole', then fill it 1:1 with pixels
             alpha = elem_img.getchannel("A")
-            # 1이라도 있으면 완전 불투명(255)으로 취급하여 덮어쓰기 마스크 생성
+            # If there is any value at all, treat it as fully opaque (255) to build the overwrite mask
             binary_mask = alpha.point(lambda p: 255 if p > 0 else 0)
-            
-            # canvas의 해당 영역을 elem_img로 완전히 대체 (Blend 없음)
+
+            # Completely replace that region of the canvas with elem_img (no Blend)
             canvas = Image.composite(elem_img, canvas, binary_mask)
             
         else:
             # [Standard Logic] Non-text elements or when overwrite is False
-            # 투명도를 고려하여 자연스럽게 블렌딩 (Alpha Compositing)
+            # Blend naturally considering transparency (Alpha Compositing)
             canvas.paste(elem_img, (0, 0), elem_img)
         
-        # 3. 전체 마스크 업데이트 (기존 로직 유지)
+        # 3. Update the total mask (keep existing logic)
         elem_mask = elem["mask"]
         if elem_mask.shape != (H, W):
             elem_mask = cv2.resize(elem_mask, (W, H), interpolation=cv2.INTER_LINEAR)
@@ -2785,28 +2790,28 @@ def compute_composite_metrics(
     W, H = canvas_size
     
     # =========================================================
-    # 1. GT RGBA 준비 (H, W, 4)
+    # 1. Prepare GT RGBA (H, W, 4)
     # =========================================================
     if gt_recon_img is not None:
-        # Figma 원본이 있는 경우
+        # When the Figma original is available
         gt_rgba = np.array(gt_recon_img.convert("RGBA")).astype(np.float32) / 255.0
-        # GT Mask는 Alpha 채널 활용
+        # GT Mask uses the Alpha channel
         gt_mask = gt_rgba[..., 3]
     else:
-        # 재합성이 필요한 경우 (GT는 보통 overwrite=False)
+        # When re-compositing is needed (GT is usually overwrite=False)
         gt_rgba, gt_mask = composite_elements(gt_elements, canvas_size, use_overwrite=False)
     
     # =========================================================
-    # 2. Pred RGBA 준비 (H, W, 4)
+    # 2. Prepare Pred RGBA (H, W, 4)
     # =========================================================
-    # method_name이 'agent'일 때만 overwrite 모드 적용
+    # Apply overwrite mode only when method_name is 'agent'
     is_agent = (method_name == "agent")
     pred_rgba, pred_mask = composite_elements(pred_elements, canvas_size, use_overwrite=is_agent)
     
     # =========================================================
     # 3. Alpha Blending Simulation (Black vs White)
     # =========================================================
-    # Alpha 채널 추출
+    # Extract the Alpha channel
     gt_alpha = gt_rgba[..., 3:4]      # (H, W, 1)
     pred_alpha = pred_rgba[..., 3:4]  # (H, W, 1)
     
@@ -2815,7 +2820,7 @@ def compute_composite_metrics(
     pred_prem = pred_rgba[..., :3] * pred_alpha
     
     # --- Case A: Black Background (0) ---
-    # Formula: Color * Alpha + 0 * (1 - Alpha) = Pre-multiplied 그 자체
+    # Formula: Color * Alpha + 0 * (1 - Alpha) = Pre-multiplied itself
     gt_rgb_black = gt_prem
     pred_rgb_black = pred_prem
     
@@ -2828,22 +2833,22 @@ def compute_composite_metrics(
     # 4. Compute Metrics (Min-Error Strategy)
     # =========================================================
     
-    # Helper: L1, L2, PSNR 계산 함수
+    # Helper: L1, L2, PSNR computation function
     def calc_pixel_metrics(gt, pred):
         l1 = float(np.mean(np.abs(gt - pred)))
         l2 = float(mean_squared_error(gt, pred))
         psnr = float(peak_signal_noise_ratio(gt, pred, data_range=1.0))
         return l1, l2, psnr
 
-    # 검정 배경 점수
+    # Black background score
     l1_b, l2_b, psnr_b = calc_pixel_metrics(gt_rgb_black, pred_rgb_black)
-    # 흰색 배경 점수
+    # White background score
     l1_w, l2_w, psnr_w = calc_pixel_metrics(gt_rgb_white, pred_rgb_white)
-    
-    # [핵심] 두 배경 중 더 오차가 적은(점수가 높은) 쪽을 선택
+
+    # [Key] Select the background with the smaller error (higher score) of the two
     final_l1 = min(l1_b, l1_w)
     final_l2 = min(l2_b, l2_w)
-    # PSNR이 inf인 경우 처리 (보통 numpy에선 inf로 나옴)
+    # Handle the case where PSNR is inf (usually comes out as inf in numpy)
     final_psnr = max(psnr_b, psnr_w)
     if np.isinf(final_psnr):
         final_psnr = float('inf')
@@ -2851,9 +2856,9 @@ def compute_composite_metrics(
     # =========================================================
     # 5. Advanced Metrics (SSIM, LPIPS, DINO)
     # =========================================================
-    # SSIM 등은 계산 비용 문제로 보통 'Standard Composite(Black)'을 기준으로 하거나,
-    # 위에서 선택된 'Best Background' 이미지를 사용합니다.
-    # 여기서는 L1이 더 낮았던 쪽의 이미지를 사용하여 공정성을 맞춥니다.
+    # Due to computational cost, SSIM and similar metrics usually use the 'Standard Composite (Black)' as the reference,
+    # or use the 'Best Background' image selected above.
+    # Here we use the image from whichever side had the lower L1 to keep it fair.
     
     if l1_b < l1_w:
         target_gt_rgb = gt_rgb_black
@@ -2881,7 +2886,7 @@ def compute_composite_metrics(
     lpips_val = 0.0
     dino_val = 0.0
     if metric_models:
-        # 마찬가지로 선택된 'Best Background' 이미지로 계산
+        # Likewise compute using the selected 'Best Background' image
         lpips_val = metric_models.compute_lpips(target_gt_rgb, target_pred_rgb)
         dino_val = metric_models.compute_dino(target_gt_rgb, target_pred_rgb)
     
@@ -2967,19 +2972,19 @@ def create_mask_comparison_visualization(
     gt_bin = gt_mask > 0
     pred_bin = pred_mask > 0
     
-    # [수정] 마스크 로직 명확화
-    real_intersection = gt_bin & pred_bin       # 교집합 (Both)
-    gt_only = gt_bin & ~pred_bin                # GT Only (차집합)
-    pred_only = pred_bin & ~gt_bin              # Pred Only (차집합)
-    
-    # [수정] 색상 할당
-    # 1. 교집합 -> 초록색 (Green)
+    # [Fix] Clarify the mask logic
+    real_intersection = gt_bin & pred_bin       # Intersection (Both)
+    gt_only = gt_bin & ~pred_bin                # GT Only (difference)
+    pred_only = pred_bin & ~gt_bin              # Pred Only (difference)
+
+    # [Fix] Color assignment
+    # 1. Intersection -> Green
     vis[real_intersection] = [0, 255, 0, 160]
-    
-    # 2. GT Only -> 빨간색 (Red) - 기존 코드에서 'intersection' 변수명이 가리키던 영역
+
+    # 2. GT Only -> Red - the region the 'intersection' variable name referred to in the old code
     vis[gt_only] = [255, 0, 0, 160]
-    
-    # 3. Pred Only -> 파란색 (Blue)
+
+    # 3. Pred Only -> Blue
     vis[pred_only] = [0, 0, 255, 160]
     
     vis_img = Image.fromarray(vis, "RGBA")
@@ -3110,7 +3115,7 @@ def save_episode_visualization(
     pq_metrics: Dict,
     output_dir: Path,
     method_name: str,
-    # [수정] Dual Metrics를 인자로 받도록 추가
+    # [Fix] Added so Dual Metrics can be passed as arguments
     element_metrics_dual: Optional[Dict] = None,
     panoptic_quality_dual: Optional[Dict] = None,
     gt_recon_img: Optional[Image.Image] = None,
@@ -3121,12 +3126,12 @@ def save_episode_visualization(
     method_dir = output_dir / episode_id / method_name
     method_dir.mkdir(parents=True, exist_ok=True)
     
-    # 1. Visualization Images 저장 (기존 로직 유지)
+    # 1. Save Visualization Images (keep existing logic)
     matched_cards = []
     for i, match in enumerate(matched_pairs):
         card = create_matched_pair_visualization(match, canvas_size)
         gt_id = match['gt']['id'][:20] if 'id' in match['gt'] else f"merged_{i}"
-        # 파일명에 특수문자 제거 등 안전장치 추가 가능
+        # Safeguards such as removing special characters from the filename can be added
         safe_gt_id = "".join(x for x in gt_id if x.isalnum() or x in "_-")
         card.save(method_dir / f"matched_{i:02d}_{safe_gt_id}.png")
         matched_cards.append(card)
@@ -3151,9 +3156,9 @@ def save_episode_visualization(
     pred_composite_img = Image.fromarray((pred_rgb * 255).astype(np.uint8))
     pred_composite_img.save(method_dir / "composite_pred.png")
     
-    # 2. JSON 데이터 구축 (Dual Metrics 포함)
-    
-    # 각 매칭 쌍에 대한 상세 메트릭 정리
+    # 2. Build JSON data (including Dual Metrics)
+
+    # Organize detailed metrics for each matched pair
     matched_pairs_details = []
     for mp in matched_pairs:
         detail = {
@@ -3163,14 +3168,14 @@ def save_episode_visualization(
             "pred_indices": mp.get("pred_indices", []),
             "match_type": mp["match_type"],
             "cost": mp.get("cost", 0),
-            # 기존 레거시 메트릭
+            # Existing legacy metrics
             "metrics": mp.get("metrics", {}),
-            # [수정] Dual Metrics가 계산되어 있다면 포함
+            # [Fix] Include Dual Metrics if they have been computed
             "metrics_dual": mp.get("metrics_dual", {})
         }
         matched_pairs_details.append(detail)
     
-    # 전체 메트릭 데이터 구조
+    # Full metrics data structure
     metrics_data = {
         "episode_id": episode_id,
         "method": method_name,
@@ -3182,22 +3187,22 @@ def save_episode_visualization(
             "fp": len(unmatched_pred),
         },
         
-        # Composite 레벨 (LPIPS, DINO 등)
+        # Composite level (LPIPS, DINO, etc.)
         "composite_metrics": composite_metrics,
-        
-        # Legacy 호환용 (Binary IoU 기반)
-        "panoptic_quality": pq_metrics, 
-        
-        # [수정] Dual Metrics (Soft/Binary IoU, No-Alpha-Composite VQ)
-        # 인자로 전달받은 값을 저장 (없으면 빈 딕셔너리)
+
+        # For legacy compatibility (Binary IoU based)
+        "panoptic_quality": pq_metrics,
+
+        # [Fix] Dual Metrics (Soft/Binary IoU, No-Alpha-Composite VQ)
+        # Store the values passed as arguments (empty dict if none)
         "element_metrics_dual": element_metrics_dual if element_metrics_dual else {},
         "panoptic_quality_dual": panoptic_quality_dual if panoptic_quality_dual else {},
-        
-        # 상세 매칭 리스트
+
+        # Detailed matching list
         "matched_pairs": matched_pairs_details
     }
     
-    # 3. JSON 파일 저장
+    # 3. Save the JSON file
     with open(method_dir / "metrics.json", "w", encoding="utf-8") as f:
         json.dump(metrics_data, f, indent=2, default=_json_safe_default)
 
@@ -3221,7 +3226,7 @@ def evaluate_episode(
 ) -> Dict[str, Any]:
     """Evaluate a single episode with DUAL METRICS."""
     
-    # 1. 매칭 수행 (기존 로직)
+    # 1. Perform matching (existing logic)
     matched_pairs, unmatched_gt, unmatched_pred = match_elements_optimal(
         gt_elements, pred_elements, canvas_size,
         apply_pred_alpha_cleaning=True,
@@ -3230,14 +3235,14 @@ def evaluate_episode(
     )
 
     # =========================================================================
-    # [NEW] 각 매칭 페어에 대해 Dual 메트릭 계산
+    # [NEW] Compute Dual metrics for each matched pair
     # =========================================================================
     for match in matched_pairs:
         match["metrics_dual"] = compute_element_metrics_dual(
             match["gt"], match["preds"], canvas_size
         )
         
-        # 기존 metrics 필드 유지 (하위 호환성 - Union Region + Binary IoU)
+        # Keep the existing metrics field (backward compatibility - Union Region + Binary IoU)
         md = match["metrics_dual"]
         match["metrics"] = {
             "l1": md["visual_quality"]["union_region"]["l1"],
@@ -3247,11 +3252,11 @@ def evaluate_episode(
         }
 
     # =========================================================================
-    # [NEW] Dual PQ 계산
+    # [NEW] Compute Dual PQ
     # =========================================================================
     pq_dual = compute_panoptic_quality_dual(matched_pairs, unmatched_gt, unmatched_pred)
     
-    # 기존 PQ 필드 (하위 호환성 - Binary IoU 기반)
+    # Existing PQ fields (backward compatibility - Binary IoU based)
     pq_metrics = {
         "pq_count": pq_dual["binary"]["pq"],
         "sq": pq_dual["binary"]["sq"],
@@ -3262,12 +3267,12 @@ def evaluate_episode(
     }
     
     # =========================================================================
-    # [NEW] Dual Element 집계
+    # [NEW] Dual Element aggregation
     # =========================================================================
     element_agg_dual = aggregate_element_metrics_dual(matched_pairs)
 
-    # 기존 element_metrics (하위 호환성)
-    # matched_pairs가 비어있으면 aggregate 결과에 l1 등이 없으므로 .get으로 안전하게 접근
+    # Existing element_metrics (backward compatibility)
+    # If matched_pairs is empty, the aggregate result has no l1 etc., so access safely with .get
     _vq = element_agg_dual.get("visual_quality", {})
     _union_s = _vq.get("union_region", {}).get("simple_avg", {})
     _union_w = _vq.get("union_region", {}).get("weighted_avg", {})
@@ -3288,7 +3293,7 @@ def evaluate_episode(
         },
     }
     
-    # Composite 메트릭: non-text object가 5개 이하이면 skip (파싱이 충분하지 않아 composite가 비정상적으로 높게 나옴)
+    # Composite metrics: skip if there are 5 or fewer non-text objects (parsing is insufficient, so the composite comes out abnormally high)
     n_non_text = sum(1 for e in pred_elements if e.get("type") != "text")
     if n_non_text <= 5:
         composite_metrics = None
@@ -3334,21 +3339,21 @@ def evaluate_episode(
         else:
             logger.info(f"  Composite: SKIPPED (non_text_objects={n_non_text}, <=5)")
 
-    # Visualization 저장 (기존 로직)
+    # Save visualization (existing logic)
     if save_visualization:
          save_episode_visualization(
             episode_id, matched_pairs, unmatched_gt, unmatched_pred,
             gt_elements, pred_elements, canvas_size,
             composite_metrics, pq_metrics,
             output_dir, method_name,
-            # [수정] 아래 인자들을 추가하여 계산된 Dual Metrics를 전달합니다.
+            # [Fix] Added the arguments below to pass the computed Dual Metrics.
             element_metrics_dual=element_agg_dual,
             panoptic_quality_dual=pq_dual,
             gt_recon_img=gt_recon_img
         )
     
     # =========================================================================
-    # 결과 반환 - Dual 메트릭 포함
+    # Return results - including Dual metrics
     # =========================================================================
     return {
         "episode_id": episode_id,
@@ -3363,12 +3368,12 @@ def evaluate_episode(
             "fp": len(unmatched_pred),
             "composite_skipped": composite_metrics is None,
         },
-        # 기존 필드 (하위 호환성)
+        # Existing fields (backward compatibility)
         "element_metrics": element_agg,
         "panoptic_quality": pq_metrics,
         "composite_metrics": composite_metrics,
         "background_l1": background_l1,
-        # [NEW] Dual 메트릭
+        # [NEW] Dual metrics
         "element_metrics_dual": element_agg_dual,
         "panoptic_quality_dual": pq_dual,
     }
@@ -3529,9 +3534,9 @@ def worker_process(
                 "current": idx + 1,
                 "total": len(tasks),
                 "episode_id": episode_id,
-                "status": "done_frame",  # 상태를 '처리중'에서 '완료'로 변경
-                "qwen_res": qwen_res,    # Qwen 결과 데이터 포함
-                "agent_res": agent_res   # Agent 결과 데이터 포함
+                "status": "done_frame",  # Change status from 'processing' to 'done'
+                "qwen_res": qwen_res,    # Include Qwen result data
+                "agent_res": agent_res   # Include Agent result data
             })
 
 
@@ -3564,18 +3569,18 @@ def worker_process(
 
 
 def log_listener_process(log_queue: Queue, stop_event):
-    """상세 로그는 파일에만 기록되므로, CMD 출력은 무시합니다."""
+    """Detailed logs are written only to files, so CMD output is ignored."""
     while not stop_event.is_set() or not log_queue.empty():
         try:
             message = log_queue.get(timeout=0.1)
-            # tqdm.write(message)  <-- 이 부분을 주석 처리하여 CMD 출력을 끕니다.
+            # tqdm.write(message)  <-- Commented out to turn off CMD output.
         except Empty:
             continue
         except Exception:
             continue
 
 
-import textwrap # 상단에 import 추가 (긴 ID 리스트 줄바꿈용)
+import textwrap # Import added at the top (for wrapping long ID lists)
 
 def progress_monitor_process(progress_queue, stop_event, total_tasks, num_workers):
     import math
@@ -3583,7 +3588,7 @@ def progress_monitor_process(progress_queue, stop_event, total_tasks, num_worker
     
     def init_stats():
         return {
-            # Visual Quality: list 기반 수집 (NaN/inf 안전 집계용)
+            # Visual Quality: list-based collection (for NaN/inf-safe aggregation)
             "vq_inter": {"l1": [], "l2": [], "psnr": []},
             "vq_union": {"l1": [], "l2": [], "psnr": []},
             "vq_gt":    {"l1": [], "l2": [], "psnr": []},
@@ -3593,7 +3598,7 @@ def progress_monitor_process(progress_queue, stop_event, total_tasks, num_worker
         }
     
     def _safe_mean(vals, is_psnr=False):
-        """NaN 제거 후 평균. PSNR이면 inf→max_finite 대체."""
+        """Average after removing NaN. For PSNR, replace inf with max_finite."""
         clean = [v for v in vals if not (isinstance(v, float) and math.isnan(v))]
         if not clean:
             return 0.0
@@ -3617,7 +3622,7 @@ def progress_monitor_process(progress_queue, stop_event, total_tasks, num_worker
                 counters["processed"] += 1
                 episode_id = update.get("episode_id", "Unknown")
                 
-                # Agent Composite L1 > 0.2 필터링
+                # Filter on Agent Composite L1 > 0.2
                 agent_res = update.get("agent_res")
                 if agent_res and agent_res.get("composite_metrics", {}).get("l1", 0) > 0.2:
                     counters["skipped"] += 1
@@ -3645,7 +3650,7 @@ def progress_monitor_process(progress_queue, stop_event, total_tasks, num_worker
                         for met in ["pq", "sq", "rq"]:
                             s[target][met] += pq_dual[style][met]
                     
-                    # 3. Composite Metrics (L1, PSNR → list, 나머지 → sum)
+                    # 3. Composite Metrics (L1, PSNR -> list, rest -> sum)
                     comp = res["composite_metrics"]
                     for met in ["l1", "psnr"]:
                         s["comp"][met].append(comp.get(met, 0))
@@ -3654,7 +3659,7 @@ def progress_monitor_process(progress_queue, stop_event, total_tasks, num_worker
 
                 pbar.update(1)
 
-                # [표 출력 로직]
+                # [Table output logic]
                 v = counters["valid"]
                 if v > 0:
                     q = stats["qwen"]; a = stats["agent"]
@@ -3708,10 +3713,10 @@ def main():
     parser.add_argument("--figma-data", type=str, required=True,
                        help="Path to figma_data directory (containing process/subset/)")
     parser.add_argument("--exp-pairs", type=str, nargs="+", required=True,
-                       help="Paired experiment directories with GT subset prefix. "
-                            "Format: agent_dir:qwen_dir:gt_subset_prefix  "
-                            "(e.g. ./figma_experiment_0131:./qwen_experiment:dino90_obj_5_25_char_50 "
-                            "./figma_experiment_0208:./qwen_experiment_0208:dino80_obj_5_60_char_25)")
+                       help="One or more paired inference-output directories with a GT subset "
+                            "prefix, each formatted as agent_dir:qwen_dir:gt_subset_prefix. "
+                            "Use 'merged' as the prefix for the released merged dataset "
+                            "(e.g. <AGENT_OUTPUT_DIR>:<QWEN_OUTPUT_DIR>:merged).")
     parser.add_argument("--output", type=str, required=True)
     parser.add_argument("--max-episodes", type=int, default=None)
     parser.add_argument("--no-viz", action="store_true", help="Skip visualization generation")
@@ -3722,9 +3727,9 @@ def main():
                        help="Comma-separated GPU IDs to use")
     parser.add_argument("--text-refinement-mode", type=str, default="hybrid",
                        choices=["kill", "correct", "hybrid"],
-                       help="Text refinement mode: kill (기존, Union에 유리), "
-                            "correct (RGB만 교정, GT Region에 유리), "
-                            "hybrid (절충)")
+                       help="Text refinement mode: kill (existing, favors Union), "
+                            "correct (corrects RGB only, favors GT Region), "
+                            "hybrid (compromise)")
     
     args = parser.parse_args()
     
@@ -3742,7 +3747,7 @@ def main():
         if len(parts) != 3:
             print(f"[ERROR] Invalid exp-pair format: '{pair_str}'.")
             print(f"  Expected 'agent_dir:qwen_dir:gt_subset_prefix'")
-            print(f"  Example: ./figma_experiment_0131:./qwen_experiment:dino90_obj_5_25_char_50")
+            print(f"  Example: <AGENT_OUTPUT_DIR>:<QWEN_OUTPUT_DIR>:merged")
             return
         agent_dir, qwen_dir, gt_prefix = Path(parts[0]), Path(parts[1]), parts[2]
         exp_pairs.append((agent_dir, qwen_dir, gt_prefix))

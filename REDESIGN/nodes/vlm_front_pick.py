@@ -26,10 +26,10 @@ from ..reducers import (
 from ..utils import image_to_b64, extract_json, get_current_image_path
 from ..prompts import VLM_FRONT_ELEMS_PICK
 
-# [수정 1] 전역 변수 _llm 제거. 함수 내부에서 생성.
+# The _llm global was removed; the LLM is now created inside the function.
 
 def _resize_image_for_vlm(image_path: str, max_size: int = 1024) -> str:
-    """[수정 3] 이미지 크기를 줄여서 Base64로 변환 (네트워크 부하 감소)"""
+    """Downscale the image and return its bytes (reduces network load before base64 encoding)."""
     try:
         with Image.open(image_path) as img:
             w, h = img.size
@@ -37,13 +37,13 @@ def _resize_image_for_vlm(image_path: str, max_size: int = 1024) -> str:
                 ratio = max_size / max(w, h)
                 new_size = (int(w * ratio), int(h * ratio))
                 img = img.resize(new_size, Image.LANCZOS)
-            
-            # 메모리 내에서 바이트로 변환
+
+            # Convert to bytes in memory
             buf = io.BytesIO()
             img.save(buf, format="PNG")
             return buf.getvalue()
     except Exception:
-        # 실패하면 그냥 원본 경로 읽기
+        # On failure, just read the original file
         with open(image_path, "rb") as f:
             return f.read()
 
@@ -74,7 +74,7 @@ def node(state: GraphState) -> Dict[str, Any]:
             r_set_layer_error(layer_id, "Image not found", {"path": image_path}, state)
         )
 
-    # [수정 3 적용] 이미지 용량 최적화
+    # Optimize image size
     try:
         import base64
         img_bytes = _resize_image_for_vlm(image_path)
@@ -85,17 +85,17 @@ def node(state: GraphState) -> Dict[str, Any]:
             r_set_layer_error(layer_id, f"Image processing failed: {e}", {}, state)
         )
 
-    # [수정 1 & 2] LLM 객체를 함수 내에서 생성 + 타임아웃/재시도 설정
-    # max_retries: LangChain 내부적으로 429나 5xx 에러시 자동 재시도
-    # request_timeout: 대용량 이미지 전송 고려하여 넉넉하게 설정 (60초 이상)
+    # Create the LLM object inside the function, with timeout/retry settings.
+    # max_retries: LangChain automatically retries on 429 or 5xx errors.
+    # request_timeout: set generously to account for large image uploads (60+ seconds).
     vlm_model = os.environ.get("VLM_MODEL", "gemini-3-flash-preview")
     llm = ChatOpenAI(
         model=vlm_model,
         base_url="https://gateway.letsur.ai/v1",
         temperature=0,
         model_kwargs={"top_p": 1},
-        max_retries=3,       # API 에러 시 3회 자동 재시도
-        request_timeout=90,  # 타임아웃 90초
+        max_retries=3,       # Retry up to 3 times on API errors
+        request_timeout=90,  # Request timeout: 90 seconds
     )
 
     try:
@@ -104,7 +104,7 @@ def node(state: GraphState) -> Dict[str, Any]:
             {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64_str}"}},
         ])])
     except Exception as e:
-        # 3회 재시도 후에도 실패하면 에러 처리
+        # If it still fails after 3 retries, handle as an error
         return r_pack_state(
             state,
             dequeue_update,

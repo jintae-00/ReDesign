@@ -5,7 +5,7 @@ Connected Component Analysis (CCA) Tool
 Fast pixel-based splitting of spatially separated objects using alpha channel.
 No deep learning required - uses scipy/opencv for connected components.
 
-[수정 8] CRITICAL FIX:
+CRITICAL FIX:
 - Added _clean_transparent_pixels to zero out RGB where alpha is low
 - This prevents "ghost pixels" from corrupting downstream Qwen processing
 - Transparent areas now have RGB=(0,0,0) instead of random color values
@@ -21,7 +21,7 @@ from scipy import ndimage
 
 def _clean_transparent_pixels(arr: np.ndarray, alpha_threshold: int = 10) -> np.ndarray:
     """
-    [수정 8] Zero out RGB values for pixels with low alpha.
+    Zero out RGB values for pixels with low alpha.
     
     This is CRITICAL for downstream processing:
     - CCA outputs may have random RGB values in transparent areas
@@ -58,7 +58,7 @@ def run_split_cca(
     """
     Split image into connected components based on alpha channel.
     
-    [수정 8] Now applies _clean_transparent_pixels to all output layers.
+    Now applies _clean_transparent_pixels to all output layers.
     
     Args:
         image_path: Path to input RGBA image (canvas size)
@@ -134,10 +134,10 @@ def run_split_cca(
         # Create layer image (canvas size, with only this component visible)
         layer_arr = img_arr.copy()
         
-        # [수정 8] Set alpha to 0 for non-component pixels
+        # Set alpha to 0 for non-component pixels
         layer_arr[:, :, 3] = np.where(comp_mask > 0, layer_arr[:, :, 3], 0)
-        
-        # [수정 8] CRITICAL: Clean transparent pixels to zero out RGB
+
+        # CRITICAL: Clean transparent pixels to zero out RGB
         # This prevents ghost pixels from corrupting Qwen processing
         layer_arr = _clean_transparent_pixels(layer_arr, alpha_threshold=alpha_threshold)
         

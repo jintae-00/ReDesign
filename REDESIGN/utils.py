@@ -9,7 +9,7 @@ Provides helpers for:
 - JSON extraction from LLM responses
 - Image manipulation utilities
 
-[수정 33] Added apply_transparency_to_inpainted_image:
+Added apply_transparency_to_inpainted_image:
 - Converts RGB inpainted images back to RGBA
 - Uses flood-fill to remove outer black background
 - Preserves internal black pixels within objects
@@ -75,20 +75,20 @@ def analyze_and_convert_image(
     background_color: Tuple[int, int, int] = (255, 255, 255)
 ) -> Dict[str, Any]:
     """
-    입력 이미지를 분석하고, RGBA인 경우 alpha 마스크를 저장 후 RGB로 변환.
-    
+    Analyze the input image and, if it is RGBA, save the alpha mask and convert it to RGB.
+
     Args:
-        image_path: 원본 이미지 경로
-        output_dir: 출력 디렉토리 (alpha 마스크 저장용)
-        background_color: 투명 영역에 사용할 배경색
-    
+        image_path: Path to the source image
+        output_dir: Output directory (for saving the alpha mask)
+        background_color: Background color to use for transparent regions
+
     Returns:
         {
-            "rgb_image_path": RGB 변환된 이미지 경로,
-            "original_image_path": 원본 이미지 경로,
-            "has_alpha": 알파 채널 존재 여부,
-            "alpha_mask_path": 알파 마스크 경로 (없으면 None),
-            "original_mode": 원본 이미지 모드,
+            "rgb_image_path": Path to the RGB-converted image,
+            "original_image_path": Path to the source image,
+            "has_alpha": Whether an alpha channel is present,
+            "alpha_mask_path": Path to the alpha mask (None if absent),
+            "original_mode": Original image mode,
             "original_size": (width, height),
         }
     """
@@ -108,49 +108,49 @@ def analyze_and_convert_image(
         "rgb_image_path": None,
     }
     
-    # Case 1: 이미 RGB - 그대로 사용
+    # Case 1: Already RGB - use as is
     if img.mode == "RGB":
         rgb_image_path = output_path / "layer_image.png"
         img.save(rgb_image_path)
         result["rgb_image_path"] = str(rgb_image_path)
         return result
     
-    # Case 2: RGBA 또는 알파 채널이 있는 모드
+    # Case 2: RGBA or any mode that carries an alpha channel
     if img.mode in ("RGBA", "LA", "PA") or (img.mode == "P" and "transparency" in img.info):
-        # RGBA로 통일
+        # Normalize to RGBA
         rgba_img = img.convert("RGBA")
         alpha_channel = np.array(rgba_img)[:, :, 3]
-        
-        # 실제로 투명 픽셀이 있는지 확인
+
+        # Check whether transparent pixels actually exist
         has_transparency = np.any(alpha_channel < 255)
-        
+
         if has_transparency:
             result["has_alpha"] = True
-            
-            # 1. Alpha 마스크 저장 (grayscale PNG)
+
+            # 1. Save the alpha mask (grayscale PNG)
             alpha_mask_path = output_path / "original_alpha_mask.png"
             alpha_mask_img = Image.fromarray(alpha_channel, mode="L")
             alpha_mask_img.save(alpha_mask_path)
             result["alpha_mask_path"] = str(alpha_mask_path)
-            
-            # 2. 흰색 배경에 합성하여 RGB 변환
+
+            # 2. Composite onto a white background and convert to RGB
             bg_rgba = (*background_color, 255)
             background = Image.new("RGBA", rgba_img.size, bg_rgba)
             composited = Image.alpha_composite(background, rgba_img)
             rgb_img = composited.convert("RGB")
-            
-            # 3. RGB 이미지 저장
+
+            # 3. Save the RGB image
             rgb_image_path = output_path / "layer_image.png"
             rgb_img.save(rgb_image_path)
             result["rgb_image_path"] = str(rgb_image_path)
         else:
-            # 투명 픽셀 없음 - 단순 RGB 변환
+            # No transparent pixels - simple RGB conversion
             rgb_img = rgba_img.convert("RGB")
             rgb_image_path = output_path / "layer_image.png"
             rgb_img.save(rgb_image_path)
             result["rgb_image_path"] = str(rgb_image_path)
     else:
-        # 기타 모드 (L, 1, etc.) - RGB로 변환
+        # Other modes (L, 1, etc.) - convert to RGB
         rgb_img = img.convert("RGB")
         rgb_image_path = output_path / "layer_image.png"
         rgb_img.save(rgb_image_path)
@@ -166,37 +166,37 @@ def apply_mask_to_image_and_crop(
     output_path: str
 ) -> bool:
     """
-    원본 이미지의 R,G,B,A 값을 보존하면서 마스크를 적용해 Crop합니다.
+    Apply the mask and crop while preserving the original R, G, B, A values.
     """
     try:
-        # 1. 원본 RGBA 로드 (무손실 시작)
+        # 1. Load the original RGBA (lossless start)
         img = Image.open(image_path).convert("RGBA")
         mask = Image.open(mask_path).convert("L")
-        
-        # 2. 마스크 리사이즈 시 NEAREST를 사용하여 새로운 픽셀값 생성을 방지
+
+        # 2. Use NEAREST when resizing the mask to avoid generating new pixel values
         if img.size != mask.size:
             mask = mask.resize(img.size, Image.NEAREST)
-            
+
         data = np.array(img)
         mask_arr = np.array(mask)
-        
-        # 3. 마스크 이진화 (0 또는 255로 명확히 분리)
+
+        # 3. Binarize the mask (cleanly separated into 0 or 255)
         binary_mask = np.where(mask_arr > 127, 255, 0).astype(np.uint8)
-        
-        # 4. Alpha 채널만 수정: 마스크 밖(0)인 부분만 투명하게 만듦
-        # 마스크 안(255)인 부분은 원본 Alpha 값이 그대로 유지됨 (min(orig_A, 255) = orig_A)
+
+        # 4. Modify only the alpha channel: make only the area outside the mask (0) transparent.
+        # Inside the mask (255), the original alpha value is preserved (min(orig_A, 255) = orig_A).
         data[:, :, 3] = np.minimum(data[:, :, 3], binary_mask)
-        
+
         masked_img = Image.fromarray(data)
-        
+
         # 5. Crop
         x1, y1, x2, y2 = [int(v) for v in bbox]
         x1, y1 = max(0, x1), max(0, y1)
         x2, y2 = min(img.width, x2), min(img.height, y2)
-        
+
         if x2 > x1 and y2 > y1:
             cropped = masked_img.crop((x1, y1, x2, y2))
-            cropped.save(output_path, "PNG") # 무손실 저장
+            cropped.save(output_path, "PNG")  # Lossless save
             return True
         return False
     except Exception as e:
@@ -210,28 +210,28 @@ def apply_alpha_mask_to_reconstruction(
     output_path: str,
 ) -> str:
     """
-    Reconstruction 결과에 원본 alpha 마스크를 적용하여 RGBA로 저장.
-    
+    Apply the original alpha mask to the reconstruction result and save as RGBA.
+
     Args:
-        reconstructed_rgb_path: RGB reconstruction 이미지 경로
-        alpha_mask_path: 원본 alpha 마스크 경로
-        output_path: RGBA 출력 경로
-    
+        reconstructed_rgb_path: Path to the RGB reconstruction image
+        alpha_mask_path: Path to the original alpha mask
+        output_path: Output path for the RGBA image
+
     Returns:
-        저장된 RGBA 이미지 경로
+        Path to the saved RGBA image
     """
     rgb_img = Image.open(reconstructed_rgb_path).convert("RGB")
     alpha_mask = Image.open(alpha_mask_path).convert("L")
-    
-    # 크기가 다르면 alpha 마스크를 리사이즈
+
+    # Resize the alpha mask if its size differs
     if rgb_img.size != alpha_mask.size:
         alpha_mask = alpha_mask.resize(rgb_img.size, Image.Resampling.LANCZOS)
-    
-    # RGB + Alpha 합성
+
+    # Composite RGB + Alpha
     rgba_img = rgb_img.copy()
     rgba_img.putalpha(alpha_mask)
-    
-    # 저장
+
+    # Save
     rgba_img.save(output_path)
     
     return str(output_path)
@@ -370,13 +370,13 @@ def boxes_to_aabbs(boxes: List) -> List[List[int]]:
 def get_tight_bbox_from_alpha(image_path: str) -> Optional[List[int]]:
     """
     Get tight bounding box from RGBA image alpha channel.
-    [수정] Handles RGB-on-Black by applying smart transparency logic internally.
+    Handles RGB-on-Black by applying smart transparency logic internally.
     """
     try:
         img = Image.open(image_path).convert("RGBA")
         data = np.array(img)
-        
-        # [수정] 불투명 이미지라면 스마트 마스크 계산하여 BBox 측정
+
+        # If the image is opaque, compute a smart mask and measure the bbox from it
         if np.min(data[:, :, 3]) == 255:
             alpha = get_smart_transparency_mask(data)
         else:
@@ -408,26 +408,26 @@ def image_to_b64(image_path: str) -> str:
 
 def crop_to_tight_bbox(image_path: str, output_path: str) -> Tuple[str, List[int]]:
     """
-    Crop RGBA image to tight bbox and save. 
-    [수정] Saves with smart transparency applied if input was RGB-on-Black.
+    Crop RGBA image to tight bbox and save.
+    Saves with smart transparency applied if input was RGB-on-Black.
     """
-    # 1. BBox 계산 (스마트 로직 포함됨)
+    # 1. Compute the bbox (smart logic included)
     bbox = get_tight_bbox_from_alpha(image_path)
     if not bbox:
-        # BBox가 없으면 원본 그대로 저장 (혹은 투명화만 해서 저장)
+        # If there is no bbox, save the original as is (or only apply transparency)
         convert_black_to_transparent(image_path, output_path)
         return image_path, [0, 0, 0, 0]
-    
-    # 2. 이미지 로드 및 투명화 적용
+
+    # 2. Load the image and apply transparency
     img = Image.open(image_path).convert("RGBA")
     data = np.array(img)
-    
-    # [수정] 불투명 이미지라면 배경 날리기
+
+    # If the image is opaque, remove the background
     if np.min(data[:, :, 3]) == 255:
         new_alpha = get_smart_transparency_mask(data)
         data[:, :, 3] = new_alpha
         img = Image.fromarray(data)
-    
+
     # 3. Crop & Save
     x1, y1, x2, y2 = bbox
     cropped = img.crop((x1, y1, x2, y2))
@@ -469,7 +469,7 @@ def create_remainder_layer(
     If inpainted_path is provided, use it as base.
     Otherwise, create transparent hole in original.
     
-    [수정 6] CRITICAL FIX: Now clears RGB channels too, not just alpha!
+    CRITICAL FIX: Now clears RGB channels too, not just alpha!
     
     Previous behavior:
     - Only set alpha=0 for masked regions
@@ -496,7 +496,7 @@ def create_remainder_layer(
     img_arr = np.array(img)
     mask_arr = np.array(mask)
     
-    # [수정 6] Clear ALL channels (R, G, B, A) for masked regions
+    # Clear ALL channels (R, G, B, A) for masked regions
     # This prevents "ghost" pixels where alpha=0 but RGB has color data
     mask_bool = mask_arr > 127
     img_arr[mask_bool, 0] = 0  # R
@@ -561,7 +561,7 @@ def get_gpu_requirement(action_type: str) -> int:
 
 
 # =============================================================================
-# [수정 33] Smart Transparency Functions
+# Smart Transparency Functions
 # =============================================================================
 
 def get_smart_transparency_mask(img_array: np.ndarray) -> np.ndarray:
@@ -575,43 +575,43 @@ def get_smart_transparency_mask(img_array: np.ndarray) -> np.ndarray:
     h, w = img_array.shape[:2]
     rgb = img_array[:, :, :3]
     
-    # 1. '검은색'으로 간주할 픽셀 정의 (노이즈 허용 범위 < 5)
+    # 1. Define which pixels count as 'black' (noise tolerance < 5)
     is_black = np.all(rgb <= 5, axis=2).astype(np.uint8) * 255
-    
-    # 2. Flood Fill을 위한 마스크 준비
+
+    # 2. Prepare the mask for flood fill
     flood_mask = np.zeros((h + 2, w + 2), np.uint8)
     background_map = is_black.copy()
-    
-    # 3. 네 귀퉁이에서 시작하여 연결된 검은색 영역 찾기
+
+    # 3. Find connected black regions starting from the four corners
     corners = [(0, 0), (0, w-1), (h-1, 0), (h-1, w-1)]
     for r, c in corners:
-        if background_map[r, c] == 255:  # 시작점이 검은색이면
-            # 128로 채워서 '배경'임을 표시
+        if background_map[r, c] == 255:  # If the start point is black
+            # Fill with 128 to mark it as 'background'
             cv2.floodFill(background_map, flood_mask, (c, r), 128)
-    
-    # 4. 추가: 가장자리 전체에서 시작하여 연결된 검은색 영역 찾기
-    # (귀퉁이만으로는 부족할 수 있음)
-    # 상단 가장자리
+
+    # 4. Additionally, find connected black regions starting from the entire border
+    # (the corners alone may not be sufficient)
+    # Top edge
     for c in range(w):
         if background_map[0, c] == 255:
             cv2.floodFill(background_map, flood_mask, (c, 0), 128)
-    # 하단 가장자리
+    # Bottom edge
     for c in range(w):
         if background_map[h-1, c] == 255:
             cv2.floodFill(background_map, flood_mask, (c, h-1), 128)
-    # 좌측 가장자리
+    # Left edge
     for r in range(h):
         if background_map[r, 0] == 255:
             cv2.floodFill(background_map, flood_mask, (0, r), 128)
-    # 우측 가장자리
+    # Right edge
     for r in range(h):
         if background_map[r, w-1] == 255:
             cv2.floodFill(background_map, flood_mask, (w-1, r), 128)
-            
-    # 5. Alpha 채널 생성
-    # 128 (배경 검은색) -> 0 (투명)
-    # 255 (객체 내부 검은색) -> 255 (불투명)
-    # 0 (색상 영역) -> 255 (불투명)
+
+    # 5. Build the alpha channel
+    # 128 (background black) -> 0 (transparent)
+    # 255 (black inside the object) -> 255 (opaque)
+    # 0 (colored region) -> 255 (opaque)
     final_alpha = np.where(background_map == 128, 0, 255).astype(np.uint8)
     
     return final_alpha
@@ -624,8 +624,8 @@ def convert_black_to_transparent(image_path: str, output_path: str) -> None:
     """
     img = Image.open(image_path).convert("RGBA")
     data = np.array(img)
-    
-    # 이미지가 완전히 불투명한 경우(Raw RGB 등)에만 로직 적용
+
+    # Apply the logic only when the image is fully opaque (e.g. raw RGB)
     if np.min(data[:, :, 3]) == 255:
         new_alpha = get_smart_transparency_mask(data)
         data[:, :, 3] = new_alpha
@@ -643,18 +643,20 @@ def apply_transparency_to_inpainted_image(
     blur_amount: int = 3,
     bright_neighbor_threshold: int = 200,
     bright_neighbor_ratio: float = 0.3,
-    min_dark_object_area: int = 50  # [NEW] 검정 객체 최소 면적 (성능 최적화)
+    min_dark_object_area: int = 50  # Minimum area for a black object (performance optimization)
 ) -> str:
     """
     [Shadow-Preserving + Black Object Preservation Version]
-    
-    Flood Fill 기반 배경 제거 + 밝은 배경에 둘러싸인 검정 객체 보존 로직.
-    
-    1. Flood Fill: 네 귀퉁이에서 시작하여 연결된 검정색만 배경으로 인식
-    2. Core Mask: 밝기 기준으로 본체 영역 보호
-    3. Black Object Recovery: 밝은 배경에 둘러싸인 검정 객체 복구 (최소 면적 필터 적용)
-    4. Soft Alpha: 그림자 영역에 부드러운 투명도 적용
-    5. Morphological Opening: 미세 노이즈 제거
+
+    Flood-fill-based background removal plus preservation of black objects
+    surrounded by a bright background.
+
+    1. Flood Fill: starting from the four corners, treat only connected black as background
+    2. Core Mask: protect the main body region based on brightness
+    3. Black Object Recovery: recover black objects surrounded by a bright background
+       (with a minimum-area filter applied)
+    4. Soft Alpha: apply soft transparency to shadow regions
+    5. Morphological Opening: remove fine noise
     """
     try:
         img = cv2.imread(inpainted_rgb_path)
@@ -666,7 +668,7 @@ def apply_transparency_to_inpainted_image(
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         # ---------------------------------------------------------
-        # Step A: Flood Fill (배경 vs 전경 분리)
+        # Step A: Flood Fill (separate background vs foreground)
         # ---------------------------------------------------------
         flood_mask = np.zeros((h + 2, w + 2), np.uint8)
         flags = 4 | (255 << 8) | cv2.FLOODFILL_MASK_ONLY | cv2.FLOODFILL_FIXED_RANGE
@@ -679,7 +681,7 @@ def apply_transparency_to_inpainted_image(
 
         extent_mask = cv2.bitwise_not(flood_mask[1:h+1, 1:w+1])
 
-        # 노이즈 제거 (Size Filter)
+        # Remove noise (size filter)
         num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(extent_mask, connectivity=8)
         if num_labels > 1:
             min_area = total_canvas_area * min_canvas_ratio
@@ -688,7 +690,7 @@ def apply_transparency_to_inpainted_image(
                     extent_mask[labels == i] = 0
 
         # ---------------------------------------------------------
-        # Step B: Core Mask (단단한 본체 보호)
+        # Step B: Core Mask (protect the solid main body)
         # ---------------------------------------------------------
         _, core_binary = cv2.threshold(gray, core_threshold, 255, cv2.THRESH_BINARY)
         core_mask = np.zeros_like(gray)
@@ -699,7 +701,7 @@ def apply_transparency_to_inpainted_image(
             cv2.drawContours(core_mask, valid_contours, -1, 255, thickness=cv2.FILLED)
 
         # ---------------------------------------------------------
-        # Step B-2: 밝은 배경에 둘러싸인 검정 객체 복구 (최적화)
+        # Step B-2: Recover black objects surrounded by a bright background (optimized)
         # ---------------------------------------------------------
         dark_in_extent = ((extent_mask == 255) & (gray < core_threshold)).astype(np.uint8) * 255
         
@@ -707,7 +709,7 @@ def apply_transparency_to_inpainted_image(
             dark_in_extent, connectivity=8
         )
         
-        # [최적화] 최소 면적 이상인 component만 처리 (성능 대폭 향상)
+        # Process only components above the minimum area (large performance gain)
         large_dark_indices = [
             i for i in range(1, num_dark_labels) 
             if dark_stats[i, cv2.CC_STAT_AREA] >= min_dark_object_area
@@ -746,13 +748,13 @@ def apply_transparency_to_inpainted_image(
         final_alpha[shadow_region == 255] = alpha_gradient[shadow_region == 255]
 
         # ---------------------------------------------------------
-        # Step D: 마무리
+        # Step D: Finalization
         # ---------------------------------------------------------
         if blur_amount > 0:
             k = blur_amount if blur_amount % 2 == 1 else blur_amount + 1
             final_alpha = cv2.GaussianBlur(final_alpha, (k, k), 0)
-        
-        # 미세 노이즈 제거 (morphological opening)
+
+        # Remove fine noise (morphological opening)
         morph_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
         final_alpha = cv2.morphologyEx(final_alpha, cv2.MORPH_OPEN, morph_kernel)
 
@@ -779,7 +781,7 @@ def apply_transparency_to_inpainted_image(
 
 def get_failed_attempts(layer_id: str, state: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
-    [수정 22] Get list of failed attempts for a layer.
+    Get list of failed attempts for a layer.
     
     Args:
         layer_id: The layer to check
@@ -798,7 +800,7 @@ def get_failed_attempts(layer_id: str, state: Dict[str, Any]) -> List[Dict[str, 
 
 def has_exceeded_max_retries(layer_id: str, state: Dict[str, Any]) -> bool:
     """
-    [수정 22] Check if a layer has exceeded maximum retry attempts.
+    Check if a layer has exceeded maximum retry attempts.
     
     Args:
         layer_id: The layer to check

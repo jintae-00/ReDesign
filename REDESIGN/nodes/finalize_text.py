@@ -2,7 +2,7 @@
 """
 Finalize Text Node - Extract and save text element metadata
 
-[수정] Added mask_canvas_uri for evaluator compatibility.
+Added mask_canvas_uri for evaluator compatibility.
 """
 from __future__ import annotations
 from typing import Dict, Any, Optional, List, Tuple
@@ -36,12 +36,12 @@ def _create_element_from_fontstyle(
     layer_id: str,
     episode_dir: str,
     image_path: str,
-    canvas_size: Tuple[int, int] = None,  # [추가] (W, H)
+    canvas_size: Tuple[int, int] = None,  # (W, H)
 ) -> Optional[Dict[str, Any]]:
     """
     Create a parsed element from a single fontstyle element result.
-    
-    [수정] Added canvas_size parameter for mask_canvas_uri generation.
+
+    Added canvas_size parameter for mask_canvas_uri generation.
     """
     det_id = fontstyle_elem.get("det_id", "unknown")
     element_id = f"text_{uuid.uuid4().hex[:8]}"
@@ -53,46 +53,46 @@ def _create_element_from_fontstyle(
 
     # Get bbox
     bbox = fontstyle_elem.get("bbox", [0, 0, 0, 0])
-    mask_src = fontstyle_elem.get("mask_path") # Tool에서 저장한 raw 마스크 경로
+    mask_src = fontstyle_elem.get("mask_path")  # Raw mask path saved by the tool
     extracted_path = str(elements_dir / "extracted.png")
-    
-    # [수정] 마스크를 사용하여 원본 R,G,B,A 값을 손실 없이 추출
+
+    # Use the mask to extract the original R, G, B, A values losslessly
     from ..utils import apply_mask_to_image_and_crop
     if mask_src and Path(mask_src).exists():
         apply_mask_to_image_and_crop(image_path, mask_src, bbox, extracted_path)
     else:
-        # Fallback (마스크 없을 때만)
+        # Fallback (only when there is no mask)
         img = Image.open(image_path).convert("RGBA")
         img.crop(bbox).save(extracted_path)
     
     # Copy mask if available
     mask_path = None
-    canvas_mask_path = None  # [추가]
-    
+    canvas_mask_path = None
+
     mask_src = fontstyle_elem.get("mask_path")
     if mask_src and Path(mask_src).exists():
         mask_path = str(elements_dir / "mask.png")
         shutil.copy(mask_src, mask_path)
-        
-        # ========== [추가] Canvas-size mask 생성 ==========
+
+        # ========== Generate canvas-size mask ==========
         if canvas_size:
             W, H = canvas_size
             canvas_mask_path = str(elements_dir / "mask_canvas.png")
             try:
                 mask_img = Image.open(mask_src)
-                # mask_src가 이미 canvas 크기인지 확인
+                # Check whether mask_src is already canvas-sized
                 if mask_img.size == (W, H):
                     shutil.copy(mask_src, canvas_mask_path)
                 else:
-                    # bbox 위치에 paste
+                    # Paste at the bbox location
                     x1, y1, x2, y2 = [int(v) for v in bbox]
                     canvas_mask = Image.new("L", (W, H), 0)
-                    # mask를 L 모드로 변환
+                    # Convert the mask to L mode
                     if mask_img.mode == "RGBA":
-                        mask_l = mask_img.split()[3]  # Alpha 채널
+                        mask_l = mask_img.split()[3]  # Alpha channel
                     else:
                         mask_l = mask_img.convert("L")
-                    # crop 크기로 resize
+                    # Resize to the crop size
                     crop_w, crop_h = x2 - x1, y2 - y1
                     if crop_w > 0 and crop_h > 0:
                         mask_resized = mask_l.resize((crop_w, crop_h), Image.NEAREST)
@@ -127,7 +127,7 @@ def _create_element_from_fontstyle(
         "bbox": bbox,
         "extracted_image_uri": extracted_path,
         "segmentation_mask_path": mask_path,
-        "mask_canvas_uri": canvas_mask_path,  # [추가]
+        "mask_canvas_uri": canvas_mask_path,
         "font_family": fontstyle_elem.get("font_family", "Unknown"),
         "font_size_px": fontstyle_elem.get("size_px", 16),
         "font_color": fontstyle_elem.get("color", {"rgb": [0, 0, 0], "hex": "#000000"}),
@@ -152,12 +152,12 @@ def node(state: GraphState) -> Dict[str, Any]:
     """
     Finalize Text node - saves EACH text element to parsed_elements individually.
     
-    [수정 7] CRITICAL FIX:
+    CRITICAL FIX:
     - Now uses r_pack_state for proper handling of _append_parsed_element
     - Collects all element updates and packs them together
     - This fixes the bug where text elements were not saved to parse.json
-    
-    [수정] Added canvas_size for mask_canvas_uri generation.
+
+    Added canvas_size for mask_canvas_uri generation.
     
     Reads from:
         - Fontstyle output (elements list with per-box results)
@@ -186,7 +186,7 @@ def node(state: GraphState) -> Dict[str, Any]:
     image_path = get_current_image_path(layer_id, state)
     episode_dir = state.get("episode_dir", ".")
     
-    # ========== [추가] Canvas size 가져오기 ==========
+    # ========== Get the canvas size ==========
     canvas_size = None
     root_image = state.get("root_image_path")
     if root_image and Path(root_image).exists():
@@ -216,7 +216,7 @@ def node(state: GraphState) -> Dict[str, Any]:
                 layer_id=layer_id,
                 episode_dir=episode_dir,
                 image_path=image_path,
-                canvas_size=canvas_size,  # [추가]
+                canvas_size=canvas_size,
             )
             
             if element:
@@ -262,15 +262,15 @@ def node(state: GraphState) -> Dict[str, Any]:
                 
                 # Copy mask if available + canvas mask
                 mask_path = None
-                canvas_mask_path = None  # [추가]
-                
+                canvas_mask_path = None
+
                 if det_id in masks_by_id:
                     mask_src = masks_by_id[det_id]
                     if mask_src and Path(mask_src).exists():
                         mask_path = str(elements_dir / "mask.png")
                         shutil.copy(mask_src, mask_path)
-                        
-                        # ========== [추가] Canvas-size mask 생성 ==========
+
+                        # ========== Generate canvas-size mask ==========
                         if canvas_size:
                             W, H = canvas_size
                             canvas_mask_path = str(elements_dir / "mask_canvas.png")
@@ -303,7 +303,7 @@ def node(state: GraphState) -> Dict[str, Any]:
                     "bbox": bbox,
                     "extracted_image_uri": extracted_path,
                     "segmentation_mask_path": mask_path,
-                    "mask_canvas_uri": canvas_mask_path,  # [추가]
+                    "mask_canvas_uri": canvas_mask_path,
                     "font_family": "Unknown",
                     "font_size_px": bbox[3] - bbox[1] if len(bbox) == 4 else 16,
                     "font_color": {"rgb": [0, 0, 0], "hex": "#000000"},
@@ -340,7 +340,7 @@ def node(state: GraphState) -> Dict[str, Any]:
                 "bbox": bbox or [0, 0, 0, 0],
                 "extracted_image_uri": extracted_path,
                 "segmentation_mask_path": None,
-                "mask_canvas_uri": None,  # [추가]
+                "mask_canvas_uri": None,
                 "font_family": "Unknown",
                 "font_size_px": 16,
                 "font_color": {"rgb": [0, 0, 0], "hex": "#000000"},
@@ -377,7 +377,7 @@ def node(state: GraphState) -> Dict[str, Any]:
     
     print(f"[Finalize Text] Created {len(created_elements)} text elements for {layer_id}")
     
-    # [수정 7] CRITICAL FIX: Use r_pack_state to properly handle all updates
+    # CRITICAL FIX: Use r_pack_state to properly handle all updates
     # Collect all element updates
     element_updates = []
     for element in created_elements:

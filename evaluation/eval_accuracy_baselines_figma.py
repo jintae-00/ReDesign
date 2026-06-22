@@ -7,18 +7,23 @@ Results are saved in a timestamped subfolder. Existing agent/qwen results
 can be copied in for unified comparison.
 
 Usage:
+    # Replace <GPU_IDS> with a comma-separated list of your own GPU ids (e.g. 0,1,2,3).
     python scripts/eval_accuracy_baselines.py \
-        --figma-data ./figma_data \
+        --figma-data <FIGMA_DATA_DIR> \
         --exp-pairs \
-            ./figma_agent_experiment_0131:./figma_qwen_experiment_0131:dino90_obj_5_25_char_50 \
-            ./figma_agent_experiment_0208:./figma_qwen_experiment_0208:dino80_obj_5_60_char_25 \
+            <AGENT_OUTPUT_DIR>:<QWEN_OUTPUT_DIR>:merged \
         --models layered multi_tools sparse_verif \
-        --layered-dir ./baseline_layerd_experiment \
-        --multi-tools-dir ./baseline_muilti_tools_experiment \
-        --sparse-verif-dir ./baseline_sparse_verification_agent_experiment \
-        --existing-results ./eval_figma_rgba_0210_match \
-        --output ./eval_baselines_accuracy \
-        --num-workers 4 --gpu-ids 4,5,6,7 --no-viz
+        --layered-dir <LAYERED_BASELINE_OUTPUT_DIR> \
+        --multi-tools-dir <MULTI_TOOLS_BASELINE_OUTPUT_DIR> \
+        --sparse-verif-dir <SPARSE_VERIF_BASELINE_OUTPUT_DIR> \
+        --existing-results <EXISTING_RESULTS_DIR> \
+        --output <OUTPUT_DIR> \
+        --num-workers 4 --gpu-ids <GPU_IDS> --no-viz
+
+    The agent/qwen/baseline output dirs are produced by running the inference runners
+    first (e.g. ``python -m REDESIGN.run_agent_figma --data_dir figma_data \
+    --output_dir <AGENT_OUTPUT_DIR>``), and ``--figma-data`` should point at the
+    downloaded ``figma_data`` dataset.
 """
 
 from __future__ import annotations
@@ -652,9 +657,13 @@ def main():
     parser = argparse.ArgumentParser(
         description="Accuracy evaluation for baseline models (extends evaluation_figma.py)"
     )
-    parser.add_argument("--figma-data", type=str, required=True)
+    parser.add_argument("--figma-data", type=str, required=True,
+                        help="Path to the downloaded figma_data dataset directory.")
     parser.add_argument("--exp-pairs", type=str, nargs="+", required=True,
-                        help="Format: agent_dir:qwen_dir:gt_subset_prefix")
+                        help="One or more inference-output pairs formatted as "
+                             "agent_dir:qwen_dir:gt_subset_prefix. Use 'merged' as the "
+                             "prefix for the released merged dataset "
+                             "(e.g. <AGENT_OUTPUT_DIR>:<QWEN_OUTPUT_DIR>:merged).")
     parser.add_argument("--models", type=str, nargs="+", required=True,
                         choices=list(MODEL_CONFIGS.keys()),
                         help="Baseline models to evaluate")
@@ -664,7 +673,9 @@ def main():
     parser.add_argument("--output", type=str, default=None,
                         help="Output root directory. Required unless --resume-dir is set.")
     parser.add_argument("--num-workers", type=int, default=4)
-    parser.add_argument("--gpu-ids", type=str, default="0,1,2,3")
+    parser.add_argument("--gpu-ids", type=str, default="0,1,2,3",
+                        help="Comma-separated list of GPU ids to use, e.g. 0,1,2,3. "
+                             "Set this to your own GPU ids.")
     parser.add_argument("--gpu-workers", type=str, default=None,
                         help="Per-GPU worker counts, e.g. '0:1,1:2,2:1,3:4'. "
                              "Overrides --num-workers and --gpu-ids.")

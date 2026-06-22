@@ -60,7 +60,7 @@ def _log(message: str):
 # =============================================================================
 
 MAX_RETRIES = 3  # Maximum verification retries per layer
-MIN_VALID_CHILDREN = 2  # [수정 37] Minimum valid children for successful split/fork
+MIN_VALID_CHILDREN = 2  # Minimum valid children for successful split/fork
 
 
 def has_exceeded_max_retries(layer_id: str, state: GraphState) -> bool:
@@ -73,7 +73,7 @@ def has_exceeded_max_retries(layer_id: str, state: GraphState) -> bool:
 
 def _should_retry_from_verification(verifier_output: Dict[str, Any]) -> Tuple[bool, str]:
     """
-    [수정 37] Check if retry is needed based on verification result.
+    Check if retry is needed based on verification result.
     
     Retry conditions:
     1. Coverage is INCOMPLETE
@@ -106,7 +106,7 @@ def parse_verifier_response(response_text: str) -> Dict[str, Any]:
     """
     Parse verifier VLM response - extract JSON only, no normalization.
     
-    [수정 27] Simplified: Returns raw JSON as-is, only adds timestamp if missing.
+    Simplified: Returns raw JSON as-is, only adds timestamp if missing.
     No more normalization or default fallback.
     
     Args:
@@ -135,7 +135,7 @@ def _save_verifier_output_to_file(
     state: GraphState
 ) -> None:
     """
-    [수정 32] Save verifier VLM output as JSON file in the layer directory.
+    Save verifier VLM output as JSON file in the layer directory.
     
     Args:
         layer_id: Current layer ID
@@ -180,14 +180,14 @@ def _call_verifier_vlm(
     """
     Call Verifier VLM to validate decomposition results.
     """
-    # [수정] LLM 객체 로컬 생성 (타임아웃, 재시도 설정)
+    # Create the LLM object locally (timeout and retry settings)
     verifier_llm = ChatOpenAI(
         model=os.environ.get("VLM_MODEL", "gemini-3-flash-preview"),
         base_url="https://gateway.letsur.ai/v1",
         temperature=0,
         model_kwargs={"top_p": 1},
-        max_retries=3,       # 재시도 3회
-        request_timeout=90,  # 타임아웃 90초
+        max_retries=3,       # Retry up to 3 times
+        request_timeout=90,  # 90-second timeout
     )
 
     system_prompt = build_verifier_system_prompt()
@@ -213,14 +213,14 @@ def _call_verifier_vlm(
         HumanMessage(content=content),
     ]
     
-    # [수정] 로컬 객체 사용
+    # Use the local object
     response = verifier_llm.invoke(messages)
     output = parse_verifier_response(response.content)
     
     # Add child paths for later reference
     output["_child_image_paths"] = child_image_paths
     
-    # [추가] 메모리 정리
+    # Free memory
     del verifier_llm
     
     return output
@@ -282,7 +282,7 @@ def _copy_and_clean_layer_image(src_path: str, dest_path: str, alpha_threshold: 
 
 
 # =============================================================================
-# [수정 25] [수정 26] [수정 32] Core Verification Flow
+# Core Verification Flow
 # =============================================================================
 
 def _execute_verification_flow(
@@ -300,11 +300,11 @@ def _execute_verification_flow(
     4. Update temp children status
     5. Return verifier output and state updates
     
-    [수정 26] CRITICAL FIX:
+    CRITICAL FIX:
     - temp_update must be merged into state BEFORE r_update_temp_children_status()
     - Otherwise, temp children won't exist in the state when trying to update them
     
-    [수정 32] Added JSON file saving for verifier output
+    Added JSON file saving for verifier output
     """
     tree = state.get("history_tree", {})
     node = tree.get(layer_id, {})
@@ -324,8 +324,8 @@ def _execute_verification_flow(
         state=state
     )
     
-    # [수정 26] ★ CRITICAL: temp_update를 state에 먼저 머지!
-    # 이렇게 해야 r_update_temp_children_status()가 temp children을 찾을 수 있음
+    # CRITICAL: merge temp_update into the state first!
+    # This is required so that r_update_temp_children_status() can find the temp children.
     temp_merged_state = merge_updates(state, temp_update)
     
     _log(f"Created temp children, tree size: {len(temp_merged_state.get('history_tree', {}))}")
@@ -343,7 +343,7 @@ def _execute_verification_flow(
         print(f"{'='*60}\n")
         llm_update = r_llm_inc(state)
         
-        # [수정 32] Save verifier output to JSON file
+        # Save verifier output to JSON file
         _save_verifier_output_to_file(layer_id, verifier_output, attempt_number, state)
         
     else:
@@ -361,7 +361,7 @@ def _execute_verification_flow(
         llm_update = {}
     
     # Step 3: Update temp children status
-    # [수정 26] ★ temp_merged_state를 사용해야 temp children을 찾을 수 있음!
+    # temp_merged_state must be used so that the temp children can be found!
     status_update = r_update_temp_children_status(
         parent_id=layer_id,
         verifier_output=verifier_output,
@@ -464,10 +464,10 @@ def _handle_retry(
     """
     Handle RETRY decision from Verifier.
     
-    [수정 31] Creates a child node with same image instead of reusing same node.
-    [수정 34] Passes current_failed_attempt directly to ensure complete history.
-    [수정 37] Added retry_reason parameter for detailed failure tracking.
-    [수정 38] Added params extraction for hyperparameter retry tracking.
+    Creates a child node with same image instead of reusing same node.
+    Passes current_failed_attempt directly to ensure complete history.
+    Added retry_reason parameter for detailed failure tracking.
+    Added params extraction for hyperparameter retry tracking.
     """
     _log(f"=== RETRY: Creating child node for {layer_id} ===")
     _log(f"Retry reason: {retry_reason}")
@@ -478,7 +478,7 @@ def _handle_retry(
     action_type = node.get("action_type", "Unknown")
     tool_sequence = node.get("planned_tool_sequence", [])
     
-    # [수정 38] Extract params for retry tracking
+    # Extract params for retry tracking
     params = {}
     if node.get("param_qwen_len") is not None:
         params["qwen_len"] = node.get("param_qwen_len")
@@ -487,7 +487,7 @@ def _handle_retry(
     if node.get("param_inpaint_remainder") is not None:
         params["inpaint_remainder"] = node.get("param_inpaint_remainder")
     
-    # [수정 37] Use the explicit retry_reason as the primary failure reason
+    # Use the explicit retry_reason as the primary failure reason
     coverage = verifier_output.get("coverage_check", "UNKNOWN")
     valid_indices = verifier_output.get("valid_children_indices", [])
     invalid_indices = verifier_output.get("invalid_children_indices", [])
@@ -517,7 +517,7 @@ def _handle_retry(
     current_failed_attempt = {
         "action_type": action_type,
         "tool_sequence": tool_sequence,
-        "params": params,  # [수정 38] Added params for hyperparameter tracking
+        "params": params,  # Added params for hyperparameter tracking
         "failure_reason": full_reason,
         "verifier_decision": "RETRY",
         "coverage": coverage,
@@ -538,7 +538,7 @@ def _handle_retry(
     
     _log(f"Created retry child {retry_child_id} for {layer_id}")
     _log(f"Transferred failed_attempts count: {len(node.get('failed_attempts', [])) + 1}")
-    _log(f"Params recorded: {params}")  # [수정 38] Log params for debugging
+    _log(f"Params recorded: {params}")  # Log params for debugging
     
     return r_pack_state(state, pre_verification_update, verifier_save_update,
                        retry_child_update, enqueue_update)
@@ -569,7 +569,7 @@ def _handle_fork_qwen(layer_id: str, state: GraphState) -> Dict[str, Any]:
         layer_id, parent_image, layer_images, state
     )
     
-    # [수정 37] Check if retry needed (returns Tuple[bool, str])
+    # Check if retry needed (returns Tuple[bool, str])
     should_retry, retry_reason = _should_retry_from_verification(verifier_output)
     
     if should_retry:
@@ -634,15 +634,16 @@ def _handle_fork_qwen(layer_id: str, state: GraphState) -> Dict[str, Any]:
 
 def _handle_split_cca(layer_id: str, state: GraphState) -> Dict[str, Any]:
     """
-    Handle Split_CCA - Verification 스킵, 단 child 개수 < MIN_VALID_CHILDREN이면 retry.
-    
-    [수정] Split_CCA는 alpha mask connectivity 기반의 단순 공간 분리이므로:
-    - Hallucination 불가능 (새로운 객체 생성 없음)
-    - Redundancy 불가능 (각 component가 공간적으로 분리됨)
-    - Coverage 항상 COMPLETE (원본의 모든 픽셀이 보존됨)
-    따라서 verification VLM 호출은 스킵.
-    
-    단, child 개수가 2개 미만이면 분리 실패로 간주하고 retry 처리.
+    Handle Split_CCA - skip verification, but retry if the child count < MIN_VALID_CHILDREN.
+
+    Because Split_CCA is a simple spatial separation based on alpha mask connectivity:
+    - Hallucination is impossible (no new objects are created)
+    - Redundancy is impossible (each component is spatially separated)
+    - Coverage is always COMPLETE (all pixels of the original are preserved)
+    Therefore the verification VLM call is skipped.
+
+    However, if the child count is fewer than 2, it is treated as a separation failure
+    and handled as a retry.
     """
     _log(f"=== _handle_split_cca for {layer_id} (Verification SKIP) ===")
     
@@ -660,8 +661,8 @@ def _handle_split_cca(layer_id: str, state: GraphState) -> Dict[str, Any]:
     _log(f"Found {len(child_images)} CCA components")
     
     # =========================================================================
-    # [수정] Child 개수가 MIN_VALID_CHILDREN 미만이면 retry
-    # Split 액션은 최소 2개의 child가 필요함 (분리가 되어야 의미가 있음)
+    # Retry if the child count is fewer than MIN_VALID_CHILDREN.
+    # A split action requires at least 2 children (the separation must be meaningful).
     # =========================================================================
     if len(child_images) < MIN_VALID_CHILDREN:
         _log(f"Only {len(child_images)} components (requires >= {MIN_VALID_CHILDREN}), triggering retry")
@@ -671,13 +672,13 @@ def _handle_split_cca(layer_id: str, state: GraphState) -> Dict[str, Any]:
             "children_analysis": [],
             "valid_children_indices": list(range(len(child_images))),
             "invalid_children_indices": [],
-            "coverage_check": "COMPLETE",  # CCA는 항상 complete
+            "coverage_check": "COMPLETE",  # CCA is always complete
             "_child_image_paths": child_images,
         }
         
         retry_reason = f"Only {len(child_images)} CCA components (requires >= {MIN_VALID_CHILDREN} for split)"
         
-        # Verification 스킵했으므로 pre_verification_update와 verifier_save_update는 빈 dict
+        # Verification was skipped, so pre_verification_update and verifier_save_update are empty dicts
         return _handle_retry(
             layer_id=layer_id,
             verifier_output=mock_verifier_output,
@@ -688,7 +689,7 @@ def _handle_split_cca(layer_id: str, state: GraphState) -> Dict[str, Any]:
         )
     
     # =========================================================================
-    # 정상 처리: 모든 component를 valid로 간주하고 permanent children 생성
+    # Normal handling: treat every component as valid and create permanent children
     # =========================================================================
     episode_dir = state.get("episode_dir", ".")
     history_updates = {}
@@ -749,7 +750,7 @@ def _handle_split_detseg(layer_id: str, state: GraphState) -> Dict[str, Any]:
     """
     Handle Split_DetSeg with verification.
     
-    [수정 33] Added inpainting post-processing.
+    Added inpainting post-processing.
     """
     _log(f"=== _handle_split_detseg for {layer_id} ===")
     
@@ -781,7 +782,7 @@ def _handle_split_detseg(layer_id: str, state: GraphState) -> Dict[str, Any]:
     temp_dir = Path(episode_dir) / "layers" / layer_id / "temp_verification"
     temp_dir.mkdir(parents=True, exist_ok=True)
     
-    # [수정 33] Apply transparency post-processing to inpainted image
+    # Apply transparency post-processing to inpainted image
     processed_inpaint_path = None
     if inpainted_path and Path(inpainted_path).exists():
         processed_inpaint_path = str(temp_dir / "inpaint_processed.png")
@@ -814,7 +815,7 @@ def _handle_split_detseg(layer_id: str, state: GraphState) -> Dict[str, Any]:
         layer_id, parent_image, temp_child_paths, state
     )
     
-    # [수정 37] Check if retry needed (returns Tuple[bool, str])
+    # Check if retry needed (returns Tuple[bool, str])
     should_retry, retry_reason = _should_retry_from_verification(verifier_output)
     
     if should_retry:
@@ -886,13 +887,13 @@ def _handle_split_detseg(layer_id: str, state: GraphState) -> Dict[str, Any]:
 
 def _handle_split_text(layer_id: str, state: GraphState) -> Dict[str, Any]:
     """
-    Handle Split_Text - Verification 스킵, Text layer pre-configured.
-    
-    [수정] 핵심 변경:
-    1. Verification 플로우 완전 스킵
-    2. Text Layer: pre-configured Finalize_Text (Router 스킵)
-    3. Remainder Layer: 일반 child (Router 거침)
-    4. 두 레이어 모두 큐에 추가 → 병렬 처리
+    Handle Split_Text - skip verification, Text layer pre-configured.
+
+    Key changes:
+    1. Completely skip the verification flow
+    2. Text Layer: pre-configured Finalize_Text (skips the Router)
+    3. Remainder Layer: a regular child (goes through the Router)
+    4. Both layers are enqueued -> processed in parallel
     """
     _log(f"=== _handle_split_text for {layer_id} (Verification SKIP) ===")
     
@@ -939,7 +940,7 @@ def _handle_split_text(layer_id: str, state: GraphState) -> Dict[str, Any]:
     
     episode_dir = state.get("episode_dir", ".")
     
-    # [수정 33] Apply transparency post-processing to inpainted image
+    # Apply transparency post-processing to inpainted image
     processed_inpaint_path = None
     if inpainted_path and Path(inpainted_path).exists():
         temp_dir = Path(episode_dir) / "layers" / layer_id / "temp_verification"
@@ -949,7 +950,7 @@ def _handle_split_text(layer_id: str, state: GraphState) -> Dict[str, Any]:
         apply_transparency_to_inpainted_image(inpainted_path, processed_inpaint_path)
     
     # =========================================================================
-    # 1. Create Text Layer - PRE-CONFIGURED Finalize_Text (Router 스킵)
+    # 1. Create Text Layer - PRE-CONFIGURED Finalize_Text (skips the Router)
     # =========================================================================
     text_layer_id = generate_layer_id(state, "text")
     text_layer_dir = Path(episode_dir) / "layers" / text_layer_id
@@ -964,10 +965,10 @@ def _handle_split_text(layer_id: str, state: GraphState) -> Dict[str, Any]:
         "depth": parent_depth + 1,
         "image_path": str(text_image_path),
         "image_context": f"[Auto-Finalize] Extracted text: {text_content[:100]}",
-        "action_type": "Finalize_Text",  # ★ 미리 설정 - Router 스킵
+        "action_type": "Finalize_Text",  # Pre-set - skips the Router
         "action_reasoning": "Rule-based: text extracted by Split_Text action",
         "planned_tool_sequence": ["fontstyle", "finalize_text"],
-        "node_queue": ["fontstyle", "finalize_text"],  # ★ 미리 설정
+        "node_queue": ["fontstyle", "finalize_text"],  # Pre-set
         "param_qwen_len": None,
         "param_is_photo": False,
         "param_inpaint_remainder": None,
@@ -988,7 +989,7 @@ def _handle_split_text(layer_id: str, state: GraphState) -> Dict[str, Any]:
         "error_info": None,
         "retry_count": 0,
         "verification_attempts": [],
-        "verification_status": "SKIP_AUTO_FINALIZE",  # Verification 스킵 표시
+        "verification_status": "SKIP_AUTO_FINALIZE",  # Marks that verification is skipped
         "rejected_child_indices": None,
         "failed_attempts": [],
         "_temp_child_ids": None,
@@ -999,7 +1000,7 @@ def _handle_split_text(layer_id: str, state: GraphState) -> Dict[str, Any]:
     }
     
     # =========================================================================
-    # 2. Create Remainder (BG) Layer - 일반 child (Router 거침)
+    # 2. Create Remainder (BG) Layer - a regular child (goes through the Router)
     # =========================================================================
     bg_layer_id = generate_layer_id(state, "bg")
     bg_layer_dir = Path(episode_dir) / "layers" / bg_layer_id
@@ -1016,8 +1017,8 @@ def _handle_split_text(layer_id: str, state: GraphState) -> Dict[str, Any]:
         "parent_id": layer_id,
         "depth": parent_depth + 1,
         "image_path": str(bg_image_path),
-        "image_context": None,  # Router가 분석
-        "action_type": None,    # Router가 결정
+        "image_context": None,  # Analyzed by the Router
+        "action_type": None,    # Decided by the Router
         "action_reasoning": None,
         "planned_tool_sequence": None,
         "node_queue": None,

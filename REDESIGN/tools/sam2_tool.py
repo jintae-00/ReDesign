@@ -1,9 +1,9 @@
 """
 SAM2 - Thread-safe with ToolGPUManager
 
-[수정 사항]
-1. Inpainting용(Dilated) Union 마스크와 추출용(Raw) 개별 마스크 분리
-2. 'box' 변수 미정의 에러 해결 (y2 - y1 사용)
+[Changes]
+1. Separate the dilated union mask (for inpainting) from the per-instance raw mask (for extraction).
+2. Fix the undefined 'box' variable error (use y2 - y1).
 """
 import numpy as np
 import torch
@@ -74,9 +74,9 @@ def run_sam2_union(
             diag = (H ** 2 + W ** 2) ** 0.5
             pad_px = int(pad_ratio * diag)
 
-            # 1. 원본 마스크와 확장 마스크를 저장할 캔버스 초기화
-            union_dil = np.zeros((H, W), np.uint8) # Inpaint용 Union (확장)
-            by_id = {} # 추출용 개별 마스크 (원본)
+            # 1. Initialize canvases for the original mask and the dilated mask
+            union_dil = np.zeros((H, W), np.uint8) # Union for inpainting (dilated)
+            by_id = {} # Per-instance mask for extraction (original)
             
             for det_id, (x1, y1, x2, y2) in zip(det_ids or [], boxes or []):
                 cx1, cy1 = _clip(x1 - pad_px, 0, W), _clip(y1 - pad_px, 0, H)
@@ -100,16 +100,16 @@ def run_sam2_union(
                     base_delay=0.5,
                 )
 
-                # (1) Raw Mask 추출 (원본)
+                # (1) Extract the raw mask (original)
                 m_raw = (masks[0] > 0).astype(np.uint8)
-        
-                # 개별 ID 마스크는 Original(Raw)로 저장
+
+                # Store the per-ID mask as the original (raw)
                 m_full_raw = np.zeros((H, W), np.uint8)
                 m_full_raw[cy1:cy2, cx1:cx2] = m_raw
                 by_id[det_id] = _save_mask_like(image_path, f"_raw_{det_id}.png", m_full_raw)
-                
-                # (2) Inpaint 품질을 위해 Union용은 Dilation 적용
-                h_box = y2 - y1 # [수정] box[3]-box[1] 대신 언패킹된 좌표 사용
+
+                # (2) Apply dilation to the union mask for better inpainting quality
+                h_box = y2 - y1 # Use the unpacked coordinates instead of box[3]-box[1]
                 dilate_px = max(1, int(0.01 * h_box))
                 kernel = np.ones((dilate_px * 2 + 1, dilate_px * 2 + 1), np.uint8)
                 m_dil = cv2.dilate(m_raw, kernel, iterations=1)
@@ -118,7 +118,7 @@ def run_sam2_union(
             if stream:
                 stream.synchronize()
         
-        # Inpainting용 확장 Union 마스크 저장
+        # Save the dilated union mask for inpainting
         union_path = _save_mask_like(image_path, "_obj_union_mask.png", union_dil)
     
     return {"mask_union": union_path, "masks_by_id": by_id}

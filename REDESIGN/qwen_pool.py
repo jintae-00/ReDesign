@@ -20,7 +20,7 @@ class _Worker:
 
 class QwenLayeredPool:
     """
-    Qwen layered를 GPU pair별 전용 프로세스로 운영
+    Runs Qwen layered inference in dedicated processes, one per GPU pair.
     """
     
     def __init__(self, pairs: Optional[List[Tuple[int, ...]]] = None):
@@ -39,7 +39,7 @@ class QwenLayeredPool:
         if self._configured_pairs is not None:
             return self._configured_pairs
         
-        # tool_gpu_config에서 동적으로 조회
+        # Look up dynamically from tool_gpu_config
         try:
             from .tool_gpu_config import get_qwen_gpu_pairs
             return get_qwen_gpu_pairs()

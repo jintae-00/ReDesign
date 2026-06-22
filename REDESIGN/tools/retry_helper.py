@@ -12,15 +12,15 @@ class CUDAErrorType:
     OOM = "oom"
     KERNEL = "kernel"
     JIT = "jit"
-    FATAL = "fatal"    # illegal memory access 등 복구 불가능한 에러
+    FATAL = "fatal"    # Unrecoverable errors such as illegal memory access
     UNKNOWN = "unknown"
 
 
 def classify_cuda_error(error: Exception) -> Optional[str]:
-    """CUDA 에러 유형 분류"""
+    """Classify the type of CUDA error."""
     error_str = str(error).lower()
 
-    # Fatal errors — 먼저 체크 (OOM보다 우선)
+    # Fatal errors — check first (takes priority over OOM)
     fatal_patterns = [
         "cuda error: an illegal memory access",
         "illegal memory access",
@@ -77,7 +77,7 @@ def classify_cuda_error(error: Exception) -> Optional[str]:
 
 
 def aggressive_memory_cleanup(gpu_id: Optional[int] = None):
-    """적극적인 메모리 정리 — synchronize hang 방지"""
+    """Aggressive memory cleanup — guards against synchronize hangs."""
     gc.collect()
 
     if torch.cuda.is_available():
@@ -98,7 +98,7 @@ def aggressive_memory_cleanup(gpu_id: Optional[int] = None):
 
 
 def restore_sdp_settings():
-    """SDP 설정을 Math 커널로 재적용"""
+    """Reapply SDP settings to force the Math kernel."""
     if torch.cuda.is_available():
         torch.backends.cuda.enable_flash_sdp(False)
         torch.backends.cuda.enable_mem_efficient_sdp(False)
@@ -106,7 +106,7 @@ def restore_sdp_settings():
 
 
 def get_gpu_memory_info(gpu_id: int) -> dict:
-    """GPU 메모리 정보 조회"""
+    """Retrieve GPU memory information."""
     if not torch.cuda.is_available():
         return {"error": "CUDA not available"}
     
@@ -133,7 +133,7 @@ def get_gpu_memory_info(gpu_id: int) -> dict:
 
 
 def print_gpu_memory_status(gpu_ids: List[int] = None):
-    """GPU 메모리 상태 출력"""
+    """Print the GPU memory status."""
     if not torch.cuda.is_available():
         print("[GPU Memory] CUDA not available")
         return
@@ -165,7 +165,7 @@ def retry_on_cuda_error(
     tool_manager=None,
     current_model_type=None,
 ) -> Any:
-    """CUDA 에러 (OOM + Kernel + JIT) 발생 시 재시도"""
+    """Retry the callable when a CUDA error (OOM + Kernel + JIT) occurs."""
     delays = [base_delay, base_delay * 2, base_delay * 4]
     last_error = None
     
@@ -190,7 +190,7 @@ def retry_on_cuda_error(
             print(f"[{model_name}] {error_type.upper()} error (attempt {attempt + 1}/{max_retries})")
             print(f"[{model_name}] Error: {str(e)[:300]}...")
             
-            # FATAL (illegal memory access) → 재시도 무의미, 모델 재초기화 필요
+            # FATAL (illegal memory access): retrying is pointless; the model must be reinitialized
             if error_type == CUDAErrorType.FATAL:
                 print(f"[{model_name}] FATAL CUDA error — reinitializing model on GPU {gpu_id}")
                 if tool_manager and current_model_type:
@@ -199,9 +199,9 @@ def retry_on_cuda_error(
                         print(f"[{model_name}] Model reinitialized successfully")
                     except Exception as reinit_err:
                         print(f"[{model_name}] Model reinitialization failed: {reinit_err}")
-                        raise e  # 원래 에러 raise
+                        raise e  # Re-raise the original error
                 else:
-                    # manager 없으면 복구 불가
+                    # Without a manager, recovery is impossible
                     raise
 
                 aggressive_memory_cleanup(gpu_id)
@@ -217,7 +217,7 @@ def retry_on_cuda_error(
                 if clear_cache_on_oom:
                     aggressive_memory_cleanup(gpu_id)
                 
-                # OOM 시 첫 시도부터 다른 모델 언로드
+                # On OOM, unload other models starting from the first attempt
                 if evict_other_models and tool_manager and current_model_type:
                     print(f"[{model_name}] Evicting ALL other models from GPU {gpu_id}...")
                     _evict_other_models(tool_manager, gpu_id, current_model_type)
@@ -259,7 +259,7 @@ def retry_on_cuda_error(
 
 
 def _evict_other_models(tool_manager, gpu_id: int, keep_model_type):
-    """특정 GPU에서 현재 모델을 제외한 다른 모델들을 언로드"""
+    """Unload all models on a given GPU except the current one."""
     try:
         slot = tool_manager.slots.get(gpu_id)
         if not slot:
@@ -282,7 +282,7 @@ def _evict_other_models(tool_manager, gpu_id: int, keep_model_type):
             print(f"[MemoryManager] Evicting {model_type.value} from GPU {gpu_id}")
             model = slot.model_cache.pop(model_type, None)
             if model is not None:
-                # 모델의 모든 파라미터를 CPU로 이동 후 삭제
+                # Move all model parameters to CPU, then delete
                 if hasattr(model, 'to'):
                     try:
                         model.to('cpu')

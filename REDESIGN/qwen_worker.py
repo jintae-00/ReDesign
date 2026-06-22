@@ -11,7 +11,7 @@ from typing import Dict, Any, Tuple, List
 from PIL import Image
 
 def _detect_gpu_memory() -> Dict[str, Any]:
-    """현재 가용 GPU 메모리를 감지하여 제한 정보를 반환합니다."""
+    """Detect the currently available GPU memory and return memory-limit information."""
     gpu_count = torch.cuda.device_count()
     limit_mem_dict = {}
     total_gb = 0
@@ -20,18 +20,18 @@ def _detect_gpu_memory() -> Dict[str, Any]:
         props = torch.cuda.get_device_properties(i)
         gb = props.total_memory / (1024 ** 3)
         total_gb += gb
-        # 계산용 여유 공간을 위해 2.5GB 정도 제외하고 할당 제한
+        # Reserve about 2.5GB of headroom for computation when capping the allocation
         limit_mem_dict[i] = f"{int(gb - 2.5)}GiB"
-    
-    # CPU 오프로딩을 위한 설정 (120GB 여유가 있다고 가정)
-    limit_mem_dict["cpu"] = "120GiB" 
+
+    # Configuration for CPU offloading (assumes about 120GB of free CPU RAM)
+    limit_mem_dict["cpu"] = "120GiB"
     return {"gpu_count": gpu_count, "total_gb": total_gb, "limit_mem_dict": limit_mem_dict}
 
 def _load_pipeline_no_quant(offload_dir: str):
     """
-    수정된 로딩 전략:
-    1. 불필요한 Disk Offloading(Strategy 2) 제거
-    2. 실패 시 명시적 메모리 해제 강화
+    Revised loading strategy:
+    1. Removed the unnecessary disk-offloading strategy (Strategy 2).
+    2. Strengthened explicit memory cleanup on failure.
     """
     from diffusers import QwenImageLayeredPipeline
     
@@ -39,7 +39,7 @@ def _load_pipeline_no_quant(offload_dir: str):
     print(f"[QwenWorker] Detected Total VRAM: {gpu_info['total_gb']:.2f} GB")
 
     strategies = [
-        # 1. 기본 Balanced (가장 빠름, VRAM 충분할 때)
+        # 1. Default balanced strategy (fastest, when VRAM is sufficient)
         {
             "name": "Vanilla Balanced (16-bit)",
             "kwargs": {
@@ -47,27 +47,27 @@ def _load_pipeline_no_quant(offload_dir: str):
                 "max_memory": None,
             }
         },
-        # [변경] 중간에 있던 'No CPU' 전략은 제거했습니다. 
-        # VRAM 부족 시 CPU를 건너뛰고 Disk로 가면 너무 느려져서 Timeout 발생함.
-        
-        # 2. CPU 오프로딩 (GPU 부족 시 CPU RAM 사용 - 안정적)
+        # [Changed] Removed the intermediate 'No CPU' strategy.
+        # When VRAM is insufficient, skipping CPU and going straight to disk is so slow it causes timeouts.
+
+        # 2. CPU offloading (uses CPU RAM when GPU memory is insufficient - stable)
         {
             "name": "CPU-GPU Hybrid (16-bit, Balanced)",
             "kwargs": {
                 "device_map": "balanced",
-                # CPU 포함된 전체 딕셔너리 전달 -> 부족하면 CPU RAM 사용
+                # Pass the full dictionary including CPU -> falls back to CPU RAM when GPU memory runs out
                 "max_memory": gpu_info["limit_mem_dict"],
             }
         },
-        # 3. 최후의 수단: Sequential CPU Offload (매우 느리지만 메모리 가장 적게 씀)
-        # 필요하다면 활성화, 여기서는 Balanced 전략만으로 충분할 것으로 예상
+        # 3. Last resort: Sequential CPU Offload (very slow but uses the least memory)
+        # Enable if needed; here the balanced strategy is expected to be sufficient on its own.
     ]
 
     last_error = None
-    pipeline = None # 변수 미리 선언
+    pipeline = None  # Declare the variable up front
 
     for strategy in strategies:
-        # [중요] 이전 시도의 잔여물 확실히 제거
+        # [Important] Make sure to fully clear any leftovers from the previous attempt
         if pipeline is not None:
             del pipeline
             pipeline = None
@@ -92,7 +92,7 @@ def _load_pipeline_no_quant(offload_dir: str):
             )
             
             print(f"[QwenWorker] Success! Loaded with {strategy['name']}.")
-            # 할당 결과 출력
+            # Print the allocation result
             for i in range(gpu_info["gpu_count"]):
                 alloc = torch.cuda.memory_allocated(i) / (1024**3)
                 print(f"  - GPU {i} Usage: {alloc:.2f} GB")
@@ -103,7 +103,7 @@ def _load_pipeline_no_quant(offload_dir: str):
             print(f"[QwenWorker] Strategy {strategy['name']} failed: {e}")
             last_error = e
             
-            # [중요] 실패 시 즉시 메모리 클린업 수행
+            # [Important] Perform memory cleanup immediately on failure
             if 'pipeline' in locals() and pipeline is not None:
                 del pipeline
                 pipeline = None
@@ -118,7 +118,7 @@ def _load_pipeline_no_quant(offload_dir: str):
     raise RuntimeError(f"All 16-bit loading strategies failed. Last error: {last_error}")
 
 def worker_main(worker_id: str, physical_pair: Tuple[int, ...], in_q, out_q):
-    """워커 메인 프로세스"""
+    """Worker main process."""
     os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, physical_pair))
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
     os.environ["TOKENIZERS_PARALLELISM"] = "false"

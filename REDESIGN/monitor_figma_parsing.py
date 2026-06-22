@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
-monitor_figma_parsing.py - 실시간 파싱 진행상황 모니터링
+monitor_figma_parsing.py - Real-time monitoring of parsing progress
 
 Usage:
-    python monitor_figma_parsing.py                    # 모든 split 모니터링
-    python monitor_figma_parsing.py --split_idx 0     # 특정 split만 모니터링
-    python monitor_figma_parsing.py --watch           # 5초마다 갱신
-    python monitor_figma_parsing.py --detail          # 상세 정보 출력
+    python monitor_figma_parsing.py                    # Monitor all splits
+    python monitor_figma_parsing.py --split_idx 0     # Monitor a specific split only
+    python monitor_figma_parsing.py --watch           # Refresh every 5 seconds
+    python monitor_figma_parsing.py --detail          # Print detailed information
 
 Features:
-- 각 split별 완료/진행중/대기 상태 표시
-- 실시간 completion rate 계산
-- 최근 완료된 frame 목록
-- evaluator.py에서 사용할 수 있는 완료된 frame 목록 출력
+- Show completed/in-progress/pending status for each split
+- Compute completion rate in real time
+- List recently completed frames
+- Print the list of completed frames for use by evaluator.py
 """
 from __future__ import annotations
 import argparse

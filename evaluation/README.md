@@ -2,7 +2,7 @@
 
 Reconstruction-accuracy and editability evaluation for ReDesign and the baselines.
 
-Run every script **from the repository root** so the `evaluation`, `editability_eval`,
+Run every script **from the repository root** so the `evaluation`,
 `REDESIGN`, and `modules` packages resolve.
 
 ## Contents

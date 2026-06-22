@@ -6,7 +6,7 @@ import cv2
 from PIL import Image, ImageOps, ImageChops
 from .util import crate_mask, ResizeKeepAspectRatio
 
-# ── GPU 메모리 로그 헬퍼 ────────────────────────────────────────
+# ── GPU memory logging helper ────────────────────────────────────────
 def gpu_mem(tag: str):
     if not torch.cuda.is_available():
         print(f"[{tag}]  CUDA unavailable")
@@ -58,28 +58,28 @@ class LaMa:
             self,
             base_image: Image.Image,
             mask      : Image.Image,
-            max_square: int = 2048   # ↑ GPU 여유에 따라 1024, 4096 등으로 조정
+            max_square: int = 2048   # ↑ adjust to 1024, 4096, etc. depending on GPU headroom
         ):
         """
-        - 원본 해상도를 그대로 유지(다운샘플 X)
-        - 단, 너무 큰 이미지는 max_square 이하로 축소
-        - LaMa는 8의 배수만 맞으면 되므로 padding 방식 우선
-        - 기존 crate_mask / alpha 합성 로직 유지
+        - Keep the original resolution (no downsampling)
+        - However, scale down images that are too large to <= max_square
+        - LaMa only needs dimensions to be multiples of 8, so padding is preferred
+        - Keep the existing crate_mask / alpha compositing logic
         Returns
         -------
-        image             : inpainted RGB Image (원본 해상도)
-        masked_base_image : 알파가 포함된 inpainting 대상 미리보기
-        mask              : crate_mask로 후처리된 L(Image)
+        image             : inpainted RGB Image (original resolution)
+        masked_base_image : preview of the inpainting target including alpha
+        mask              : L(Image) post-processed by crate_mask
         """
 
-        # ── 0. 준비
+        # ── 0. setup
         w0, h0 = base_image.size
         max_dim = max(w0, h0)
 
-        # 1) square_size 결정
+        # 1) determine square_size
         if max_dim <= max_square:
-            # 다운리사이즈 없이 padding만
-            square_size = ((max_dim + 7) // 8) * 8  # 8의 배수
+            # padding only, no downsizing
+            square_size = ((max_dim + 7) // 8) * 8  # multiple of 8
             resize_func = None
             base_proc   = ImageOps.expand(
                 base_image,
@@ -90,41 +90,41 @@ class LaMa:
                 border=(0, 0, square_size - w0, square_size - h0),
                 fill=0)
         else:
-            # GPU 메모리 보호용 다운리사이즈(Aspect-ratio 유지)
+            # downsize to protect GPU memory (preserve aspect ratio)
             square_size = max_square
             resize_func = ResizeKeepAspectRatio(base_image)
             base_proc   = resize_func.forward(target_size=(square_size, square_size))
             mask_proc   = resize_func.forward(mask, target_size=(square_size, square_size),
                                             bg_color=(0, 0, 0))
 
-        # 2) 마스크 후처리 (기존 로직 유지)
+        # 2) mask post-processing (keep existing logic)
         base_proc = base_proc.convert("RGB")
         mask_proc = crate_mask(mask_proc.convert("L"))
 
         _mask = ImageOps.invert(mask_proc)
         masked_base_image = base_proc.copy()
-        masked_base_image.putalpha(_mask)                     # 시각화용
+        masked_base_image.putalpha(_mask)                     # for visualization
 
-        # 3) LaMa 추론
+        # 3) LaMa inference
         image_out = self.forward(
-            image=np.asarray(base_proc)[:, :, ::-1],        # RGB 그대로
+            image=np.asarray(base_proc)[:, :, ::-1],        # RGB as-is
             mask=np.asarray(mask_proc)
         )
 
-        # 4) 원본 해상도로 복원
+        # 4) restore to original resolution
         if resize_func is not None:
             image_out         = resize_func.reverse(image_out)
             masked_base_image = resize_func.reverse(masked_base_image)
             mask_proc         = resize_func.reverse(mask_proc)
         else:
-            # padding만 했던 경우 → 패딩 영역 crop
+            # if only padding was applied → crop the padded region
             image_out         = image_out.crop((0, 0, w0, h0))
             masked_base_image = masked_base_image.crop((0, 0, w0, h0))
             mask_proc         = mask_proc.crop((0, 0, w0, h0))
 
         return image_out, masked_base_image, mask_proc
     
-    # 이전 함수
+    # previous function
     # def remove_text_by_mask(self, base_image:Image.Image, mask:Image.Image):
     #     # square_size =  1024 if np.max(base_image.size) > 512 else 512
     #     square_size = 512 #fix

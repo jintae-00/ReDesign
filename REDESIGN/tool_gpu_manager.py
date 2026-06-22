@@ -2,9 +2,9 @@
 """
 Dynamic Tool GPU Manager
 
-동적 설정 지원:
-- tool_gpu_config에서 런타임에 설정 읽기
-- 환경변수 URLD_TOOL_GPUS로 설정 가능
+Dynamic configuration support:
+- Reads its configuration from tool_gpu_config at runtime
+- Can be configured via the URLD_TOOL_GPUS environment variable
 """
 from __future__ import annotations
 from typing import Dict, Any, Optional, Callable, List, Set
@@ -27,7 +27,7 @@ class ToolModelType(Enum):
     OBJECTCLEAR = "objectclear"
 
 
-# Heavy 모델 설정 (메모리를 많이 사용하는 모델들)
+# Heavy model configuration (models that use a lot of memory)
 HEAVY_MODELS: Set[ToolModelType] = {ToolModelType.OBJECTCLEAR}
 HEAVY_MODEL_MIN_FREE_GB: float = 8.0
 
@@ -67,23 +67,23 @@ class ToolGPUManager:
     def __init__(self, tool_gpus: List[int] = None, force_reinit: bool = False):
         """
         Args:
-            tool_gpus: Tool GPU 목록. None이면 config에서 읽음.
-            force_reinit: True면 기존 설정 무시하고 재초기화
+            tool_gpus: List of tool GPU ids. If None, read from the config.
+            force_reinit: If True, ignore existing settings and reinitialize.
         """
         if hasattr(self, '_initialized') and self._initialized and not force_reinit:
             return
-        
-        # GPU 목록 결정
+
+        # Determine the GPU list
         if tool_gpus is not None:
             self.tool_gpus = tool_gpus
         else:
-            # 동적으로 config에서 읽기
+            # Read dynamically from the config
             from .tool_gpu_config import get_tool_gpus, get_max_models_per_gpu, get_lock_timeout
             self.tool_gpus = get_tool_gpus()
             self._max_models_per_gpu = get_max_models_per_gpu()
             self._lock_timeout = get_lock_timeout()
-        
-        # 전역 SDP 설정
+
+        # Configure the global SDP backend
         self._configure_global_sdp()
         
         self.slots: Dict[int, ToolGPUSlot] = {}
@@ -109,7 +109,7 @@ class ToolGPUManager:
         print(f"[ToolGPUManager] Max models per GPU: {getattr(self, '_max_models_per_gpu', 4)}")
     
     def _configure_global_sdp(self):
-        """프로세스 시작 시 전역 SDP 설정을 고정"""
+        """Pin the global SDP configuration at process startup."""
         if not torch.cuda.is_available():
             return
         
@@ -124,10 +124,10 @@ class ToolGPUManager:
             print(f"[ToolGPUManager] Warning: Could not configure SDP: {e}")
     
     def _register_loaders(self):
-        """모델 로더 등록"""
-        
+        """Register the model loaders."""
+
         def _safe_sync(gpu_id: int):
-            """synchronize wrapper — CUDA 에러 상태에서도 hang 방지"""
+            """synchronize wrapper - avoids hanging even when CUDA is in an error state."""
             try:
                 torch.cuda.synchronize(gpu_id)
             except RuntimeError as e:
@@ -277,26 +277,26 @@ class ToolGPUManager:
     
     def _select_gpu(self, model_type: ToolModelType) -> int:
         with self._selection_lock:
-            # 1. 모델이 캐시된 GPU 중 사용 가능한 것
+            # 1. An available GPU that already has the model cached
             for gpu_id, slot in self.slots.items():
                 if model_type in slot.model_cache and self._is_slot_available(slot):
                     return gpu_id
-            
-            # 2. 사용 가능한 GPU 중 캐시 여유 있는 것
+
+            # 2. An available GPU with the most free cache capacity
             available = []
             for gpu_id, slot in self.slots.items():
                 if self._is_slot_available(slot):
                     available.append((gpu_id, len(slot.model_cache)))
-            
+
             if available:
                 available.sort(key=lambda x: x[1])
                 return available[0][0]
-            
-            # 3. 첫 번째 GPU (Lock 대기)
+
+            # 3. The first GPU (wait for its lock)
             return self.tool_gpus[0]
     
     def _prepare_for_heavy_model(self, slot: ToolGPUSlot, model_type: ToolModelType):
-        """Heavy 모델 실행 전 메모리 확보"""
+        """Free up memory before running a heavy model."""
         if model_type not in HEAVY_MODELS:
             return
         
@@ -355,15 +355,16 @@ class ToolGPUManager:
     
     def reinitialize_model(self, model_type: ToolModelType, gpu_id: int) -> Any:
         """
-        캐시된 모델을 삭제하고 새로 로드합니다.
-        std::exception, CUDA illegal memory access 등 복구 불가능한 에러 발생 시 호출.
-        반드시 해당 slot의 lock을 잡고 있는 상태에서 호출해야 합니다.
+        Delete the cached model and load a fresh copy.
+        Call this when an unrecoverable error occurs (e.g. std::exception,
+        CUDA illegal memory access).
+        Must be called while holding the lock of the corresponding slot.
         """
         slot = self.slots.get(gpu_id)
         if slot is None:
             raise ValueError(f"No slot for GPU {gpu_id}")
 
-        # 기존 모델 삭제
+        # Delete the existing model
         old_model = slot.model_cache.pop(model_type, None)
         if old_model is not None:
             if hasattr(old_model, 'to'):
@@ -376,7 +377,7 @@ class ToolGPUManager:
         self._safe_cleanup(gpu_id)
         print(f"[ToolGPUManager] Reinitializing {model_type.value} on GPU {gpu_id}")
 
-        # 새로 로드
+        # Load a fresh copy
         loader = self._model_loaders.get(model_type)
         if loader is None:
             raise ValueError(f"No loader for {model_type.value}")
@@ -400,18 +401,18 @@ class ToolGPUManager:
             gc.collect()
 
     def _cleanup_model_state(self, model_type: ToolModelType, model):
-        """모델별 내부 상태(캐시된 feature 등) 정리 - acquire 해제 시 호출"""
+        """Clean up per-model internal state (e.g. cached features) on release from acquire."""
         if model is None:
             return
         if model_type == ToolModelType.HISAM:
-            # HiSAM predictor 내부 cached image features 해제
+            # Release the HiSAM predictor's cached image features
             svc = getattr(model, 'hisam_service', None)
             if svc is not None:
                 predictor = getattr(svc, 'predictor', None)
                 if predictor is not None and hasattr(predictor, 'reset_image'):
                     predictor.reset_image()
         elif model_type == ToolModelType.SAM2:
-            # SAM2 predictor 내부 cached features 해제
+            # Release the SAM2 predictor's cached features
             if hasattr(model, 'reset_predictor'):
                 model.reset_predictor()
     
@@ -422,7 +423,7 @@ class ToolGPUManager:
         timeout: float = None,
         caller_id: str = None,
     ):
-        """GPU + 모델 획득 (Lock 포함)"""
+        """Acquire a GPU and its model (including the lock)."""
         timeout = timeout or getattr(self, '_lock_timeout', 240.0)
         gpu_id = self._select_gpu(model_type)
         slot = self.slots[gpu_id]
@@ -453,13 +454,13 @@ class ToolGPUManager:
                 stream=stream,
             )
         finally:
-            # 모델별 내부 캐시 정리 (predictor features 등)
+            # Clean up per-model internal caches (e.g. predictor features)
             try:
                 self._cleanup_model_state(model_type, slot.model_cache.get(model_type))
             except Exception:
                 pass
 
-            # CUDA cleanup — synchronize가 hang하더라도 lock은 반드시 해제
+            # CUDA cleanup - always release the lock even if synchronize hangs
             if torch.cuda.is_available():
                 try:
                     torch.cuda.synchronize(gpu_id)
@@ -469,8 +470,8 @@ class ToolGPUManager:
                     print(
                         f"[ToolGPUManager] CUDA cleanup failed on GPU {gpu_id}: {e}"
                     )
-                    # illegal memory access 등 치명적 CUDA 에러 →
-                    # 해당 GPU의 캐시된 모델을 모두 무효화 (다음 요청 시 재로드)
+                    # Fatal CUDA error (e.g. illegal memory access) ->
+                    # invalidate all cached models on this GPU (reloaded on the next request)
                     if "illegal" in err_msg or "assert" in err_msg:
                         print(
                             f"[ToolGPUManager] Fatal CUDA error detected on GPU {gpu_id}, "
@@ -513,7 +514,7 @@ _manager_lock = threading.Lock()
 
 
 def get_tool_manager(tool_gpus: List[int] = None) -> ToolGPUManager:
-    """Tool GPU Manager 싱글턴 반환."""
+    """Return the Tool GPU Manager singleton."""
     global _manager
     if _manager is None:
         with _manager_lock:
@@ -523,14 +524,14 @@ def get_tool_manager(tool_gpus: List[int] = None) -> ToolGPUManager:
 
 
 def reset_tool_manager():
-    """Manager 리셋 (테스트용)."""
+    """Reset the manager (for testing)."""
     global _manager
     with _manager_lock:
         _manager = None
 
 
 def reconfigure_tool_manager(tool_gpus: List[int]):
-    """Manager 재설정."""
+    """Reconfigure the manager."""
     global _manager
     with _manager_lock:
         _manager = ToolGPUManager(tool_gpus=tool_gpus, force_reinit=True)

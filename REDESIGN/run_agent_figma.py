@@ -9,11 +9,14 @@ Usage:
     # Full 909-episode benchmark
     python -m REDESIGN.run_agent_figma \
         --data_dir figma_data --output_dir outputs/figma_agent \
-        --qwen_gpus 2,3,4,5 --qwen_pair_size 2 --tool_gpus 6,7
+        --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --tool_gpus <TOOL_GPU_IDS>
 
     # GPU config via environment variables
-    URLD_QWEN_GPUS="3,4,5" URLD_TOOL_GPUS="6,7" \
+    URLD_QWEN_GPUS="<QWEN_GPU_IDS>" URLD_TOOL_GPUS="<TOOL_GPU_IDS>" \
         python -m REDESIGN.run_agent_figma --data_dir figma_data --output_dir outputs/figma_agent
+
+    # Replace <QWEN_GPU_IDS> and <TOOL_GPU_IDS> with your own comma-separated
+    # GPU ids (e.g. "0,1").
 
 Features:
 - GPU configuration via CLI flags or environment variables
@@ -56,7 +59,7 @@ import logging
 # `python -m REDESIGN.episode_run` worker subprocess can resolve the package.
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-# episode_run.py 실행 설정
+# episode_run.py execution settings
 DEFAULT_WORKERS = 6
 DEFAULT_LLM_LIMIT = 100
 DEFAULT_MAX_DEPTH = 5
@@ -74,14 +77,14 @@ def setup_gpu_config(
     objectclear_gpu: Optional[int] = None,
 ) -> None:
     """
-    런타임 GPU 설정을 적용합니다.
-    
-    이 함수는 프로세스 시작 시 호출되어 tool_gpu_config를 설정합니다.
-    환경 변수보다 명시적 인자가 우선합니다.
+    Apply the runtime GPU configuration.
+
+    Called at process startup to configure tool_gpu_config.
+    Explicit arguments take priority over environment variables.
     """
     from REDESIGN.tool_gpu_config import set_runtime_config, print_config
-    
-    # 명시적 인자가 있으면 적용
+
+    # Apply explicit arguments when provided
     if qwen_gpus or qwen_pair_size or tool_gpus or objectclear_gpu:
         set_runtime_config(
             qwen_gpus=qwen_gpus,
@@ -94,7 +97,7 @@ def setup_gpu_config(
 
 
 def parse_gpu_list(gpu_str: Optional[str]) -> Optional[List[int]]:
-    """GPU 리스트 문자열 파싱 (예: '2,3' -> [2, 3])"""
+    """Parse a comma-separated GPU id string (e.g. '0,1' -> [0, 1])."""
     if not gpu_str:
         return None
     try:
@@ -229,9 +232,9 @@ def run_episode_for_frame(
     logger: Optional[logging.Logger] = None,
 ) -> Tuple[bool, str]:
     """
-    단일 프레임에 대해 episode_run.py 실행
-    
-    GPU 설정은 환경변수로 자식 프로세스에 전달됩니다.
+    Run episode_run.py for a single frame.
+
+    The GPU configuration is passed to the child process via environment variables.
     """
     cmd = [
         sys.executable, "-m", "REDESIGN.episode_run",
@@ -247,7 +250,7 @@ def run_episode_for_frame(
     if gpus:
         cmd.extend(["--gpus", gpus])
     
-    # 환경변수 설정 (GPU 설정 전달)
+    # Set up environment variables (to pass the GPU configuration)
     env = os.environ.copy()
     if qwen_gpus:
         env["URLD_QWEN_GPUS"] = qwen_gpus
@@ -266,7 +269,7 @@ def run_episode_for_frame(
             text=True,
             bufsize=1,
             cwd=str(REPO_ROOT),
-            env=env,  # GPU 설정이 포함된 환경변수
+            env=env,  # Environment variables including the GPU configuration
         )
         
         if logger:
@@ -471,20 +474,23 @@ def main():
             # Full 909-episode benchmark (downloaded to ./figma_data)
             python -m REDESIGN.run_agent_figma \\
                 --data_dir figma_data --output_dir outputs/figma_agent \\
-                --qwen_gpus 2,3,4,5 --qwen_pair_size 2 --tool_gpus 6,7
+                --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --tool_gpus <TOOL_GPU_IDS>
 
             # Single-pair GPU setup
             python -m REDESIGN.run_agent_figma \\
                 --data_dir figma_data --output_dir outputs/figma_agent \\
-                --qwen_gpus 3,4,5 --tool_gpus 6,7
+                --qwen_gpus <QWEN_GPU_IDS> --tool_gpus <TOOL_GPU_IDS>
 
             # GPU config via environment variables
-            URLD_QWEN_GPUS="3,4,5" URLD_QWEN_PAIR_SIZE="3" URLD_TOOL_GPUS="6,7" \\
+            URLD_QWEN_GPUS="<QWEN_GPU_IDS>" URLD_QWEN_PAIR_SIZE="3" URLD_TOOL_GPUS="<TOOL_GPU_IDS>" \\
                 python -m REDESIGN.run_agent_figma --data_dir figma_data --output_dir outputs/figma_agent
 
             # Dry run / quick test
             python -m REDESIGN.run_agent_figma --data_dir figma_data --output_dir outputs/figma_agent --dry_run
             python -m REDESIGN.run_agent_figma --data_dir figma_data --output_dir outputs/figma_agent --limit 5
+
+            # Replace <QWEN_GPU_IDS> and <TOOL_GPU_IDS> with your own
+            # comma-separated GPU ids (e.g. "0,1").
                 """
             )
 
@@ -507,36 +513,36 @@ def main():
         help=f"Number of parallel workers (default: {DEFAULT_WORKERS})"
     )
     
-    # GPU 설정 인자
+    # GPU configuration arguments
     parser.add_argument(
         "--gpus", "-g",
         type=str,
         default=None,
-        help="GPU IDs for episode_run.py (comma-separated, e.g., '0,1,2,3')"
+        help="Comma-separated, user-specific GPU ids for episode_run.py (e.g. '0,1,2,3')."
     )
     parser.add_argument(
         "--qwen_gpus",
         type=str,
         default=None,
-        help="GPU IDs for Qwen model (comma-separated, e.g., '2,3,4,5')"
+        help="Comma-separated, user-specific GPU ids for the Qwen model (e.g. '0,1')."
     )
     parser.add_argument(
         "--qwen_pair_size",
         type=int,
         default=None,
-        help="Number of GPUs per Qwen pair (e.g., 2 for A6000, 3 for RTX3090)"
+        help="Number of GPUs to group per Qwen pair (e.g. 2 for A6000, 3 for RTX3090)."
     )
     parser.add_argument(
         "--tool_gpus",
         type=str,
         default=None,
-        help="GPU IDs for Tool models (comma-separated, e.g., '6,7')"
+        help="Comma-separated, user-specific GPU ids for the tool models (e.g. '0,1')."
     )
     parser.add_argument(
         "--objectclear_gpu",
         type=int,
         default=None,
-        help="GPU ID for ObjectClear model (e.g., 7)"
+        help="Single, user-specific GPU id for the ObjectClear model (e.g. 0)."
     )
     
     parser.add_argument(
@@ -558,7 +564,7 @@ def main():
 
     args = parser.parse_args()
     
-    # GPU 설정 적용
+    # Apply the GPU configuration
     qwen_gpu_list = parse_gpu_list(args.qwen_gpus)
     tool_gpu_list = parse_gpu_list(args.tool_gpus)
     

@@ -311,8 +311,8 @@ def run_layerd_lama_pipeline(
     logger: logging.Logger,
 ) -> Dict[str, Any]:
     import torch
-    from tool_learning_wo_qwen.tools.layerd_tool import run_layerd_front
-    from tool_learning_wo_qwen.tools.lama_tool import run_lama
+    from BASELINES.tool_backends.tools.layerd_tool import run_layerd_front
+    from BASELINES.tool_backends.tools.lama_tool import run_lama
 
     canvas = Image.open(image_path).convert("RGBA")
     W, H = canvas.size  # original size
@@ -701,9 +701,10 @@ def main():
     parser = argparse.ArgumentParser(
         description="LayerD + LaMa Iterative Extraction on Crello Dataset"
     )
-    parser.add_argument("--gpu", type=str, default="0", help="GPU IDs (comma-separated)")
+    parser.add_argument("--gpu", type=str, default="0",
+                        help="Comma-separated GPU ids to use (user-specific, e.g. '0,1,2,3')")
     parser.add_argument("--workers_per_gpu", type=int, default=1, help="Number of workers per GPU")
-    parser.add_argument("--limit", type=int, default=None, help="Limit records")
+    parser.add_argument("--limit", type=int, default=None, help="Limit the number of records to process")
     parser.add_argument("--splits", type=str, default="0,1,2,3,4",
                         help="Split indices (comma-separated, e.g., '0,1,2,3,4')")
     parser.add_argument("--dry_run", action="store_true")

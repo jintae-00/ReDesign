@@ -2,9 +2,9 @@
 """
 LaMa - Thread-safe with ToolGPUManager
 
-[수정 사항]
-1. retry_helper 모듈 사용으로 통합 재시도 로직 적용
-2. OOM + Kernel 에러 모두 처리
+[Changes]
+1. Use the retry_helper module for unified retry logic.
+2. Handle both OOM and Kernel errors.
 """
 import torch
 from PIL import Image
@@ -31,18 +31,18 @@ def run_lama(
         lama = ctx.model
         gpu_id = ctx.gpu_id
         
-        # [수정] Alpha 반영 방식 (Premultiplied Alpha) -> 노이즈 제거
+        # Apply alpha via premultiplied alpha to remove noise
         raw_img = Image.open(image_path).convert("RGBA")
         raw_arr = np.array(raw_img)
 
-        # 0~1 스케일로 정규화된 Alpha
+        # Alpha normalized to the 0-1 range
         alpha = raw_arr[:, :, 3].astype(np.float32) / 255.0
 
-        # RGB에 Alpha를 곱함 (Broadcasting)
-        # Alpha가 작으면 RGB값도 0에 수렴(검은색)하게 됨
+        # Multiply RGB by alpha (broadcasting).
+        # Where alpha is small, RGB values converge toward 0 (black).
         clean_rgb = raw_arr[:, :, :3].astype(np.float32) * alpha[..., None]
 
-        # 다시 이미지로 변환
+        # Convert back into an image
         img = Image.fromarray(clean_rgb.astype(np.uint8), mode="RGB")
         
         mask = Image.open(mask_path).convert("L")

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-run_baseline3_figma.py - Baseline 3: Agent with Sparse Verification
+BASELINES/run_sparse_verification_agent_figma.py - Baseline 3: Agent with Sparse Verification
 
 Same agent pipeline as REDESIGN (full URLD), but with sparse verification:
 - Verify every N generations (default: 3) instead of every action
@@ -8,12 +8,15 @@ Same agent pipeline as REDESIGN (full URLD), but with sparse verification:
 - Leaf images batch-verified against sparse ancestor
 - On fail: fallback to ancestor node with full action chain context
 
-Output Format: parse.json + elements/ (Agent 호환)
-Evaluation: editability_eval → extract_agent_elements()
+Output Format: parse.json + elements/ (Agent-compatible)
+Evaluation: evaluation.editability_utils → extract_agent_elements()
+
+Note: Replace the GPU id placeholders below (e.g. <QWEN_GPU_IDS>, <TOOL_GPU_IDS>,
+<OBJECTCLEAR_GPU_ID>) with your own comma-separated, user-specific GPU ids.
 
 Usage:
-    python run_baseline3_figma.py --qwen_gpus 0,1 --tool_gpus 2,3 --objectclear_gpu 3
-    python run_baseline3_figma.py --qwen_gpus 0,1 --tool_gpus 2,3 --limit 5 --dry_run
+    python run_sparse_verification_agent_figma.py --qwen_gpus <QWEN_GPU_IDS> --tool_gpus <TOOL_GPU_IDS> --objectclear_gpu <OBJECTCLEAR_GPU_ID>
+    python run_sparse_verification_agent_figma.py --qwen_gpus <QWEN_GPU_IDS> --tool_gpus <TOOL_GPU_IDS> --limit 5 --dry_run
 
 How it works:
     1. Monkey-patches REDESIGN.episode_run._get_node_function to use
@@ -1004,13 +1007,13 @@ def main():
                         help="Sparse verification period: verify every N generations (default: 3)")
     parser.add_argument("--workers", "-w", type=int, default=DEFAULT_WORKERS)
     parser.add_argument("--qwen_gpus", type=str, default=None,
-                        help="GPU IDs for Qwen model (comma-separated, e.g., '0,1')")
+                        help="GPU IDs for the Qwen model, comma-separated and user-specific (e.g., '0,1')")
     parser.add_argument("--qwen_pair_size", type=int, default=None,
                         help="Number of GPUs per Qwen pair (e.g., 2 for A6000)")
     parser.add_argument("--tool_gpus", type=str, default=None,
-                        help="GPU IDs for Tool models (comma-separated, e.g., '2,3')")
+                        help="GPU IDs for the Tool models, comma-separated and user-specific (e.g., '2,3')")
     parser.add_argument("--objectclear_gpu", type=int, default=None,
-                        help="GPU ID for ObjectClear model (e.g., 3)")
+                        help="Single GPU ID for the ObjectClear model, user-specific (e.g., 3)")
     parser.add_argument("--llm_limit", type=int, default=DEFAULT_LLM_LIMIT)
     parser.add_argument("--max_depth", type=int, default=DEFAULT_MAX_DEPTH)
     parser.add_argument("--max_layers", type=int, default=DEFAULT_MAX_LAYERS)

@@ -108,7 +108,7 @@ OUTPUT_DPI = 100
 
 def _get_node_error_status(node_data: Dict[str, Any]) -> Optional[str]:
     """
-    [수정 35] Check if node has an execution error and return error type.
+    Check if node has an execution error and return error type.
     
     Returns:
         - "NODE_ERROR": General node execution error
@@ -140,7 +140,7 @@ def _get_node_error_status(node_data: Dict[str, Any]) -> Optional[str]:
     return None
 
 def _has_failed_attempts(node_data: Dict[str, Any]) -> bool:
-    """[수정 35] Check if node has any failed attempts in history."""
+    """Check if node has any failed attempts in history."""
     if not node_data:
         return False
     failed_attempts = node_data.get("failed_attempts") or []
@@ -148,7 +148,7 @@ def _has_failed_attempts(node_data: Dict[str, Any]) -> bool:
 
 
 def _is_error_retry_child(node_data: Dict[str, Any]) -> bool:
-    """[수정 35] Check if this node is a retry child created after node error."""
+    """Check if this node is a retry child created after node error."""
     if not node_data:
         return False
     
@@ -164,7 +164,7 @@ def _is_error_retry_child(node_data: Dict[str, Any]) -> bool:
     return False
 
 def _format_failed_attempts_summary(failed_attempts: List[Dict[str, Any]]) -> str:
-    """[수정 35] Format failed attempts as a compact summary for display."""
+    """Format failed attempts as a compact summary for display."""
     if not failed_attempts:
         return ""
     
@@ -190,7 +190,7 @@ def _format_failed_attempts_summary(failed_attempts: List[Dict[str, Any]]) -> st
 
 
 def _format_node_error_info(node_data: Dict[str, Any]) -> str:
-    """[수정 35] Format current node error info for display."""
+    """Format current node error info for display."""
     error_info = node_data.get("error_info")
     if not error_info:
         return ""
@@ -218,7 +218,7 @@ def _format_node_error_info(node_data: Dict[str, Any]) -> str:
 
 
 def _draw_node_error_badge(ax, x: float, y: float, node_data: Dict[str, Any], node_width: float):
-    """[수정 35] Draw node error badge in top-left corner."""
+    """Draw node error badge in top-left corner."""
     node_error_status = _get_node_error_status(node_data)
     
     if not node_error_status:
@@ -256,7 +256,7 @@ def _draw_node_error_badge(ax, x: float, y: float, node_data: Dict[str, Any], no
     )
 
 def _draw_failed_attempts_indicator(ax, x: float, y: float, failed_attempts: List[Dict], node_width: float):
-    """[수정 35] Draw small indicator showing number of failed attempts."""
+    """Draw small indicator showing number of failed attempts."""
     if not failed_attempts:
         return
     
@@ -287,14 +287,14 @@ def _draw_failed_attempts_indicator(ax, x: float, y: float, failed_attempts: Lis
 
 
 def _safe_str(value: Any, default: str = "") -> str:
-    """[수정 29] Safely convert value to string, handling None."""
+    """Safely convert value to string, handling None."""
     if value is None:
         return default
     return str(value)
 
 
 def _safe_startswith(value: Any, prefix: str) -> bool:
-    """[수정 29] Safely check if string starts with prefix, handling None."""
+    """Safely check if string starts with prefix, handling None."""
     if value is None:
         return False
     if not isinstance(value, str):
@@ -305,7 +305,7 @@ def _safe_startswith(value: Any, prefix: str) -> bool:
 def _create_thumbnail(image_path: str, size: Tuple[int, int] = THUMBNAIL_MAX_SIZE) -> Optional[np.ndarray]:
     """Create thumbnail with checkerboard background."""
     try:
-        # [수정 29] Null check for image_path
+        # Null check for image_path
         if not image_path or not isinstance(image_path, str):
             return None
         if not Path(image_path).exists():
@@ -343,7 +343,7 @@ def _get_verification_status(node_data: Dict[str, Any]) -> str:
     # Check action type for temp/virtual nodes
     action_type = node_data.get("action_type")
     
-    # [수정 29] Safe check for temp/virtual node types
+    # Safe check for temp/virtual node types
     if action_type and isinstance(action_type, str):
         if action_type in ["_TempChild", "_ValidChild", "_InvalidChild", "_RejectedChild"]:
             status_map = {
@@ -380,7 +380,7 @@ def _is_temp_or_virtual_node(node_data: Dict[str, Any]) -> bool:
     
     action_type = node_data.get("action_type")
     
-    # [수정 29] Safe string check
+    # Safe string check
     if action_type and isinstance(action_type, str) and action_type.startswith("_"):
         return True
     
@@ -388,7 +388,7 @@ def _is_temp_or_virtual_node(node_data: Dict[str, Any]) -> bool:
 
 
 def _format_children_analysis_summary(children_analysis: List[Dict[str, Any]]) -> str:
-    """[수정 34] Format children analysis as a compact summary."""
+    """Format children analysis as a compact summary."""
     if not children_analysis:
         return ""
     
@@ -412,9 +412,9 @@ def _format_metadata(node_data: Dict[str, Any]) -> str:
     """
     Format metadata for regular nodes.
     
-    [수정 34] Enhanced to show more verification details.
-    [수정 35] Added node error display.
-    [수정] coverage_assessment → coverage_check 대응
+    Enhanced to show more verification details.
+    Added node error display.
+    Handles the mapping between coverage_assessment and coverage_check.
     """
     if not node_data:
         return "No data"
@@ -430,8 +430,8 @@ def _format_metadata(node_data: Dict[str, Any]) -> str:
     tool_outputs = node_data.get("tool_outputs") or {}
     verifier = tool_outputs.get("verifier") or {}
     
-    # [수정] coverage_check (새) → coverage_assessment (저장된 값)
-    # VerificationAttempt에는 coverage_assessment로 저장되어 있음
+    # coverage_check (new) corresponds to coverage_assessment (the stored value);
+    # VerificationAttempt stores it under coverage_assessment.
     if verification_attempts:
         latest_attempt = verification_attempts[-1]
         coverage = latest_attempt.get("coverage_check")
@@ -449,7 +449,7 @@ def _format_metadata(node_data: Dict[str, Any]) -> str:
         ("Tools", str(node_data.get("planned_tool_sequence") or [])),
     ]
     
-    # [수정 35] Add node error info if present
+    # Add node error info if present
     if node_error_status:
         error_symbol = VERIFICATION_SYMBOLS.get(node_error_status, "⚠")
         error_info = node_data.get("error_info") or {}
@@ -468,7 +468,7 @@ def _format_metadata(node_data: Dict[str, Any]) -> str:
         if retry_child:
             fields.append(("RetryChild", retry_child))
     
-    # [수정 35] Show failed attempts history if any
+    # Show failed attempts history if any
     if failed_attempts:
         fail_count = len(failed_attempts)
         last_fail = failed_attempts[-1]
@@ -515,7 +515,7 @@ def _format_temp_metadata(node_data: Dict[str, Any]) -> str:
     """
     Format metadata for temp/virtual nodes.
     
-    [수정 34] Enhanced to show more detail about verification result.
+    Enhanced to show more detail about verification result.
     """
     if not node_data:
         return "No data"
@@ -539,7 +539,7 @@ def _format_temp_metadata(node_data: Dict[str, Any]) -> str:
         ("Attempt", f"#{attempt_number}"),
     ]
     
-    # [수정 34] Add context only if meaningful
+    # Add context only if meaningful
     if context and context != "-":
         fields.append(("Ctx", context))
     
@@ -691,7 +691,7 @@ def _draw_verification_badge(ax, x: float, y: float, node_data: Dict[str, Any], 
 
 
 def _draw_retry_badge(ax, x: float, y: float, retry_count: int, node_width: float):
-    """[수정 34] Draw retry count badge for retry child nodes."""
+    """Draw retry count badge for retry child nodes."""
     if retry_count <= 0:
         return
     
@@ -752,8 +752,8 @@ def visualize_history_tree(
     """
     Visualize the history tree including all verification attempts.
     
-    [수정 29] Added comprehensive null checks throughout.
-    [수정 34] Enhanced verification display.
+    Added comprehensive null checks throughout.
+    Enhanced verification display.
     """
     history_tree = state.get("history_tree") or {}
     root_id = state.get("root_layer_id", "layer_0000")
@@ -857,7 +857,7 @@ def visualize_history_tree(
         verification_status = _get_verification_status(node_data)
         node_error_status = _get_node_error_status(node_data)
         
-        # [수정 29] Safe action_type retrieval
+        # Safe action_type retrieval
         action_type = node_data.get("action_type")
         if not action_type or not isinstance(action_type, str):
             action_type = "Pending"
@@ -1027,14 +1027,14 @@ def visualize_history_tree(
             )
 
         
-        # --- G3. [수정 35] Failed Attempts Indicator ---
+        # --- G3. Failed Attempts Indicator ---
         failed_attempts = node_data.get("failed_attempts") or []
         if failed_attempts and not is_temp:
             _draw_failed_attempts_indicator(ax, x, y, failed_attempts, node_w)
 
 
 
-        # --- G2. [수정 34] Retry Badge (for retry child nodes) ---
+        # --- G2. Retry Badge (for retry child nodes) ---
         retry_count = node_data.get("retry_count", 0)
         if retry_count > 0 and not is_temp:
             # Check if this is a retry child (has "retry" in context or ID)
@@ -1114,7 +1114,7 @@ def visualize_history_tree(
         linewidth=2, linestyle='--', label="↺ RETRY"
     ))
     
-    # [수정 35] Node error statuses
+    # Node error statuses
     legend_handles.append(mpatches.Patch(
         facecolor='white', edgecolor=VERIFICATION_BADGE_COLORS["NODE_ERROR"], 
         linewidth=2, label="⚠ NODE_ERR"
@@ -1136,7 +1136,7 @@ def visualize_history_tree(
         # Count verification stats
         v_stats = {"PROCEED": 0, "PROCEED_FILTERED": 0, "RETRY": 0,
                   "VALID": 0, "INVALID": 0, "REJECTED": 0}
-        # [수정 35] Count error stats
+        # Count error stats
         e_stats = {"NODE_ERROR": 0, "GPU_TIMEOUT": 0, "CUDA_ERROR": 0}
         
         for node_data in history_tree.values():
@@ -1145,7 +1145,7 @@ def visualize_history_tree(
                 if v_status in v_stats:
                     v_stats[v_status] += 1
                 
-                # [수정 35] Count errors
+                # Count errors
                 e_status = _get_node_error_status(node_data)
                 if e_status in e_stats:
                     e_stats[e_status] += 1
@@ -1155,7 +1155,7 @@ def visualize_history_tree(
         title += f"V: ✓{v_stats['PROCEED']+v_stats['VALID']} ⚠{v_stats['PROCEED_FILTERED']} "
         title += f"✗{v_stats['RETRY']+v_stats['INVALID']} ↺{v_stats['REJECTED']}"
         
-        # [수정 35] Add error counts if any
+        # Add error counts if any
         total_errors = sum(e_stats.values())
         if total_errors > 0:
             title += f" | Err: ⚠{e_stats['NODE_ERROR']} ⏱{e_stats['GPU_TIMEOUT']} ⛔{e_stats['CUDA_ERROR']}"

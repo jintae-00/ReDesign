@@ -72,11 +72,11 @@ def node(state: GraphState) -> Dict[str, Any]:
         out = run_ocr(image_path, vis_dir=vis_dir, step=0)
     except Exception as e:
         err_str = str(e)
-        # Fatal OCR errors (std::exception, CUDA illegal memory access) →
-        # 이 에피소드의 parse.json 저장을 막아서 재실행 대상으로 만듦
+        # Fatal OCR errors (std::exception, CUDA illegal memory access) ->
+        # block saving this episode's parse.json so it becomes a re-run target
         fatal_patterns = ["std::exception", "illegal memory access", "cudaErrorIllegalAddress"]
         if any(p in err_str for p in fatal_patterns):
-            # StateManager가 누적 합산하므로 delta=1만 전달
+            # StateManager accumulates the total, so pass only delta=1
             error_update = {"_ocr_fatal_error_count": 1}
             return r_pack_state(
                 state,

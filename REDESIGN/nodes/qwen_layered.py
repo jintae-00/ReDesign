@@ -2,7 +2,7 @@
 """
 Qwen Image Layered Node - Multi-layer generation using Qwen model.
 
-[수정 22] Fixed KeyError in log message
+Fixed KeyError in log message:
 - Fixed logging error where result['num_layers'] was accessed but not present
 - Reverted to using len(result['layer_images'])
 """

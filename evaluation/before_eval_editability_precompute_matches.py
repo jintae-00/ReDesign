@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
 """Pre-compute GT-to-pred matches for baseline models.
 
-Produces match JSONs in the same format as editability_eval/match_runner.py,
+Produces match JSONs in the same format as evaluation/editability_utils/match_runner.py,
 saving to {output}/{model_name}/episodes/{episode_id}.json.
 
 Usage:
     python scripts/precompute_baseline_matches.py \
-        --figma-data ./figma_data \
+        --figma-data <FIGMA_DATA_DIR> \
         --exp-pairs \
-            ./figma_agent_experiment_0131:./figma_qwen_experiment_0131:dino90_obj_5_25_char_50 \
-            ./figma_agent_experiment_0208:./figma_qwen_experiment_0208:dino80_obj_5_60_char_25 \
-        --model layered --model-dir ./baseline_layerd_experiment \
-        --output ./editability_matches/merge_sweep_fast/merge_max \
+            <AGENT_OUTPUT_DIR>:<QWEN_OUTPUT_DIR>:merged \
+        --model layered --model-dir <LAYERED_BASELINE_OUTPUT_DIR> \
+        --output <MATCH_ROOT_DIR> \
         --num-workers 4
+
+    The agent/qwen/baseline output dirs are produced by running the inference runners
+    first (e.g. ``python -m REDESIGN.run_agent_figma --data_dir figma_data \
+    --output_dir <AGENT_OUTPUT_DIR>``), and ``--figma-data`` should point at the
+    downloaded ``figma_data`` dataset.
 """
 
 from __future__ import annotations
@@ -64,7 +68,7 @@ def _load_elements(task: BaselineTask) -> Tuple[List[Dict], List[Dict], Tuple[in
         extract_omnisvg_elements,
         extract_qwen_elements_cca,
     )
-    from editability_eval.loaders import _attach_gt_metadata
+    from evaluation.editability_utils.loaders import _attach_gt_metadata
 
     gt_elements, canvas_size, _ = extract_gt_elements(
         task.gt_json_path, task.split_dir, logger=None
@@ -117,7 +121,7 @@ def _load_elements(task: BaselineTask) -> Tuple[List[Dict], List[Dict], Tuple[in
             text_refinement=True,
             logger=None,
         )
-        from editability_eval.loaders import _attach_agent_metadata
+        from evaluation.editability_utils.loaders import _attach_agent_metadata
         _attach_agent_metadata(pred_elements, task.pred_dir)
 
     return gt_elements, pred_elements, canvas_size
@@ -139,8 +143,8 @@ def _match_single_episode(
 ) -> Dict[str, Any]:
     """Run matching for a single episode and save result."""
     import signal
-    from editability_eval.matching_core import greedy_match_gt_to_pred
-    from editability_eval.common_utils import save_json
+    from evaluation.editability_utils.matching_core import greedy_match_gt_to_pred
+    from evaluation.editability_utils.common_utils import save_json
 
     # Set per-episode timeout (SIGALRM, works in forked subprocesses)
     if timeout > 0:
@@ -194,8 +198,8 @@ def _match_single_episode_inner(
     cfg: Any,
 ) -> Dict[str, Any]:
     """Core matching logic (separated for timeout wrapper)."""
-    from editability_eval.matching_core import greedy_match_gt_to_pred
-    from editability_eval.common_utils import save_json
+    from evaluation.editability_utils.matching_core import greedy_match_gt_to_pred
+    from evaluation.editability_utils.common_utils import save_json
 
     ep_t0 = time.time()
     load_t0 = time.time()
@@ -330,7 +334,7 @@ def main():
     if not tasks:
         print("Nothing to do!")
         # Save summary
-        from editability_eval.common_utils import save_json
+        from evaluation.editability_utils.common_utils import save_json
         save_json(output_root / model_name / "summary.json", {
             "model": model_name,
             "num_episodes": len(common),
@@ -340,7 +344,7 @@ def main():
         return
 
     # Create match config
-    from editability_eval.matching_core import MatchConfig
+    from evaluation.editability_utils.matching_core import MatchConfig
     cfg = MatchConfig(
         lambda_l1=args.lambda_l1,
         lambda_iou=args.lambda_iou,
@@ -481,7 +485,7 @@ def main():
     print(f"\nCompleted {len(episodes_out)}/{len(tasks)} episodes in {elapsed:.1f}s{tout_msg}")
 
     # Save summary
-    from editability_eval.common_utils import save_json
+    from evaluation.editability_utils.common_utils import save_json
     summary = {
         "model": model_name,
         "model_format": model_format,

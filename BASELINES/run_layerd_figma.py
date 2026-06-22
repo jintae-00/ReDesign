@@ -2,11 +2,11 @@
 """
 run_baseline1_figma.py - Baseline 1: LayerD + LaMa Iterative Extraction
 
-LayerD로 front layer를 반복 추출하고 (CCA 미적용, RGBA 그대로 저장),
-LaMa로 inpainting하여 Qwen baseline과 동일한 출력 포맷으로 저장.
+Iteratively extracts the front layer with LayerD (no CCA applied; saved as RGBA
+directly) and inpaints with LaMa, producing the same output format as the Qwen baseline.
 
-Output Format: metadata.json + layer_*.png (Qwen 호환)
-Evaluation: evaluation_figma.py → extract_qwen_elements_cca()
+Output Format: metadata.json + layer_*.png (Qwen-compatible)
+Evaluation: evaluation_figma.py -> extract_qwen_elements_cca()
 
 Usage:
     python run_baseline1_figma.py --gpu 0
@@ -205,8 +205,8 @@ def run_cca_standalone(
     alpha_threshold: int = CCA_ALPHA_THRESHOLD,
 ) -> List[np.ndarray]:
     """
-    RGBA array에서 CCA로 component를 분리하여 canvas-size RGBA array 리스트 반환.
-    scipy를 사용하지 않고 cv2만으로 구현.
+    Split components from an RGBA array via CCA and return a list of
+    canvas-size RGBA arrays.
     """
     from scipy import ndimage
 
@@ -332,13 +332,13 @@ def run_layerd_lama_pipeline(
 ) -> Dict[str, Any]:
     """
     LayerD + LaMa iterative extraction pipeline.
-    Uses tool_learning_wo_qwen tools (standalone, no ToolGPUManager).
+    Uses the standalone tools under BASELINES/tool_backends (no ToolGPUManager).
     Large images are resized down for GPU processing, then masks/layers
     are scaled back to original resolution.
     """
     import torch
-    from tool_learning_wo_qwen.tools.layerd_tool import run_layerd_front
-    from tool_learning_wo_qwen.tools.lama_tool import run_lama
+    from BASELINES.tool_backends.tools.layerd_tool import run_layerd_front
+    from BASELINES.tool_backends.tools.lama_tool import run_lama
 
     canvas = Image.open(image_path).convert("RGBA")
     W, H = canvas.size  # original size
@@ -722,9 +722,10 @@ def main():
     parser = argparse.ArgumentParser(
         description="Baseline 1: LayerD + LaMa Iterative Extraction"
     )
-    parser.add_argument("--gpu", type=str, default="0", help="GPU IDs (comma-separated)")
+    parser.add_argument("--gpu", type=str, default="0",
+                        help="Comma-separated GPU ids to use (user-specific, e.g. '0,1,2,3')")
     parser.add_argument("--workers_per_gpu", type=int, default=1, help="Number of workers per GPU")
-    parser.add_argument("--limit", type=int, default=None, help="Limit frames")
+    parser.add_argument("--limit", type=int, default=None, help="Limit the number of frames to process")
     parser.add_argument("--dry_run", action="store_true")
     parser.add_argument("--no_skip", action="store_true")
     parser.add_argument("--src_root", type=str, default=None)

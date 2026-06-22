@@ -2,11 +2,11 @@
 """
 run_baseline2_figma.py - Baseline 2: OCR + HiSAM + VLM Labeling + GDINO + SAM2 + LaMa
 
-Phase 1: OCR bbox → HiSAM segmentation → text RGBA 저장 → LaMa inpaint (text union mask 제거)
-Phase 2: VLM Labeling → GDINO detection → SAM2 segmentation → LaMa inpaint (반복, 최대 16회)
+Phase 1: OCR bbox -> HiSAM segmentation -> save text RGBA -> LaMa inpaint (remove text union mask)
+Phase 2: VLM Labeling -> GDINO detection -> SAM2 segmentation -> LaMa inpaint (iterative)
 
-Output Format: parse.json + elements/ (Agent 호환)
-Evaluation: editability_eval → extract_agent_elements()
+Output Format: parse.json + elements/ (Agent-compatible)
+Evaluation: evaluation.editability_utils → extract_agent_elements()
 
 Usage:
     python run_baseline2_figma.py --gpu 0
@@ -433,15 +433,15 @@ def run_baseline2_pipeline(
     logger: logging.Logger,
 ) -> Dict[str, Any]:
     """
-    Phase 1: OCR → HiSAM → text RGBA 저장 → LaMa inpaint (text union mask 제거)
-    Phase 2: VLM Labeling → GDINO → SAM2 → LaMa (object, 반복, 최대 16회)
+    Phase 1: OCR -> HiSAM -> save text RGBA -> LaMa inpaint (remove text union mask)
+    Phase 2: VLM Labeling -> GDINO -> SAM2 -> LaMa (objects, iterative)
     """
     import torch
-    from tool_learning_wo_qwen.tools.ocr_tool import run_ocr, unload_ocr
-    from tool_learning_wo_qwen.tools.hisam_tool import run_hisam_union, unload_hisam
-    from tool_learning_wo_qwen.tools.sam2_tool import run_sam2_union, reset_sam2_features, unload_sam2
-    from tool_learning_wo_qwen.tools.lama_tool import run_lama, unload_lama
-    from tool_learning_wo_qwen.tools.dino_tool import run_dino_batch_all, unload_dino
+    from BASELINES.tool_backends.tools.ocr_tool import run_ocr, unload_ocr
+    from BASELINES.tool_backends.tools.hisam_tool import run_hisam_union, unload_hisam
+    from BASELINES.tool_backends.tools.sam2_tool import run_sam2_union, reset_sam2_features, unload_sam2
+    from BASELINES.tool_backends.tools.lama_tool import run_lama, unload_lama
+    from BASELINES.tool_backends.tools.dino_tool import run_dino_batch_all, unload_dino
 
     with Image.open(image_path) as _tmp:
         W, H = _tmp.size
@@ -457,14 +457,14 @@ def run_baseline2_pipeline(
     elements = []
     elem_counter = 0
 
-    # ==================== PHASE 1: Text Extraction (1회) ====================
+    # ==================== PHASE 1: Text Extraction (single pass) ====================
     logger.info("  Phase 1: Text extraction (OCR + HiSAM)")
 
     try:
         ocr_result = run_ocr(image_path)
     except Exception as e:
         if _check_cuda_oom(e):
-            logger.error(f"  CUDA/GPU OOM in OCR — aborting frame: {e}")
+            logger.error(f"  CUDA/GPU OOM in OCR -- aborting frame: {e}")
             raise _CudaOOMError(f"OCR GPU OOM: {e}") from e
         raise
     text_boxes_raw = ocr_result.get("boxes", [])
@@ -485,7 +485,7 @@ def run_baseline2_pipeline(
             )
         except Exception as e:
             if _check_cuda_oom(e):
-                logger.error(f"  CUDA/GPU OOM in HiSAM — aborting frame: {e}")
+                logger.error(f"  CUDA/GPU OOM in HiSAM -- aborting frame: {e}")
                 raise _CudaOOMError(f"HiSAM GPU OOM: {e}") from e
             raise
 
@@ -545,23 +545,23 @@ def run_baseline2_pipeline(
         gc.collect()
         logger.info("  Unloaded OCR + HiSAM models before LaMa inpainting")
 
-        # Phase 1.5: LaMa inpaint text region → text-free image for Phase 2
+        # Phase 1.5: LaMa inpaint text region -> text-free image for Phase 2
         text_union_path = hisam_result.get("mask_union")
         if text_union_path and Path(text_union_path).exists():
             try:
                 current_img_path = run_lama(current_img_path, text_union_path)
-                logger.info(f"  LaMa text inpainting done → text-free image ready for Phase 2")
+                logger.info(f"  LaMa text inpainting done -> text-free image ready for Phase 2")
             except Exception as e:
                 if _check_cuda_oom(e):
-                    logger.error(f"  CUDA OOM in Phase 1 LaMa — aborting frame: {e}")
+                    logger.error(f"  CUDA OOM in Phase 1 LaMa -- aborting frame: {e}")
                     raise _CudaOOMError(f"Phase 1 LaMa CUDA OOM: {e}") from e
                 logger.warning(f"  Text LaMa failed (Phase 2 will use original image): {e}")
 
-        # Unload LaMa after text inpainting — will be reloaded in Phase 2 if needed
+        # Unload LaMa after text inpainting -- will be reloaded in Phase 2 if needed
         unload_lama()
 
     else:
-        # No text boxes — still unload OCR (HiSAM was never loaded)
+        # No text boxes -- still unload OCR (HiSAM was never loaded)
         unload_ocr()
 
     logger.info(f"  Phase 1 complete: {len(elements)} text elements extracted")
@@ -570,9 +570,9 @@ def run_baseline2_pipeline(
         torch.cuda.empty_cache()
     gc.collect()
 
-    # ==================== PHASE 2: Object Extraction (반복) ====================
-    # Uses text-inpainted image → VLM Labeling → GDINO → SAM2 → LaMa → repeat
-    logger.info("  Phase 2: Object extraction (VLM Label → GDINO → SAM2 → LaMa)")
+    # ==================== PHASE 2: Object Extraction (iterative) ====================
+    # Uses text-inpainted image -> VLM Labeling -> GDINO -> SAM2 -> LaMa -> repeat
+    logger.info("  Phase 2: Object extraction (VLM Label -> GDINO -> SAM2 -> LaMa)")
     logger.info(f"  Phase 2 input image: {current_img_path}")
 
     iteration = 0
@@ -595,7 +595,7 @@ def run_baseline2_pipeline(
             )
         except Exception as e:
             if _check_cuda_oom(e):
-                logger.error(f"  CUDA OOM in GDINO iter {iteration} — aborting frame: {e}")
+                logger.error(f"  CUDA OOM in GDINO iter {iteration} -- aborting frame: {e}")
                 raise _CudaOOMError(f"GDINO CUDA OOM iter {iteration}: {e}") from e
             logger.warning(f"  GDINO failed at iteration {iteration}: {e}")
             break
@@ -622,7 +622,7 @@ def run_baseline2_pipeline(
             )
         except Exception as e:
             if _check_cuda_oom(e):
-                logger.error(f"  CUDA OOM in SAM2 iter {iteration} — aborting frame: {e}")
+                logger.error(f"  CUDA OOM in SAM2 iter {iteration} -- aborting frame: {e}")
                 raise _CudaOOMError(f"SAM2 CUDA OOM iter {iteration}: {e}") from e
             logger.warning(f"  SAM2 failed at iteration {iteration}: {e}")
             break
@@ -644,7 +644,7 @@ def run_baseline2_pipeline(
         current_img = cv2.imread(current_img_path)
         if current_img is None:
             break
-        current_rgb = current_img[:, :, ::-1]  # BGR → RGB
+        current_rgb = current_img[:, :, ::-1]  # BGR -> RGB
         cur_H, cur_W = current_img.shape[:2]
 
         new_elements_count = 0
@@ -710,7 +710,7 @@ def run_baseline2_pipeline(
                 current_img_path = run_lama(current_img_path, union_mask_path)
             except Exception as e:
                 if _check_cuda_oom(e):
-                    logger.error(f"  CUDA OOM in LaMa iter {iteration} — aborting frame: {e}")
+                    logger.error(f"  CUDA OOM in LaMa iter {iteration} -- aborting frame: {e}")
                     raise _CudaOOMError(f"LaMa CUDA OOM iter {iteration}: {e}") from e
                 logger.warning(f"  LaMa failed at iteration {iteration}: {e}")
                 break
@@ -769,7 +769,7 @@ def run_baseline2_pipeline(
 
 
 # =============================================================================
-# Build history_tree.json (Agent 호환)
+# Build history_tree.json (Agent-compatible)
 # =============================================================================
 
 def build_minimal_history_tree(
@@ -777,8 +777,8 @@ def build_minimal_history_tree(
     root_image_path: str,
 ) -> Dict[str, Any]:
     """
-    Agent evaluation에서 요구하는 최소한의 history_tree.json.
-    모든 element를 root의 자식으로 flat하게 등록.
+    Build the minimal history_tree.json required by Agent evaluation.
+    All elements are registered flatly as children of the root.
     """
     tree = {
         "layer_0000": {
@@ -817,7 +817,7 @@ def build_minimal_history_tree(
 
 
 # =============================================================================
-# Per-Frame Subprocess Worker (fresh process per frame → GPU memory 0 reset)
+# Per-Frame Subprocess Worker (fresh process per frame -> GPU memory fully reset)
 # =============================================================================
 
 def _frame_worker_fn(
@@ -829,7 +829,7 @@ def _frame_worker_fn(
 ):
     """
     Fresh subprocess per frame.
-    All GPU memory is freed when this process exits — no accumulation possible.
+    All GPU memory is freed when this process exits -- no accumulation possible.
     """
     import torch
 
@@ -921,7 +921,7 @@ def _frame_worker_fn(
 
     finally:
         signal.alarm(0)
-    # Process exits here → CUDA context destroyed → GPU memory 100% freed
+    # Process exits here -> CUDA context destroyed -> GPU memory fully freed
 
 
 # =============================================================================
@@ -991,13 +991,13 @@ def run_baseline2(
             logger.info(f"  {f.frame_id}")
         return {"dry_run": True}
 
-    # ── Per-frame subprocess architecture ──────────────────────────
-    # Each frame runs in a fresh subprocess → process exit frees ALL GPU memory.
+    # -- Per-frame subprocess architecture --------------------------
+    # Each frame runs in a fresh subprocess -> process exit frees ALL GPU memory.
     # One active subprocess per GPU slot at a time.
     result_queue = mp.Queue()
 
     # Build slot list: (gpu_id, slot_key)
-    # e.g. gpu_ids=[1,2], workers_per_gpu=2 → slots=[(1,"1_0"),(1,"1_1"),(2,"2_0"),(2,"2_1")]
+    # e.g. gpu_ids=[1,2], workers_per_gpu=2 -> slots=[(1,"1_0"),(1,"1_1"),(2,"2_0"),(2,"2_1")]
     slots = []
     for gid in gpu_ids:
         for w in range(workers_per_gpu):
@@ -1007,7 +1007,7 @@ def run_baseline2(
     frame_idx = 0
     completed = 0
     received_frames = set()  # frame_ids whose results we've collected
-    active = {}  # slot_key → (Process, frame_id, start_time)
+    active = {}  # slot_key -> (Process, frame_id, start_time)
 
     results = {"success": 0, "failed": 0, "errors": []}
     pbar = tqdm(total=total, desc="Baseline2", unit="frame", ncols=100)
@@ -1100,7 +1100,8 @@ def run_baseline2(
 
 def main():
     parser = argparse.ArgumentParser(description="Baseline 2: OCR + HiSAM + VLM + GDINO + SAM2 + LaMa")
-    parser.add_argument("--gpu", type=str, default="0")
+    parser.add_argument("--gpu", type=str, default="0",
+                        help="Comma-separated GPU ids to use (user-specific, e.g. '0,1,2,3')")
     parser.add_argument("--workers_per_gpu", type=int, default=1, help="Number of workers per GPU (default: 1)")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--dry_run", action="store_true")

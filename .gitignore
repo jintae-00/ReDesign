@@ -7,7 +7,8 @@ weights/
 # ── Datasets (downloaded separately; see docs/) ────────────────────────────
 # Figma: HuggingFace dataset Jintae-Park/ReDesign-Figma909
 # Crello: see crello_data/README.md (CyberAgent canvas-vae)
-figma_data/
+figma_data/*
+!figma_data/README.md
 crello_data/*
 !crello_data/README.md
 

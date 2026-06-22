@@ -2,10 +2,10 @@
 """
 FontStyle Node - DUMMY VERSION
 
-Agent 파이프라인 실행 중에는 dummy 값을 반환합니다.
-실제 폰트 피팅은 추후 일괄 보충 스크립트로 수행합니다.
+Returns dummy values while the agent pipeline is running.
+Actual font fitting is performed later by a separate batch backfill script.
 
-Color 추출은 로컬에서 빠르게 수행되므로 유지합니다.
+Color extraction is kept because it runs quickly on the local machine.
 """
 from __future__ import annotations
 from typing import Dict, Any, List, Optional, Tuple
@@ -35,7 +35,7 @@ def _log(message: str):
 
 
 # =============================================================================
-# Image Processing Utilities (색상 추출 - 빠르므로 유지)
+# Image Processing Utilities (color extraction - kept because it is fast)
 # =============================================================================
 
 def _extract_color_from_image(image_path: str, bbox: List[int] = None) -> Tuple[int, int, int]:
@@ -93,7 +93,7 @@ def _crop_text_region(image_path: str, bbox: List[int], output_path: str) -> boo
 
 
 def _estimate_font_size_from_bbox(bbox: List[int]) -> float:
-    """BBox 높이 기반 대략적 폰트 사이즈 추정"""
+    """Roughly estimate the font size based on the bbox height"""
     if not bbox or len(bbox) != 4:
         return 24.0
     x1, y1, x2, y2 = bbox
@@ -108,13 +108,13 @@ def _estimate_font_size_from_bbox(bbox: List[int]) -> float:
 def node(state: GraphState) -> Dict[str, Any]:
     """
     FontStyle node - DUMMY VERSION
-    
-    실제 API 호출/폰트 피팅 없이 dummy 값을 반환합니다.
-    - Color 추출: 실제 수행 (로컬, 빠름)
-    - Font family/size/l1_loss 등: dummy 값
-    
-    추후 backfill 스크립트에서 cropped_image_path, text_content, color를 사용해
-    실제 폰트 피팅을 수행합니다.
+
+    Returns dummy values without any real API calls or font fitting.
+    - Color extraction: actually performed (local, fast)
+    - Font family/size/l1_loss, etc.: dummy values
+
+    A later backfill script uses cropped_image_path, text_content, and color
+    to perform the actual font fitting.
     """
     layer_id = state.get("current_layer_id")
     if not layer_id:
@@ -167,45 +167,45 @@ def node(state: GraphState) -> Dict[str, Any]:
         aabbs = boxes_to_aabbs(boxes)
         
         _log(f"Processing {len(aabbs)} text elements (DUMMY mode)...")
-        
+
         for idx, (bbox, text, det_id) in enumerate(zip(aabbs, texts, det_ids)):
-            # Crop this specific text region (실제 수행 - 추후 피팅에 필요)
+            # Crop this specific text region (actually performed - needed for later fitting)
             cropped_path = str(layer_dir / f"fontstyle_crop_{det_id}.png")
-            
+
             if not _crop_text_region(image_path, bbox, cropped_path):
                 _log(f"Failed to crop text region for {det_id}")
                 continue
-            
-            # 색상 추출 (실제 수행 - 빠름)
+
+            # Color extraction (actually performed - fast)
             color_rgb = _extract_color_from_image(cropped_path)
             hex_color = _rgb_to_hex(color_rgb)
-            
-            # 폰트 사이즈 추정 (bbox 기반)
+
+            # Font size estimation (based on bbox)
             estimated_size = _estimate_font_size_from_bbox(bbox)
-            
+
             # Get mask path for this element
             mask_path = masks_by_id.get(det_id)
-            
-            # ★ DUMMY 값으로 element_result 생성
+
+            # Build element_result with DUMMY values
             element_result = {
                 "det_id": det_id,
                 "text_content": text,
                 "bbox": bbox,
-                # === DUMMY VALUES (추후 일괄 보충) ===
+                # === DUMMY VALUES (backfilled later) ===
                 "font_family": "__DUMMY__",
-                "size_px": estimated_size,  # bbox 기반 추정값
+                "size_px": estimated_size,  # Estimated value based on bbox
                 "color": {
-                    "rgb": list(color_rgb),  # ★ 실제 추출값
-                    "hex": hex_color,        # ★ 실제 추출값
+                    "rgb": list(color_rgb),  # Actual extracted value
+                    "hex": hex_color,        # Actual extracted value
                 },
                 "bold": False,
                 "italic": False,
                 "angle_deg": 0,
-                "l1_loss": float('inf'),  # 피팅 안됨 표시
-                # === PATHS (추후 피팅에 사용) ===
-                "cropped_image_path": cropped_path,  # ★ 핵심: 추후 API 호출에 사용
-                "rendered_image_path": None,  # 피팅 후 생성됨
-                "font_file_path": None,       # 피팅 후 생성됨
+                "l1_loss": float('inf'),  # Marks that fitting was not done
+                # === PATHS (used in later fitting) ===
+                "cropped_image_path": cropped_path,  # Key: used in later API calls
+                "rendered_image_path": None,  # Generated after fitting
+                "font_file_path": None,       # Generated after fitting
                 "mask_path": mask_path,
                 "score": scores[idx] if idx < len(scores) else None,
                 # === DUMMY FLAG ===
@@ -252,7 +252,7 @@ def node(state: GraphState) -> Dict[str, Any]:
         "tool_name": "fontstyle",
         "elements": element_results,
         "num_elements": len(element_results),
-        "_dummy_mode": True,  # 전체 출력이 dummy임을 표시
+        "_dummy_mode": True,  # Marks that the entire output is dummy
     }
     
     # Save fontstyle output to JSON

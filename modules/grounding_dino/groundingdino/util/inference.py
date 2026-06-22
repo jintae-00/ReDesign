@@ -145,57 +145,57 @@ def predict_filtered_boxes_matching(
         image: torch.Tensor,
         caption: str,
         score_min_ratio,
-        area_max_ratio,      # ← 이 값보다 큰 박스는 버림
+        area_max_ratio,      # ← boxes larger than this value are discarded
         device: str = "cuda"
 ) -> Tuple[torch.Tensor, torch.Tensor, List[str]]:
     """
-    • score_min_ratio 이상인 박스만 반환 (현재 area_max_ratio 는 사용하지 않음)
-    • boxes : (N,4) cxcywh, 0~1 정규화
-    • scores: (N,)  평균 유사도
-    • phrases: N개, 모두 caption.rstrip('.')
+    • Returns only boxes with score >= score_min_ratio (area_max_ratio is currently unused)
+    • boxes : (N,4) cxcywh, normalized to 0~1
+    • scores: (N,)  average similarity
+    • phrases: N items, all caption.rstrip('.')
     """
     caption = preprocess_caption(caption=caption)
 
     model, image = model.to(device), image.to(device)
 
-    # 2) 모델 추론
+    # 2) model inference
     with torch.no_grad():
         outputs = model(image[None], captions=[caption])
 
     pred_logits = outputs["pred_logits"].cpu().sigmoid()[0]   # (Q,V)
     pred_boxes  = outputs["pred_boxes"].cpu()[0]              # (Q,4) cxcywh
 
-    # 3) 캡션 토큰 인덱스
+    # 3) caption token indices
     ids = model.tokenizer(caption)['input_ids']
     cap_idx = [i for i, tid in enumerate(ids) if tid not in (101, 102, 1012)]
 
-    
-    # 4) 평균 유사도 (for-loop → 벡터화: 값은 동일)
+
+    # 4) average similarity (for-loop → vectorized: same values)
     query_scores = pred_logits[:, cap_idx].mean(dim=1)        # (Q,)
 
     '''
-    # 5) 텍스트 필터
+    # 5) text filter
     keep_txt = query_scores >= score_min_ratio
 
-    # 6) 면적 계산 후 “너무 큰” 박스 제거
-    #    - 변환은 필터링용으로만 잠깐 xyxy 로
+    # 6) compute area and remove boxes that are "too large"
+    #    - conversion to xyxy briefly, only for filtering
     boxes_xyxy = box_convert(pred_boxes, in_fmt="cxcywh", out_fmt="xyxy")
     wh = boxes_xyxy[:, 2:] - boxes_xyxy[:, :2]
     area_ratio = wh[:, 0] * wh[:, 1]
-    keep_area = area_ratio <= area_max_ratio    # area_max_ratio = 최대 허용 면적 비율
+    keep_area = area_ratio <= area_max_ratio    # area_max_ratio = maximum allowed area ratio
 
     keep = (keep_txt & keep_area).nonzero(as_tuple=True)[0]
     '''
 
-    # 5) 텍스트 기반 필터만 적용
-    #    - area_max_ratio 를 이용한 면적 필터는 현재 비활성화
+    # 5) apply text-based filter only
+    #    - the area filter using area_max_ratio is currently disabled
     keep = (query_scores >= score_min_ratio).nonzero(as_tuple=True)[0]
     
     if keep.numel() == 0:
         return torch.empty((0,4)), torch.empty((0,)), []
 
-    # 7) 점수 내림차순 정렬
-    boxes_kept  = pred_boxes[keep]             # ✅ cxcywh 그대로 유지
+    # 7) sort by score in descending order
+    boxes_kept  = pred_boxes[keep]             # ✅ keep cxcywh as-is
     scores_kept = query_scores[keep]
     order = scores_kept.argsort(descending=True)
 

@@ -421,11 +421,11 @@ def run_multi_tools_pipeline(
     logger: logging.Logger,
 ) -> Dict[str, Any]:
     import torch
-    from tool_learning_wo_qwen.tools.ocr_tool import run_ocr, unload_ocr
-    from tool_learning_wo_qwen.tools.hisam_tool import run_hisam_union, unload_hisam
-    from tool_learning_wo_qwen.tools.sam2_tool import run_sam2_union, reset_sam2_features, unload_sam2
-    from tool_learning_wo_qwen.tools.lama_tool import run_lama, unload_lama
-    from tool_learning_wo_qwen.tools.dino_tool import run_dino_batch_all, unload_dino
+    from BASELINES.tool_backends.tools.ocr_tool import run_ocr, unload_ocr
+    from BASELINES.tool_backends.tools.hisam_tool import run_hisam_union, unload_hisam
+    from BASELINES.tool_backends.tools.sam2_tool import run_sam2_union, reset_sam2_features, unload_sam2
+    from BASELINES.tool_backends.tools.lama_tool import run_lama, unload_lama
+    from BASELINES.tool_backends.tools.dino_tool import run_dino_batch_all, unload_dino
 
     with Image.open(image_path) as _tmp:
         W, H = _tmp.size
@@ -1083,11 +1083,13 @@ def main():
     parser = argparse.ArgumentParser(
         description="Multi-Tools Pipeline (OCR + HiSAM + VLM + GDINO + SAM2 + LaMa) on Crello Dataset"
     )
-    parser.add_argument("--gpu", type=str, default="0")
+    parser.add_argument("--gpu", type=str, default="0",
+                        help="Comma-separated GPU ids to use (user-specific, e.g. '0,1,2,3')")
     parser.add_argument("--workers_per_gpu", type=int, default=1,
-                        help="Uniform workers per GPU (ignored if --gpu_workers is set)")
+                        help="Uniform number of workers per GPU (ignored if --gpu_workers is set)")
     parser.add_argument("--gpu_workers", type=str, default=None,
-                        help="Per-GPU worker counts, e.g. '0:2,1:3,2:3,3:3'")
+                        help="Per-GPU worker counts as 'gpu_id:count' pairs, comma-separated "
+                             "with user-specific GPU ids, e.g. '0:2,1:3,2:3,3:3'")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--splits", type=str, default="0,1,2,3,4",
                         help="Split indices (comma-separated, e.g., '0,1,2,3,4')")

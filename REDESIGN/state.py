@@ -2,11 +2,11 @@
 """
 GraphState & LayerNode definitions for Unified Recursive Layer Decomposition (URLD)
 
-[수정 25] Verification System Types:
-- ChildValidationResult: 개별 child 검증 결과
-- CrossChildDuplicate: cross-child 중복 검출 결과
-- VerificationAttempt: 전체 verification 시도 기록
-- LayerNode에 verification_attempts, rejected_child_indices 필드 추가
+Verification System Types:
+- ChildValidationResult: validation result for an individual child
+- CrossChildDuplicate: cross-child duplicate detection result
+- VerificationAttempt: record of an entire verification attempt
+- LayerNode gains the verification_attempts and rejected_child_indices fields
 """
 from __future__ import annotations
 from typing import TypedDict, Optional, List, Dict, Any
@@ -19,62 +19,62 @@ import shutil
 
 
 # =============================================================================
-# [수정 25] Verification System TypedDicts
+# Verification System TypedDicts
 # =============================================================================
 
 class ChildValidationResult(TypedDict, total=False):
-    """개별 child layer의 validation 결과"""
-    index: int                          # child 인덱스
-    child_image_path: str               # child 이미지 경로
+    """Validation result for an individual child layer"""
+    index: int                          # Child index
+    child_image_path: str               # Child image path
     status: str                         # "VALID" | "INVALID"
-    
+
     # 3-check evaluation
     hallucination_check: str            # "PASS" | "FAIL"
-    hallucination_detail: Optional[str] # 실패 시 상세 내용
-    
-    redundancy_check: str               # "PASS" | "FAIL" 
-    redundancy_detail: Optional[str]    # 어떤 child와 중복인지
-    
+    hallucination_detail: Optional[str] # Details on failure
+
+    redundancy_check: str               # "PASS" | "FAIL"
+    redundancy_detail: Optional[str]    # Which child it duplicates
+
     integrity_check: str                # "PASS" | "FAIL"
-    integrity_detail: Optional[str]     # color distortion, blur 등
-    
+    integrity_detail: Optional[str]     # Color distortion, blur, etc.
+
     # Context
-    context: Optional[str]              # VLM이 파악한 child 내용
-    reason: Optional[str]               # 최종 판단 이유
+    context: Optional[str]              # Child content as understood by the VLM
+    reason: Optional[str]               # Final decision rationale
 
 
 class CrossChildDuplicate(TypedDict, total=False):
-    """Cross-child 중복 객체 검출 결과"""
-    object_description: str             # 중복된 객체 설명
-    kept_child_index: int               # 유지할 child 인덱스
-    rejected_child_indices: List[int]   # 거부할 child 인덱스들
-    reason: str                         # 판단 근거
+    """Cross-child duplicate object detection result"""
+    object_description: str             # Description of the duplicated object
+    kept_child_index: int               # Index of the child to keep
+    rejected_child_indices: List[int]   # Indices of the children to reject
+    reason: str                         # Decision rationale
 
 
 class VerificationAttempt(TypedDict, total=False):
-    """하나의 verification 시도 전체 기록"""
-    attempt_number: int                 # 시도 번호 (1부터 시작)
-    layer_id: str                       # parent layer ID
-    action_type: str                    # Fork_Qwen, Split_DetSeg 등
-    tool_sequence: List[str]            # 실행된 tool sequence
-    
-    # 모든 child 이미지 (rejected 포함)
+    """Full record of a single verification attempt"""
+    attempt_number: int                 # Attempt number (starting from 1)
+    layer_id: str                       # Parent layer ID
+    action_type: str                    # Fork_Qwen, Split_DetSeg, etc.
+    tool_sequence: List[str]            # Executed tool sequence
+
+    # All child images (including rejected ones)
     child_image_paths: List[str]
-    
-    # 개별 child 분석 결과
+
+    # Per-child analysis results
     children_analysis: List[ChildValidationResult]
-    
-    # 유효/무효 child 인덱스
+
+    # Valid/invalid child indices
     valid_children_indices: List[int]
     invalid_children_indices: List[int]
-    
-    # Coverage 평가 (COMPLETE | INCOMPLETE)
+
+    # Coverage assessment (COMPLETE | INCOMPLETE)
     coverage_check: str
     coverage_reason: Optional[str]
-    
-    # 최종 Decision (계산된 값 - PROCEED | PROCEED_FILTERED | RETRY)
+
+    # Final decision (computed value - PROCEED | PROCEED_FILTERED | RETRY)
     decision: str
-    
+
     timestamp: str
 
 
@@ -104,12 +104,12 @@ class ToolOutputs(TypedDict, total=False):
     fontstyle: Optional[Dict[str, Any]]
     vtracer: Optional[Dict[str, Any]]
     
-    # [수정 25] Verifier output (latest)
+    # Verifier output (latest)
     verifier: Optional[Dict[str, Any]]
 
 
 # =============================================================================
-# [수정 25] Enhanced LayerNode with Verification Fields
+# Enhanced LayerNode with Verification Fields
 # =============================================================================
 
 class LayerNode(TypedDict, total=False):
@@ -133,15 +133,15 @@ class LayerNode(TypedDict, total=False):
     error_info: Optional[Dict[str, Any]]
     retry_count: Optional[int]
     
-    # [수정 25] Verification tracking
-    verification_attempts: Optional[List[VerificationAttempt]]  # 모든 시도 기록
+    # Verification tracking
+    verification_attempts: Optional[List[VerificationAttempt]]  # Record of all attempts
     verification_status: Optional[str]  # "PROCEED" | "PROCEED_FILTERED" | "RETRY" |
-    rejected_child_indices: Optional[List[int]]  # PARTIAL 시 거부된 child 인덱스
-    failed_attempts: Optional[List[Dict[str, Any]]]  # Router retry용 실패 기록
-    
-    # [수정 25] Temporary children tracking (verification 전)
-    _temp_child_ids: Optional[List[str]]  # verification 대기 중인 temp children
-    _pending_verification: Optional[bool]  # verification 대기 상태
+    rejected_child_indices: Optional[List[int]]  # Child indices rejected on PARTIAL
+    failed_attempts: Optional[List[Dict[str, Any]]]  # Failure records used for router retry
+
+    # Temporary children tracking (before verification)
+    _temp_child_ids: Optional[List[str]]  # Temp children awaiting verification
+    _pending_verification: Optional[bool]  # Awaiting-verification flag
 
 
 class GPUSlot(TypedDict):
@@ -152,7 +152,7 @@ class GPUSlot(TypedDict):
 
 
 # =============================================================================
-# [수정 25] Enhanced GraphState
+# Enhanced GraphState
 # =============================================================================
 
 class GraphState(TypedDict, total=False):
@@ -176,13 +176,13 @@ class GraphState(TypedDict, total=False):
     llm_call_count: int
     llm_call_limit: int
     
-    # [수정 24] Retry support
+    # Retry support
     pending_retries: set
-    
-    # [수정 25] Current verification context
+
+    # Current verification context
     current_verification_attempt: Optional[VerificationAttempt]
 
-    original_image_info: Dict[str, Any]  # analyze_and_convert_image 결과
+    original_image_info: Dict[str, Any]  # Result of analyze_and_convert_image
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -246,7 +246,7 @@ def create_child_layer_node(layer_id: str, parent_id: str, image_path: str, dept
 
 
 # =============================================================================
-# [수정 25] Temporary Child Node (for verification visualization)
+# Temporary Child Node (for verification visualization)
 # =============================================================================
 
 def create_temp_child_node(
@@ -306,12 +306,12 @@ def initialize_graph_state(
     """
     Initialize GraphState for a new episode.
     
-    [수정 37] Now handles RGBA images:
+    Now handles RGBA images:
     - Analyzes input image for alpha channel
     - Saves alpha mask if present
     - Converts to RGB with white background for processing
     """
-    from .utils import analyze_and_convert_image  # [수정 37] Import 추가
+    from .utils import analyze_and_convert_image  # Added import
     
     run_dir = Path(run_dir)
     episode_dir = run_dir / "episodes" / episode_id
@@ -325,17 +325,17 @@ def initialize_graph_state(
     root_layer_dir = layers_dir / root_layer_id
     root_layer_dir.mkdir(parents=True, exist_ok=True)
     
-    # [수정 37] ★ 핵심 변경: 이미지 분석 및 변환
+    # Key change: analyze and convert the image
     image_info = analyze_and_convert_image(
         image_path=original_image_path,
         output_dir=str(root_layer_dir),
         background_color=(255, 255, 255)
     )
     
-    # Root 레이어는 RGB 변환된 이미지 사용
+    # The root layer uses the RGB-converted image
     root_image_path = image_info["rgb_image_path"]
-    
-    # [수정 37] 원본 이미지를 episode_dir에 복사 (참조용)
+
+    # Copy the original image into episode_dir (for reference)
     original_copy_path = episode_dir / "original_input.png"
     shutil.copy(original_image_path, original_copy_path)
     
@@ -358,7 +358,7 @@ def initialize_graph_state(
         llm_call_count=0, llm_call_limit=llm_call_limit,
         pending_retries=set(),
         current_verification_attempt=None,
-        # [수정 37] Alpha 정보 저장
+        # Store alpha information
         original_image_info=image_info,
     )
 
@@ -388,9 +388,9 @@ def get_available_gpu_ids(state: GraphState) -> List[int]:
 def save_state_to_disk(state: GraphState) -> None:
     """Save history_tree and parsed_elements to disk.
 
-    OCR fatal 에러(_ocr_fatal_error_count > 0)가 발생한 에피소드는
-    parse.json을 저장하지 않아 skip_completed 로직에서 재실행 대상이 됨.
-    history_tree.json은 디버깅용으로 항상 저장.
+    For an episode where a fatal OCR error occurred (_ocr_fatal_error_count > 0),
+    parse.json is not saved, so the skip_completed logic will pick it up for re-runs.
+    history_tree.json is always saved for debugging.
     """
     episode_dir = Path(state["episode_dir"])
 
@@ -398,7 +398,7 @@ def save_state_to_disk(state: GraphState) -> None:
     with open(history_path, "w", encoding="utf-8") as f:
         json.dump(state["history_tree"], f, ensure_ascii=False, indent=2, cls=NumpyEncoder)
 
-    # OCR fatal 에러가 있으면 parse.json을 저장하지 않음
+    # If there was a fatal OCR error, do not save parse.json
     ocr_fatal_count = state.get("_ocr_fatal_error_count", 0)
     if ocr_fatal_count > 0:
         print(

@@ -187,7 +187,7 @@ def r_create_layer_node(
         "parsed_elements": None,
         "error_info": None,
         "retry_count": 0,
-        # [수정 25] Verification fields
+        # [Revision 25] Verification fields
         "verification_attempts": [],
         "verification_status": "pending",
         "rejected_child_indices": None,
@@ -210,7 +210,7 @@ def r_update_layer_node(
     if layer_id not in history_tree:
         return {}
     
-    # [수정 30] Return only the updates, not entire node
+    # [Revision 30] Return only the updates, not entire node
     # merge_updates/r_pack_state will handle merging
     return {"history_tree": {layer_id: updates}}
 
@@ -224,7 +224,7 @@ def r_set_router_outputs(
     params: Optional[Dict[str, Any]],
     state: GraphState
 ) -> Dict[str, Any]:
-    """Set router_vlm outputs. [수정 35] Added nanobanana_instruction support."""
+    """Set router_vlm outputs. [Revision 35] Added nanobanana_instruction support."""
     history_tree = state.get("history_tree") or {}
     if layer_id not in history_tree:
         return {}
@@ -238,12 +238,12 @@ def r_set_router_outputs(
     }
     
     if params:
-        # [수정 35] Include ALL recognized parameters
+        # [Revision 35] Include ALL recognized parameters
         recognized_params = [
             "qwen_len",
             "is_photo", 
             "inpaint_remainder",
-            "nanobanana_instruction",  # [수정 35] NOW INCLUDED
+            "nanobanana_instruction",  # [Revision 35] NOW INCLUDED
         ]
         
         for key in recognized_params:
@@ -257,14 +257,14 @@ def r_set_children_ids(layer_id: str, children_ids: List[str], state: GraphState
     """
     Set children_ids for a layer.
     
-    [수정 30] Return ONLY children_ids field, not entire node.
+    [Revision 30] Return ONLY children_ids field, not entire node.
     This preserves _temp_child_ids for visualization.
     """
     history_tree = state.get("history_tree") or {}
     if layer_id not in history_tree:
         return {}
     
-    # [수정 30] Return only the children_ids field
+    # [Revision 30] Return only the children_ids field
     return {"history_tree": {layer_id: {"children_ids": children_ids}}}
 
 
@@ -319,12 +319,12 @@ def r_save_tool_output(
     else:
         tool_outputs[tool_category] = output_with_tool
     
-    # [수정 30] Return only tool_outputs field
+    # [Revision 30] Return only tool_outputs field
     return {"history_tree": {layer_id: {"tool_outputs": tool_outputs}}}
 
 
 # =============================================================================
-# [수정 25] [수정 30] Verification Output Operations
+# [Revision 25] [Revision 30] Verification Output Operations
 # =============================================================================
 
 def r_save_verifier_output(
@@ -403,7 +403,7 @@ def r_record_failed_attempt(
     """
     Record a failed attempt for Router to avoid repeating.
     
-    [수정 30] Return only changed fields.
+    [Revision 30] Return only changed fields.
     """
     history_tree = state.get("history_tree") or {}
     if layer_id not in history_tree:
@@ -437,13 +437,13 @@ def r_force_finalize(layer_id: str, state: GraphState) -> Dict[str, Any]:
     """
     Force layer to finalize as atomic element.
     
-    [수정 30] Return only changed fields.
+    [Revision 30] Return only changed fields.
     """
     history_tree = state.get("history_tree") or {}
     if layer_id not in history_tree:
         return {}
     
-    # [수정 30] Return only changed fields
+    # [Revision 30] Return only changed fields
     return {"history_tree": {layer_id: {
         "action_type": "Finalize_Obj",
         "action_reasoning": "Force finalized by verifier FINALIZE decision",
@@ -457,13 +457,13 @@ def r_force_finalize(layer_id: str, state: GraphState) -> Dict[str, Any]:
 def r_create_retry_child_node(
     parent_id: str,
     state: GraphState,
-    current_failed_attempt: Optional[Dict[str, Any]] = None,  # [수정 34] 추가
+    current_failed_attempt: Optional[Dict[str, Any]] = None,  # [Revision 34] Added
 ) -> Tuple[str, Dict[str, Any]]:
     """
     Create a child node with the same image for retry.
     
-    [수정 31] Preserves parent verification visualization.
-    [수정 34] Now accepts current_failed_attempt to ensure complete history transfer.
+    [Revision 31] Preserves parent verification visualization.
+    [Revision 34] Now accepts current_failed_attempt to ensure complete history transfer.
     
     Args:
         parent_id: The parent layer that received RETRY verdict
@@ -483,7 +483,7 @@ def r_create_retry_child_node(
     parent_retry_count = parent_node.get("retry_count", 0)
     parent_failed_attempts = list(parent_node.get("failed_attempts") or [])
     
-    # [수정 34] Add current failed attempt to history
+    # [Revision 34] Add current failed attempt to history
     if current_failed_attempt:
         parent_failed_attempts.append(current_failed_attempt)
     
@@ -532,7 +532,7 @@ def r_create_retry_child_node(
         "parsed_elements": None,
         "error_info": None,
         "retry_count": new_retry_count,
-        # [수정 34] Complete failed_attempts history (parent's + current)
+        # [Revision 34] Complete failed_attempts history (parent's + current)
         "failed_attempts": parent_failed_attempts,
         "verification_attempts": [],
         "verification_status": "pending",
@@ -545,7 +545,7 @@ def r_create_retry_child_node(
     parent_children = list(parent_node.get("children_ids") or [])
     parent_children.append(retry_child_id)
     
-    # [수정 34] Also record on parent node for visualization
+    # [Revision 34] Also record on parent node for visualization
     parent_updates = {"children_ids": parent_children}
     if current_failed_attempt:
         existing_parent_failed = list(parent_node.get("failed_attempts") or [])
@@ -562,7 +562,7 @@ def r_create_retry_child_node(
 
 
 # =============================================================================
-# [수정 25] Temporary Children Operations (for visualization)
+# [Revision 25] Temporary Children Operations (for visualization)
 # =============================================================================
 
 def r_create_temp_child_nodes(
@@ -616,7 +616,7 @@ def r_create_temp_child_nodes(
         updates[temp_id] = temp_node
         temp_child_ids.append(temp_id)
     
-    # [수정 30] For parent, return only the fields we're changing
+    # [Revision 30] For parent, return only the fields we're changing
     updates[parent_id] = {
         "_temp_child_ids": temp_child_ids,
         "_pending_verification": True,
@@ -700,7 +700,7 @@ def r_update_temp_children_status(
         
         updates[temp_id] = temp_node
     
-    # [수정 30] For parent, return only the field we're changing
+    # [Revision 30] For parent, return only the field we're changing
     updates[parent_id] = {"_pending_verification": False}
     
     return {"history_tree": updates}
@@ -723,7 +723,7 @@ def r_append_parsed_element(element: Dict[str, Any], layer_id: str, state: Graph
         node = history_tree[layer_id]
         layer_elements = list(node.get("parsed_elements") or [])
         layer_elements.append(element_with_ref)
-        # [수정 30] Return only parsed_elements field
+        # [Revision 30] Return only parsed_elements field
         result["history_tree"] = {layer_id: {"parsed_elements": layer_elements}}
     
     return result
@@ -747,7 +747,7 @@ def r_set_layer_error(
     node = history_tree[layer_id]
     new_retry_count = (node.get("retry_count") or 0) + 1
     
-    # [수정 30] Return only changed fields
+    # [Revision 30] Return only changed fields
     return {"history_tree": {layer_id: {
         "error_info": {"message": error_msg, "details": details or {}},
         "retry_count": new_retry_count,

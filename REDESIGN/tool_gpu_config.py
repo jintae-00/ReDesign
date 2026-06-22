@@ -2,17 +2,20 @@
 """
 GPU Configuration for URLD Tools
 
-설정 우선순위:
-1. 런타임 오버라이드 (set_runtime_config 호출)
-2. 환경 변수 (URLD_QWEN_GPUS, URLD_TOOL_GPUS, URLD_OBJECTCLEAR_GPU)
-3. 기본값 (아래 정의)
+Resolution priority:
+1. Runtime override (via set_runtime_config)
+2. Environment variables (URLD_QWEN_GPUS, URLD_TOOL_GPUS, URLD_OBJECTCLEAR_GPU)
+3. Default values (defined below)
 
-사용 예시:
-    # CLI에서
-    python -m REDESIGN.run_figma_split --split_idx 0 --qwen_gpus 2,3 --tool_gpus 6,7
-    
-    # 환경 변수로
-    URLD_QWEN_GPUS="3,4,5" URLD_TOOL_GPUS="6,7" python -m REDESIGN.run_figma_split --split_idx 1
+Usage examples:
+    # From the CLI
+    python -m REDESIGN.run_figma_split --split_idx 0 --qwen_gpus <QWEN_GPU_IDS> --tool_gpus <TOOL_GPU_IDS>
+
+    # Via environment variables
+    URLD_QWEN_GPUS="<QWEN_GPU_IDS>" URLD_TOOL_GPUS="<TOOL_GPU_IDS>" python -m REDESIGN.run_figma_split --split_idx 1
+
+    # Replace <QWEN_GPU_IDS> and <TOOL_GPU_IDS> with your own comma-separated
+    # GPU ids (e.g. "0,1").
 """
 from __future__ import annotations
 import os
@@ -22,9 +25,14 @@ from typing import List, Tuple, Optional
 # =============================================================================
 # Default Values (fallback)
 # =============================================================================
-_DEFAULT_QWEN_GPUS: List[int] = [2, 3]  # 2-GPU pair as flat list
-_DEFAULT_TOOL_GPUS: List[int] = [6, 7]
-_DEFAULT_OBJECTCLEAR_GPU: int = 7
+# Conservative, machine-agnostic defaults: everything on GPU 0 so the pipeline
+# runs out-of-the-box on any machine (including single-GPU setups). For multi-GPU
+# performance, override per run via the CLI flags (--qwen_gpus / --tool_gpus /
+# --objectclear_gpu) or the URLD_QWEN_GPUS / URLD_TOOL_GPUS / URLD_OBJECTCLEAR_GPU
+# environment variables — e.g. --qwen_gpus 0,1,2,3 --qwen_pair_size 2 --tool_gpus 4,5.
+_DEFAULT_QWEN_GPUS: List[int] = [0]
+_DEFAULT_TOOL_GPUS: List[int] = [0]
+_DEFAULT_OBJECTCLEAR_GPU: int = 0
 _DEFAULT_MAX_MODELS_PER_GPU: int = 4
 _DEFAULT_LOCK_TIMEOUT: float = 240.0
 
@@ -42,7 +50,7 @@ def set_runtime_config(
     objectclear_gpu: Optional[int] = None,
 ):
     """
-    런타임에 GPU 설정을 오버라이드합니다.
+    Override the GPU configuration at runtime.
     """
     global _runtime_config
     with _config_lock:
@@ -59,14 +67,14 @@ def set_runtime_config(
 
 
 def clear_runtime_config():
-    """런타임 설정을 초기화합니다."""
+    """Clear the runtime configuration."""
     global _runtime_config
     with _config_lock:
         _runtime_config.clear()
 
 
 def _parse_gpu_list_from_env(env_var: str) -> Optional[List[int]]:
-    """환경 변수에서 GPU 리스트 파싱"""
+    """Parse a comma-separated GPU id list from an environment variable."""
     value = os.environ.get(env_var)
     if not value:
         return None
@@ -78,7 +86,7 @@ def _parse_gpu_list_from_env(env_var: str) -> Optional[List[int]]:
 
 
 def _parse_gpu_int_from_env(env_var: str) -> Optional[int]:
-    """환경 변수에서 단일 GPU ID 파싱"""
+    """Parse a single GPU id from an environment variable."""
     value = os.environ.get(env_var)
     if not value:
         return None
@@ -94,7 +102,7 @@ def _parse_gpu_int_from_env(env_var: str) -> Optional[int]:
 # =============================================================================
 
 def get_qwen_gpus() -> List[int]:
-    """Qwen 모델용 GPU 리스트를 반환합니다."""
+    """Return the list of GPU ids for the Qwen model."""
     with _config_lock:
         if "qwen_gpus" in _runtime_config:
             return list(_runtime_config["qwen_gpus"])
@@ -107,7 +115,7 @@ def get_qwen_gpus() -> List[int]:
 
 
 def get_qwen_pair_size() -> Optional[int]:
-    """Qwen GPU pair 크기를 반환합니다."""
+    """Return the Qwen GPU pair size."""
     with _config_lock:
         if "qwen_pair_size" in _runtime_config:
             return _runtime_config["qwen_pair_size"]
@@ -116,11 +124,11 @@ def get_qwen_pair_size() -> Optional[int]:
     if env_value is not None:
         return env_value
     
-    return None  # 기본값: 모든 GPU를 단일 pair로
+    return None  # Default: treat all GPUs as a single pair
 
 
 def get_qwen_gpu_pairs() -> List[Tuple[int, ...]]:
-    """Qwen 모델용 GPU pairs를 반환합니다."""
+    """Return the GPU pairs for the Qwen model."""
     gpus = get_qwen_gpus()
     pair_size = get_qwen_pair_size()
     
@@ -143,7 +151,7 @@ def get_qwen_gpu_pairs() -> List[Tuple[int, ...]]:
 
 
 def get_tool_gpus() -> List[int]:
-    """Tool 모델용 GPU 리스트를 반환합니다."""
+    """Return the list of GPU ids for the tool models."""
     with _config_lock:
         if "tool_gpus" in _runtime_config:
             return list(_runtime_config["tool_gpus"])
@@ -156,7 +164,7 @@ def get_tool_gpus() -> List[int]:
 
 
 def get_objectclear_gpu() -> int:
-    """ObjectClear 전용 GPU를 반환합니다."""
+    """Return the GPU id dedicated to ObjectClear."""
     with _config_lock:
         if "objectclear_gpu" in _runtime_config:
             return _runtime_config["objectclear_gpu"]
@@ -177,14 +185,15 @@ def get_lock_timeout() -> float:
 
 
 # =============================================================================
-# Legacy Compatibility - 기존 코드와의 호환성 (동적 조회)
+# Legacy Compatibility - backward compatibility with existing code (dynamic lookup)
 # =============================================================================
 
 # [FIX] property() cannot be used at module level. Use __getattr__ instead.
 def __getattr__(name):
     """
-    모듈 레벨의 동적 속성 접근을 처리합니다.
-    imports 시점에는 존재하지 않지만, 접근 시점에 getter를 호출하여 값을 반환합니다.
+    Handle dynamic attribute access at the module level.
+    These attributes do not exist at import time; they call the corresponding
+    getter on access to return the current value.
     """
     if name == "QWEN_GPU_PAIRS":
         return get_qwen_gpu_pairs()
@@ -205,7 +214,7 @@ def __getattr__(name):
 # =============================================================================
 
 def validate_config() -> bool:
-    """설정 유효성 검사"""
+    """Validate the configuration."""
     qwen_gpus = set(get_qwen_gpus())
     tool_gpus = set(get_tool_gpus())
     objectclear_gpu = {get_objectclear_gpu()}
@@ -222,7 +231,7 @@ def validate_config() -> bool:
 
 
 def print_config():
-    """현재 설정 출력"""
+    """Print the current configuration."""
     print(f"[GPU Config] Qwen GPUs: {get_qwen_gpus()}")
     print(f"[GPU Config] Qwen Pair Size: {get_qwen_pair_size() or 'auto (single pair)'}")
     print(f"[GPU Config] Qwen GPU Pairs: {get_qwen_gpu_pairs()}")
@@ -231,7 +240,7 @@ def print_config():
 
 
 def get_gpu_memory_gb(gpu_id: int) -> float:
-    """특정 GPU의 총 메모리를 GB 단위로 반환"""
+    """Return the total memory of a given GPU in GB."""
     try:
         import torch
         if torch.cuda.is_available() and gpu_id < torch.cuda.device_count():
@@ -243,7 +252,7 @@ def get_gpu_memory_gb(gpu_id: int) -> float:
 
 
 def detect_gpu_type(gpu_id: int) -> str:
-    """GPU 타입 감지 (A6000, RTX3090 등)"""
+    """Detect the GPU type (e.g. A6000, RTX3090)."""
     try:
         import torch
         if torch.cuda.is_available() and gpu_id < torch.cuda.device_count():

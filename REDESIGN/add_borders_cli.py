@@ -23,23 +23,23 @@ def main():
     parser.add_argument(
         "--episode", "-e",
         type=str,
-        help="Path to single episode directory"
+        help="Path to a single episode directory to process (e.g. src/agent_output/episodes/<episode_name>)"
     )
     parser.add_argument(
         "--batch", "-b",
         type=str,
-        help="Path to episodes parent directory (process all subdirectories)"
+        help="Path to a parent directory containing multiple episode directories; every subdirectory that has a parse.json file is processed"
     )
     parser.add_argument(
         "--output", "-o",
         type=str,
         default="reconstructed_bordered.png",
-        help="Output filename (default: reconstructed_bordered.png)"
+        help="Output image filename written inside each episode directory (default: reconstructed_bordered.png)"
     )
     parser.add_argument(
         "--quiet", "-q",
         action="store_true",
-        help="Reduce output verbosity"
+        help="Reduce console output verbosity during processing"
     )
     
     args = parser.parse_args()

@@ -2,15 +2,16 @@
 """
 OCR - Persistent subprocess-isolated PaddleOCR
 
-PaddlePaddle은 device='cpu' 설정에도 CUDA context를 건드려 장시간 실행 시:
-  - SIGSEGV (Segmentation fault) → 메인 프로세스까지 사망
-  - CUDA illegal memory access → 프로세스 전체 CUDA context 영구 손상
-  - std::exception (C++ 내부 에러)
+Even with device='cpu', PaddlePaddle touches the CUDA context, so during
+long-running execution it can cause:
+  - SIGSEGV (segmentation fault) -> kills the main process as well
+  - CUDA illegal memory access -> permanently corrupts the entire process CUDA context
+  - std::exception (internal C++ error)
 
-해결: OCR을 별도 persistent subprocess에서 실행하여 완전 격리.
-  - CUDA_VISIBLE_DEVICES=""로 GPU 접근 완전 차단
-  - 한 번 띄운 worker가 여러 요청을 처리 (초기화 오버헤드 제거)
-  - worker가 죽으면 자동 재생성
+Solution: run OCR in a separate persistent subprocess for full isolation.
+  - Set CUDA_VISIBLE_DEVICES="" to completely block GPU access
+  - A single worker, started once, handles many requests (removes init overhead)
+  - The worker is automatically recreated if it dies
 """
 import json
 import os
@@ -30,7 +31,7 @@ _SUBPROCESS_TIMEOUT = 60  # per-request timeout (seconds)
 _OCR_WORKER_SCRIPT = r'''
 import sys, json, os
 
-# CUDA 완전 차단 — 반드시 다른 import 전에
+# Fully block CUDA - must come before any other import
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 import cv2
@@ -72,7 +73,7 @@ def run_ocr(ocr, image_path):
     return items
 
 def main():
-    """stdin으로 image_path를 받고, stdout으로 JSON 결과를 반환하는 루프"""
+    """Loop that reads an image_path from stdin and returns a JSON result on stdout."""
     ocr = init_ocr()
     # Ready signal
     sys.stdout.write("READY\n")
@@ -104,9 +105,9 @@ class _OCRWorker:
         self._lock = threading.Lock()
 
     def _start(self):
-        """Worker subprocess 시작"""
+        """Start the worker subprocess"""
         if self._proc is not None and self._proc.poll() is None:
-            return  # 이미 실행 중
+            return  # Already running
 
         env = {**os.environ, "CUDA_VISIBLE_DEVICES": ""}
         self._proc = subprocess.Popen(
@@ -119,13 +120,13 @@ class _OCRWorker:
             env=env,
         )
 
-        # READY 시그널 대기
+        # Wait for the READY signal
         ready_line = self._proc.stdout.readline().strip()
         if ready_line != "READY":
-            # subprocess가 READY 출력 없이 즉시 죽은 경우 stderr를 끌어다 진단
+            # If the subprocess died immediately without printing READY, pull stderr for diagnostics
             stderr_dump = ""
             try:
-                # 종료를 잠시 기다려 stderr 전부 회수
+                # Wait briefly for it to exit so we can collect all of stderr
                 self._proc.wait(timeout=2)
             except Exception:
                 pass
@@ -141,7 +142,7 @@ class _OCRWorker:
         print("[OCR] Persistent worker subprocess started")
 
     def _kill(self):
-        """Worker subprocess 종료"""
+        """Terminate the worker subprocess"""
         if self._proc is not None:
             try:
                 self._proc.stdin.write("EXIT\n")
@@ -160,8 +161,8 @@ class _OCRWorker:
 
     def run(self, image_path: str) -> list:
         """
-        OCR 실행. Worker가 죽어있으면 재시작.
-        Thread-safe (lock 사용).
+        Run OCR. Restart the worker if it has died.
+        Thread-safe (uses a lock).
         """
         with self._lock:
             if not self._is_alive():
@@ -171,18 +172,18 @@ class _OCRWorker:
                 self._proc.stdin.write(image_path + "\n")
                 self._proc.stdin.flush()
 
-                # 응답 대기 (timeout 적용)
+                # Wait for the response (with timeout)
                 import select
                 rlist, _, _ = select.select([self._proc.stdout], [], [], _SUBPROCESS_TIMEOUT)
                 if not rlist:
-                    # Timeout — worker가 먹통. 강제 종료 후 재시도
+                    # Timeout - worker is unresponsive. Force-kill and retry.
                     print(f"[OCR] Worker timeout ({_SUBPROCESS_TIMEOUT}s), killing...")
                     self._kill()
                     raise TimeoutError(f"OCR worker timed out after {_SUBPROCESS_TIMEOUT}s")
 
                 response_line = self._proc.stdout.readline().strip()
                 if not response_line:
-                    # Worker가 죽음 (EOF)
+                    # Worker died (EOF)
                     stderr = ""
                     try:
                         stderr = self._proc.stderr.read()
@@ -199,7 +200,7 @@ class _OCRWorker:
                 return response.get("items", [])
 
             except (BrokenPipeError, OSError) as e:
-                # Worker subprocess가 SIGSEGV 등으로 사망
+                # Worker subprocess died (e.g. SIGSEGV)
                 stderr = ""
                 try:
                     stderr = self._proc.stderr.read()
@@ -246,7 +247,7 @@ def run_ocr(
 ) -> Dict:
     """
     Persistent subprocess-isolated OCR.
-    Worker가 SIGSEGV로 죽어도 자동 재시작, 메인 프로세스는 안전.
+    The worker auto-restarts even if it dies from SIGSEGV, keeping the main process safe.
     """
     worker = _get_worker()
     last_error = None
@@ -262,7 +263,7 @@ def run_ocr(
                     f"[OCR] Worker failed (attempt {attempt + 1}/{_MAX_RETRIES + 1}): "
                     f"{str(e)[:150]}"
                 )
-                # Worker가 죽었으면 다음 run()에서 자동 재시작됨
+                # If the worker died, it will auto-restart on the next run()
                 continue
             raise
     else:

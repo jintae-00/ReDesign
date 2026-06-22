@@ -2,9 +2,9 @@
 """
 Grounding DINO - Thread-safe with ToolGPUManager
 
-[수정 사항]
-1. 클로저 late binding 문제 해결 (함수 팩토리 사용)
-2. retry_helper 모듈 사용으로 통합 재시도 로직 적용
+Notes:
+1. Fixed the closure late-binding issue (using a function factory).
+2. Applied unified retry logic via the retry_helper module.
 """
 import torch
 import numpy as np
@@ -72,7 +72,7 @@ def _apply_containment_filter(boxes_xyxy, confs, labels, thresh):
 
 def _create_dino_inference_fn(dino, img_cv, lab, score_min, area_max, device):
     def run_inference():
-        # 모델의 dtype에 맞춰 입력 변환
+        # Convert input to match the model's dtype
         model_dtype = next(dino.parameters()).dtype
         img_input = img_cv.to(device=device, dtype=model_dtype)
         
@@ -121,7 +121,7 @@ def run_dino_batch_all(
             labels = [labels] if isinstance(labels, str) else (labels or [])
             
             for lab in labels:
-                # ★ 클로저 문제 해결: 함수 팩토리 사용
+                # Fix the closure issue by using a function factory
                 inference_fn = _create_dino_inference_fn(
                     dino, img_cv, lab, score_min, area_max, device
                 )

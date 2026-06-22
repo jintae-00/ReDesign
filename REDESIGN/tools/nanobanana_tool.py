@@ -1,4 +1,4 @@
-# src/langgraph/tools/nanobanana_tool.py
+# REDESIGN/tools/nanobanana_tool.py
 from __future__ import annotations
 
 import os
@@ -54,19 +54,19 @@ def postprocess_to_input_size(
 
 
 # -----------------------------
-# Env: src/.env 만 로드
+# Env: load .env only
 # -----------------------------
 def load_api_key() -> str:
     """
-    GEMINI_API_KEY를 src/.env에서 로드.
-    (현재 파일: src/langgraph/tools → src는 parents[2])
+    Load GEMINI_API_KEY from the .env file.
+    (The .env directory is resolved as parents[2] of the current file.)
     """
-    src_dir = Path(__file__).resolve().parents[2]  # .../src
+    src_dir = Path(__file__).resolve().parents[2]  # the directory containing .env
     env_path = src_dir / ".env"
-    load_dotenv(env_path, override=False)  # 기존 환경변수 우선
+    load_dotenv(env_path, override=False)  # existing environment variables take precedence
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        raise ValueError("❌ GEMINI_API_KEY not found in src/.env")
+        raise ValueError("GEMINI_API_KEY not found in .env")
     return api_key
 
 
@@ -80,8 +80,8 @@ def generate_image(
     model: str = "gemini-2.5-flash-image",
 ) -> Optional[str]:
     """
-    Google Generative AI 호출로 이미지 생성.
-    반환: 생성 이미지의 '절대 경로'(str) 또는 None
+    Generate an image by calling Google Generative AI.
+    Returns: the absolute path (str) of the generated image, or None.
     """
     api_key = load_api_key()
     client = genai.Client(api_key=api_key)
@@ -95,12 +95,12 @@ def generate_image(
         model=model,
         contents=contents,
         config=types.GenerateContentConfig(
-            # 가능한 한 결정론적으로 만들기 위한 설정
+            # Settings to make generation as deterministic as possible
             temperature=0,
             top_p=1.0,
             top_k=1,
             candidate_count=1,
-            # 재현 가능한 이미지를 위해 고정 seed 사용
+            # Use a fixed seed for reproducible images
             seed=int(os.getenv("GEMINI_SEED", "42")),
         ),
     )
@@ -120,7 +120,7 @@ def generate_image(
                     postprocess_to_input_size(output_path, Path(image_paths[-1]), keep_aspect=True)
                 return str(output_path.resolve())
     except Exception as e:
-        raise RuntimeError(f"⚠️ Failed to parse response: {e}")
+        raise RuntimeError(f"Failed to parse response: {e}")
 
     return None
 
@@ -130,9 +130,9 @@ def generate_image(
 # -----------------------------
 def run_nanobanana(image_path: str, instruction: str) -> str:
     """
-    LangGraph 툴 러너(entrypoint).
-    입력: image_path(현재 base), instruction(Planning 노드 생성)
-    출력: 생성/후처리된 이미지의 절대 경로(str)
+    LangGraph tool runner (entrypoint).
+    Input: image_path (current base), instruction (produced by the Planning node).
+    Output: absolute path (str) of the generated/post-processed image.
     """
     ipath = Path(image_path)
     if not ipath.exists():
@@ -157,5 +157,5 @@ def run_nanobanana(image_path: str, instruction: str) -> str:
     if not opath.exists():
         raise RuntimeError(f"[nanobanana] generated image not found at: {opath}")
 
-    # 상위 노드에서 r_save_artifact(...)로 표준 저장소로 복사/관리
+    # The parent node copies/manages this into the standard store via r_save_artifact(...)
     return str(opath)

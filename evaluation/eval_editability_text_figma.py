@@ -16,19 +16,24 @@ Phase 3 — Content Modification (word replacement + CER/WER per episode)
   apply same replacements to both GT and pred concatenated strings → CER/WER
 
 Usage:
+    # Replace <GPU_ID> with one of your own GPU ids (e.g. 0).
     python scripts/eval_text_edit_baselines.py \\
-        --figma-data ./figma_data \\
+        --figma-data <FIGMA_DATA_DIR> \\
         --exp-pairs \\
-            ./figma_agent_experiment_0131:./figma_qwen_experiment_0131:dino90_obj_5_25_char_50 \\
-            ./figma_agent_experiment_0208:./figma_qwen_experiment_0208:dino80_obj_5_60_char_25 \\
+            <AGENT_OUTPUT_DIR>:<QWEN_OUTPUT_DIR>:merged \\
         --models vtracer layered qwen multi_tools sparse_verif agent \\
-        --layered-dir ./baseline_layerd_experiment \\
-        --multi-tools-dir ./baseline_muilti_tools_experiment \\
-        --sparse-verif-dir ./baseline_sparse_verification_agent_experiment \\
-        --vtracer-dir ./baseline_vtracer_experiment \\
-        --output ./eval_text_edit_baselines \\
-        --seed 123 --num-workers 20 --ocr-gpu 3 --ocr-pool-size 4 \\
+        --layered-dir <LAYERED_BASELINE_OUTPUT_DIR> \\
+        --multi-tools-dir <MULTI_TOOLS_BASELINE_OUTPUT_DIR> \\
+        --sparse-verif-dir <SPARSE_VERIF_BASELINE_OUTPUT_DIR> \\
+        --vtracer-dir <VTRACER_BASELINE_OUTPUT_DIR> \\
+        --output <OUTPUT_DIR> \\
+        --seed 123 --num-workers 20 --ocr-gpu <GPU_ID> --ocr-pool-size 4 \\
         --n-mods 4 --min-pred-text-len 2
+
+    The agent/qwen/baseline output dirs are produced by running the inference runners
+    first (e.g. ``python -m REDESIGN.run_agent_figma --data_dir figma_data \\
+    --output_dir <AGENT_OUTPUT_DIR>``), and ``--figma-data`` should point at the
+    downloaded ``figma_data`` dataset.
 """
 
 from __future__ import annotations
@@ -64,7 +69,7 @@ import queue
 
 import cv2
 
-from editability_eval.common_utils import (
+from evaluation.editability_utils.common_utils import (
     load_json,
     normalize_text,
     preprocess_text_content,
@@ -968,14 +973,21 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Text editability evaluation — content-based matching pipeline"
     )
-    parser.add_argument("--figma-data", type=str, required=True)
-    parser.add_argument("--exp-pairs", type=str, nargs="+", required=True)
+    parser.add_argument("--figma-data", type=str, required=True,
+                        help="Path to the downloaded figma_data dataset directory.")
+    parser.add_argument("--exp-pairs", type=str, nargs="+", required=True,
+                        help="One or more inference-output pairs formatted as "
+                             "agent_dir:qwen_dir:gt_subset_prefix. Use 'merged' as the "
+                             "prefix for the released merged dataset "
+                             "(e.g. <AGENT_OUTPUT_DIR>:<QWEN_OUTPUT_DIR>:merged).")
     parser.add_argument(
         "--models", type=str, nargs="+", required=True,
         help="Models to evaluate (e.g., agent multi_tools layered qwen)",
     )
     add_baseline_dir_args(parser)
-    parser.add_argument("--output", type=str, default=None)
+    parser.add_argument("--output", type=str, default=None,
+                        help="Output directory for results "
+                             "(default: ./eval_text_edit_baselines).")
     parser.add_argument("--seed", type=int, default=123)
     parser.add_argument("--max-episodes", type=int, default=None)
     parser.add_argument("--n-mods", type=int, default=4,
@@ -984,7 +996,8 @@ def main() -> None:
                         help="Minimum pred text length (filters separator chars like | _ —)")
     parser.add_argument("--num-workers", type=int, default=1)
     parser.add_argument("--ocr-gpu", type=int, default=3,
-                        help="GPU device index for PaddleOCR (default: 3)")
+                        help="GPU device id for PaddleOCR. Set this to one of your own "
+                             "GPU ids (default: 3).")
     parser.add_argument("--ocr-pool-size", type=int, default=4,
                         help="Number of PaddleOCR instances on GPU (default: 4)")
     parser.add_argument("--no-tqdm", action="store_true", default=False)

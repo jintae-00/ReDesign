@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
 """
-run_qwen_crello_baseline.py - Crello Test Set에 대해 Qwen Image Layered Baseline 실행
+BASELINES/run_qwen_crello.py - Qwen Image Layered baseline runner for the Crello test set
 
-5개 split을 합집합하여, GPU pair별 worker로 병렬 처리하고 tqdm 통합 진행률을 표시합니다.
+Combines the splits into a single set, processes them in parallel with one worker per
+GPU pair, and shows a unified tqdm progress bar.
+
+Note: Replace the GPU id placeholder <QWEN_GPU_IDS> below with your own
+comma-separated GPU ids.
 
 Usage:
-    # 기본: 8개 GPU, 2개씩 pair → 4 workers, 5개 split 전부
-    python run_qwen_crello_baseline.py --splits 0,1,2,3,4 --qwen_gpus 0,1,2,3,4,5,6,7 --qwen_pair_size 2
+    # Basic: split the GPUs into pairs of 2, processing all splits
+    python run_qwen_crello.py --splits 0,1,2,3,4 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2
 
-    # 테스트 (10개만)
-    python run_qwen_crello_baseline.py --splits 0 --qwen_gpus 0,1 --qwen_pair_size 2 --limit 10
+    # Testing (10 records only)
+    python run_qwen_crello.py --splits 0 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --limit 10
 
     # Dry run
-    python run_qwen_crello_baseline.py --splits 0,1,2,3,4 --qwen_gpus 0,1,2,3,4,5,6,7 --qwen_pair_size 2 --dry_run
+    python run_qwen_crello.py --splits 0,1,2,3,4 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --dry_run
 
 Directory Structure:
     Input:
@@ -53,7 +57,7 @@ from PIL import Image, ImageFilter
 CRELLO_SPLIT_BASE = "crello_splits"
 QWEN_CRELLO_EXPERIMENT_BASE = "crello_experiment_qwen_0206"
 
-# Qwen 기본 파라미터
+# Qwen default parameters
 DEFAULT_NUM_LAYERS = 4
 DEFAULT_SEED = 777
 DEFAULT_RESOLUTION = 640
@@ -115,7 +119,7 @@ def parse_gpu_list(gpu_str: Optional[str]) -> List[int]:
 
 
 def parse_split_list(splits_str: str) -> List[int]:
-    """'0,1,2,3,4' → [0, 1, 2, 3, 4]"""
+    """Parse a split list string (e.g. '0,1,2,3,4' -> [0, 1, 2, 3, 4])."""
     return [int(x.strip()) for x in splits_str.split(",") if x.strip()]
 
 
@@ -131,18 +135,18 @@ def create_gpu_pairs(gpu_ids: List[int], pair_size: int) -> List[Tuple[int, ...]
 
 
 # =============================================================================
-# Record Data Loading (Figma의 FrameInfo에 대응)
+# Record Data Loading (corresponds to FrameInfo in the Figma runner)
 # =============================================================================
 
 @dataclass
 class RecordInfo:
-    """Crello record 정보"""
+    """Crello record information."""
     record_id: str
-    image_path: Path  # composite.png 절대경로
+    image_path: Path  # Absolute path to composite.png
 
 
 def load_record_list(src_root: Path, split_indices: List[int]) -> List[RecordInfo]:
-    """여러 split에서 record 목록을 합쳐서 반환 (정렬됨)."""
+    """Return the combined, sorted record list from multiple splits."""
     records = []
 
     for split_idx in split_indices:
@@ -166,7 +170,7 @@ def load_record_list(src_root: Path, split_indices: List[int]) -> List[RecordInf
             else:
                 print(f"[Warning] composite.png not found: {record_dir}")
 
-    # record_id 기준 정렬 + 중복 제거 (symlink 겹침 방지)
+    # Sort by record_id and deduplicate (avoids symlink overlaps)
     seen = set()
     unique = []
     for r in sorted(records, key=lambda x: x.record_id):
@@ -182,7 +186,7 @@ def is_record_completed(output_dir: Path, record_id: str) -> bool:
 
 
 # =============================================================================
-# Reconstruction (원본과 동일)
+# Reconstruction (same as the original)
 # =============================================================================
 
 def create_reconstructions(
@@ -252,7 +256,7 @@ def create_reconstructions(
 
 
 # =============================================================================
-# Backfill (완료된 record 중 누락 파일 보충)
+# Backfill (fill in missing files for completed records)
 # =============================================================================
 
 def backfill_missing_files(
@@ -299,7 +303,7 @@ def worker_process(
     output_dir: Path,
     qwen_params: Dict[str, Any],
 ):
-    """개별 GPU pair에서 Qwen 모델을 실행하는 워커 프로세스"""
+    """Worker process that runs the Qwen model on a single GPU pair."""
     import gc
     import torch
     import tempfile
@@ -346,11 +350,11 @@ def worker_process(
                 image = Image.open(image_path).convert("RGBA")
                 original_size = image.size
 
-                # Input image 저장
+                # Save the input image
                 input_dest = rec_output_dir / INPUT_IMAGE_NAME
                 shutil.copy2(image_path, input_dest)
 
-                # Qwen 추론
+                # Qwen inference
                 inputs = {
                     "image": image,
                     "generator": torch.Generator(device="cpu").manual_seed(qwen_params["seed"]),
@@ -366,7 +370,7 @@ def worker_process(
                     output = pipeline(**inputs)
                     output_images = output.images[0]
 
-                # 레이어 저장
+                # Save layers
                 layer_paths_saved = []
                 for i, layer_img in enumerate(output_images):
                     layer_img = layer_img.convert("RGBA")
@@ -459,7 +463,7 @@ def run_qwen_crello_baseline(
     skip_completed: bool = True,
     src_root: Optional[Path] = None,
 ) -> Dict[str, Any]:
-    """Qwen Image Layered baseline — Crello test subset 전체 실행."""
+    """Qwen Image Layered baseline — run over the entire Crello test subset."""
     from tqdm import tqdm
 
     if src_root is None:
@@ -482,7 +486,7 @@ def run_qwen_crello_baseline(
     logger.info(f"Output: {output_dir}")
     logger.info(f"GPU pairs: {gpu_pairs} ({len(gpu_pairs)} workers)")
 
-    # ---- 모든 split에서 record 합집합 ----
+    # ---- Combine records across all splits ----
     all_records = load_record_list(src_root, split_indices)
     logger.info(f"Total records across splits {split_indices}: {len(all_records)}")
 
@@ -497,7 +501,7 @@ def run_qwen_crello_baseline(
         logger.info(f"Backfilled: {backfill_stats['input_image']} inputs, "
                      f"{backfill_stats['reconstruction']} reconstructions")
 
-    # 완료 필터링
+    # Filter out completed records
     if skip_completed:
         pending = [r for r in all_records if not is_record_completed(output_dir, r.record_id)]
         completed_count = len(all_records) - len(pending)
@@ -525,7 +529,7 @@ def run_qwen_crello_baseline(
         logger.info("No pending records. All done!")
         return {"message": "All records already completed", "backfill_stats": backfill_stats}
 
-    # ---- Qwen params ----
+    # ---- Qwen parameters ----
     qwen_params = {
         "num_layers": num_layers,
         "seed": seed,
@@ -544,7 +548,7 @@ def run_qwen_crello_baseline(
     for rec in pending:
         task_queue.put((rec.record_id, str(rec.image_path)))
     for _ in gpu_pairs:
-        task_queue.put(None)  # 종료 신호
+        task_queue.put(None)  # Termination signal
 
     workers = []
     for i, pair in enumerate(gpu_pairs):
@@ -557,7 +561,7 @@ def run_qwen_crello_baseline(
         workers.append(p)
         logger.info(f"Started worker {i} on GPUs {pair}")
 
-    # ---- 결과 수집 (tqdm 통합) ----
+    # ---- Collect results (unified tqdm) ----
     results = {
         "split_indices": split_indices,
         "start_time": datetime.now().isoformat(),
@@ -606,7 +610,7 @@ def run_qwen_crello_baseline(
                     "error": result["error"],
                 })
 
-            # 중간 저장
+            # Intermediate save
             if processed % 10 == 0:
                 results["end_time"] = datetime.now().isoformat()
                 with open(output_dir / "qwen_crello_results.json", 'w', encoding='utf-8') as f:
@@ -621,7 +625,7 @@ def run_qwen_crello_baseline(
             if w.is_alive():
                 w.terminate()
 
-    # 최종 저장
+    # Final save
     results["end_time"] = datetime.now().isoformat()
     results_file = output_dir / "qwen_crello_results.json"
     with open(results_file, 'w', encoding='utf-8') as f:
@@ -654,31 +658,34 @@ def main():
         description="Run Qwen Image Layered Baseline on Crello Test Set",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
-    # 8 GPU, 2개씩 pair → 4 workers, 5개 split 전부
-    python run_qwen_crello_baseline.py --splits 0,1,2,3,4 --qwen_gpus 0,1,2,3,4,5,6,7 --qwen_pair_size 2
+Note: Replace the GPU id placeholder <QWEN_GPU_IDS> below with your own
+comma-separated GPU ids (e.g. 0,1,2,3,4,5,6,7).
 
-    # 테스트 (10개만)
-    python run_qwen_crello_baseline.py --splits 0 --qwen_gpus 0,1 --qwen_pair_size 2 --limit 10
+Examples:
+    # Split GPUs into pairs of 2, processing all splits
+    python run_qwen_crello.py --splits 0,1,2,3,4 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2
+
+    # Testing (10 records only)
+    python run_qwen_crello.py --splits 0 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --limit 10
 
     # Dry run
-    python run_qwen_crello_baseline.py --splits 0,1,2,3,4 --qwen_gpus 0,1,2,3,4,5,6,7 --qwen_pair_size 2 --dry_run
+    python run_qwen_crello.py --splits 0,1,2,3,4 --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --dry_run
         """
     )
 
     parser.add_argument("--splits", type=str, required=True,
                         help="Split indices (comma-separated, e.g., '0,1,2,3,4')")
     parser.add_argument("--qwen_gpus", type=str, required=True,
-                        help="GPU IDs (comma-separated, e.g., '0,1,2,3,4,5,6,7')")
+                        help="GPU IDs for the Qwen model, comma-separated and user-specific (e.g., '0,1,2,3,4,5,6,7')")
     parser.add_argument("--qwen_pair_size", type=int, required=True,
                         help="GPUs per Qwen pair (e.g., 2 for A6000)")
 
-    # Qwen 파라미터
+    # Qwen parameters
     parser.add_argument("--num_layers", type=int, default=DEFAULT_NUM_LAYERS)
     parser.add_argument("--resolution", type=int, default=DEFAULT_RESOLUTION)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
 
-    # 실행 옵션
+    # Execution options
     parser.add_argument("--dry_run", "-d", action="store_true")
     parser.add_argument("--limit", "-l", type=int, default=None)
     parser.add_argument("--no_skip", action="store_true")
