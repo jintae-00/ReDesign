@@ -3,7 +3,7 @@
 Reconstruction-accuracy and editability evaluation for ReDesign and the baselines.
 
 Run every script **from the repository root** so the `evaluation`,
-`REDESIGN`, and `modules` packages resolve.
+`ReDesign`, and `modules` packages resolve.
 
 ## Contents
 
@@ -25,7 +25,7 @@ Evaluation scores **inference outputs**, so first run the agent (and any baselin
 you want to compare) to produce `episodes/<id>/parse.json` etc.:
 
 ```bash
-python -m REDESIGN.run_agent_figma --data_dir figma_data --output_dir outputs/figma_agent
+python -m ReDesign.run_agent_figma --data_dir figma_data --output_dir outputs/figma_agent
 ```
 
 There is **no dataset-split concept**. `collect_gt_episodes` reads the whole flat
@@ -85,11 +85,14 @@ sensible defaults under `outputs/`):
 |---|---|---|
 | `REDESIGN_FIGMA_DATA` | `figma_data` | dataset root |
 | `REDESIGN_AGENT_DIR` | `outputs/figma_agent` | agent inference output dir |
-| `REDESIGN_QWEN_DIR` | `outputs/figma_qwen` | Qwen baseline output dir |
 | `REDESIGN_MATCH_ROOT` | `outputs/editability_matches` | precompute output (Step A) |
 | `REDESIGN_EDIT_OUTPUT` | `outputs/eval_editability_figma` | this script's output |
-| `REDESIGN_<MODEL>_DIR` | `outputs/baseline_<model>` | per-baseline output dirs |
+| `REDESIGN_<MODEL>_DIR` | `outputs/baseline_<model>` | per-baseline output dir (incl. `REDESIGN_QWEN_DIR` → `outputs/baseline_qwen`) |
 | `REDESIGN_SUBSET_FILE` | `evaluation/assets/atomic_selected_subset.json` | frozen subset for reproducibility |
+
+> `qwen` is just another baseline: it is stored at `outputs/baseline_qwen` and
+> compared alongside `layered`, `multi_tools`, etc. When you evaluate only the
+> agent (`--models agent`), the logs show the agent's table alone.
 
 > Editability eval depends on LPIPS / DINO (auto-downloaded) and, for text eval,
 > PaddleOCR PP-OCRv5 (auto-downloaded, GPU).

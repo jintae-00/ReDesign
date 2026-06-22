@@ -11,7 +11,7 @@ After download, ./figma_data/ contains:
     ATTRIBUTIONS.csv                        (per-episode author / source / license)
 
 This is exactly the layout expected by:
-    python -m REDESIGN.run_agent_figma --data_dir figma_data --output_dir outputs/figma_agent
+    python -m ReDesign.run_agent_figma --data_dir figma_data --output_dir outputs/figma_agent
 """
 import argparse
 import sys

@@ -12,7 +12,7 @@ Usage:
         --num-workers 4
 
     The agent/qwen/baseline output dirs are produced by running the inference runners
-    first (e.g. ``python -m REDESIGN.run_agent_figma --data_dir figma_data \
+    first (e.g. ``python -m ReDesign.run_agent_figma --data_dir figma_data \
     --output_dir <AGENT_OUTPUT_DIR>``), and ``--figma-data`` should point at the
     downloaded ``figma_data`` dataset.
 """

@@ -16,8 +16,8 @@ evaluation**.
 
 ```
 ReDesign/
-├── REDESIGN/            # the agent (inference entrypoints, nodes, tools, graph)
-├── BASELINES/           # baseline methods compared in the paper
+├── ReDesign/            # the agent (inference entrypoints, nodes, tools, graph)
+├── baselines/           # baseline methods compared in the paper
 │   └── tool_backends/   #   tool wrappers used by the layered / multi-tools baselines
 ├── evaluation/          # accuracy + editability evaluation
 │   └── editability_utils/  #   editability task/matching support library
@@ -42,9 +42,9 @@ commands below are produced as follows:
 | Placeholder | Produced by | Contents |
 |---|---|---|
 | `figma_data/` | `scripts/download_figma_dataset.py` | the GT dataset (909 episodes) |
-| `<AGENT_OUTPUT_DIR>` | `python -m REDESIGN.run_agent_figma --output_dir <AGENT_OUTPUT_DIR>` | agent predictions (`episodes/<id>/parse.json`, …) |
-| `<QWEN_OUTPUT_DIR>` | `python -m BASELINES.run_qwen_figma … <QWEN_OUTPUT_DIR>` | Qwen baseline layer outputs |
-| `<*_BASELINE_OUTPUT_DIR>` | the corresponding `BASELINES/run_*` script | that baseline's predictions |
+| `<AGENT_OUTPUT_DIR>` | `python -m ReDesign.run_agent_figma --output_dir <AGENT_OUTPUT_DIR>` | agent predictions (`episodes/<id>/parse.json`, …) |
+| `<QWEN_OUTPUT_DIR>` | `python -m baselines.run_qwen_figma … <QWEN_OUTPUT_DIR>` | Qwen baseline layer outputs |
+| `<*_BASELINE_OUTPUT_DIR>` | the corresponding `baselines/run_*` script | that baseline's predictions |
 | `<MATCH_ROOT>` | `evaluation/before_eval_editability_precompute_matches.py` | GT↔prediction element matches (editability pre-step) |
 
 So a full Figma run is: download `figma_data` → run the agent to get
@@ -107,17 +107,17 @@ one Qwen worker across the 2 Qwen GPUs.
 
 ```bash
 # Single image
-python -m REDESIGN.run_single_image \
+python -m ReDesign.run_single_image \
     --image path/to/design.png --output_dir outputs/single \
     --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --tool_gpus <TOOL_GPU_IDS>
 
 # Figma (all 909 episodes)
-python -m REDESIGN.run_agent_figma \
+python -m ReDesign.run_agent_figma \
     --data_dir figma_data --output_dir outputs/figma_agent \
     --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --tool_gpus <TOOL_GPU_IDS>
 
 # Crello
-python -m REDESIGN.run_agent_crello \
+python -m ReDesign.run_agent_crello \
     --data_dir crello_data/records --output_dir outputs/crello_agent \
     --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --tool_gpus <TOOL_GPU_IDS>
 ```
@@ -212,10 +212,10 @@ chat-completions endpoint for routing/labeling decisions:
 
 ```bash
 # Single GPU (e.g. one 80 GB GPU), modest API usage
-python -m REDESIGN.run_agent_figma --data_dir figma_data --output_dir outputs/figma_agent \
+python -m ReDesign.run_agent_figma --data_dir figma_data --output_dir outputs/figma_agent \
     --qwen_gpus 0 --tool_gpus 0 --objectclear_gpu 0 --workers 1
 
 # Multi-GPU, faster (3 GPUs for parallel Qwen, 1 for tools), more API workers
-python -m REDESIGN.run_agent_figma --data_dir figma_data --output_dir outputs/figma_agent \
+python -m ReDesign.run_agent_figma --data_dir figma_data --output_dir outputs/figma_agent \
     --qwen_gpus 0,1,2 --qwen_pair_size 1 --tool_gpus 3 --workers 4
 ```

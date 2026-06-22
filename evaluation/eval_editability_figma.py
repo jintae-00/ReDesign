@@ -23,7 +23,7 @@ Usage:
 Input directories are configured via the REDESIGN_* environment variables documented
 in the Configuration section below; point REDESIGN_FIGMA_DATA at the downloaded
 ``figma_data`` dataset and the agent/qwen/baseline output dirs at the inference
-runner outputs (e.g. ``python -m REDESIGN.run_agent_figma --data_dir figma_data \
+runner outputs (e.g. ``python -m ReDesign.run_agent_figma --data_dir figma_data \
 --output_dir <AGENT_OUTPUT_DIR>``).
 """
 
@@ -85,20 +85,21 @@ SUBSET_FILE = _env_path("REDESIGN_SUBSET_FILE", BASE_DIR / "evaluation" / "asset
 # Output directory
 OUTPUT_DIR = _env_path("REDESIGN_EDIT_OUTPUT", OUTPUTS_BASE / "eval_editability_figma")
 
-# Agent / qwen inference output directories. GT discovery scans the whole
-# flat dataset (all 909 episodes); these dirs only locate the model outputs.
-# Override via REDESIGN_AGENT_DIR / REDESIGN_QWEN_DIR.
+# Agent inference output directory. GT discovery scans the whole flat dataset
+# (all 909 episodes); this dir only locates the agent's outputs.
+# Override via REDESIGN_AGENT_DIR.
 AGENT_DIR = _env_path("REDESIGN_AGENT_DIR", OUTPUTS_BASE / "figma_agent")
-QWEN_DIR = _env_path("REDESIGN_QWEN_DIR", OUTPUTS_BASE / "figma_qwen")
 
-# All 7 models to evaluate
+# All models to evaluate (agent + baselines). qwen is just another baseline.
 ALL_MODELS = [
     "agent", "qwen", "layered", "multi_tools",
     "sparse_verif", "simple_verif", "vtracer",
 ]
 
-# Model directory mapping (single-dir models). Override with REDESIGN_<MODEL>_DIR.
+# Baseline directory mapping. Every baseline (incl. qwen) follows the same
+# outputs/baseline_<model> convention; override with REDESIGN_<MODEL>_DIR.
 MODEL_DIRS = {
+    "qwen":         _env_path("REDESIGN_QWEN_DIR",         OUTPUTS_BASE / "baseline_qwen"),
     "layered":      _env_path("REDESIGN_LAYERED_DIR",      OUTPUTS_BASE / "baseline_layered"),
     "multi_tools":  _env_path("REDESIGN_MULTI_TOOLS_DIR",  OUTPUTS_BASE / "baseline_multi_tools"),
     "sparse_verif": _env_path("REDESIGN_SPARSE_VERIF_DIR", OUTPUTS_BASE / "baseline_sparse_verif"),
@@ -229,9 +230,8 @@ def setup_model(
     # Scan model episodes
     if model_name == "agent":
         model_map = scan_model_episodes_multi("agent", [AGENT_DIR])
-    elif model_name == "qwen":
-        model_map = scan_model_episodes_multi("qwen", [QWEN_DIR])
     else:
+        # qwen and every other baseline follow the same outputs/baseline_<model> layout
         base_dir = MODEL_DIRS.get(model_name)
         if base_dir is None or not base_dir.exists():
             print(f"  [WARNING] No directory for {model_name}, skipping")

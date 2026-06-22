@@ -1,18 +1,3 @@
----
-license: cc-by-4.0
-task_categories:
-  - image-segmentation
-  - image-to-image
-pretty_name: ReDesign Figma-909 Benchmark
-tags:
-  - graphic-design
-  - layer-decomposition
-  - figma
-  - ui-design
-size_categories:
-  - n<1K
----
-
 # ReDesign Figma-909 Benchmark
 
 📦 **Download:** [`Jintae-Park/ReDesign-Figma909` on HuggingFace](https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909)
@@ -82,13 +67,13 @@ GT reconstruction resolves to `<root>/<unit_images_dir>/<reconstructed_image_pat
 python scripts/download_figma_dataset.py        # -> ./figma_data
 
 # Run the agent on all 909 episodes
-python -m REDESIGN.run_agent_figma \
+python -m ReDesign.run_agent_figma \
     --data_dir figma_data --output_dir outputs/figma_agent
 
 # Evaluate reconstruction accuracy
 python evaluation/eval_accuracy_baselines_figma.py \
     --figma-data figma_data --models agent \
-    --exp-pairs outputs/figma_agent:outputs/figma_qwen:merged \
+    --agent-dir outputs/figma_agent \
     --output outputs/eval_accuracy_figma
 ```
 

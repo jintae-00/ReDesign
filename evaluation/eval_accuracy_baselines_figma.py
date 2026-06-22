@@ -21,7 +21,7 @@ Usage:
         --num-workers 4 --gpu-ids <GPU_IDS> --no-viz
 
     The agent/qwen/baseline output dirs are produced by running the inference runners
-    first (e.g. ``python -m REDESIGN.run_agent_figma --data_dir figma_data \
+    first (e.g. ``python -m ReDesign.run_agent_figma --data_dir figma_data \
     --output_dir <AGENT_OUTPUT_DIR>``), and ``--figma-data`` should point at the
     downloaded ``figma_data`` dataset.
 """
@@ -586,7 +586,7 @@ def copy_existing_results(
     existing_dir: Path,
     output_dir: Path,
     episode_ids: Set[str],
-    models: List[str] = ("agent", "qwen"),
+    models: List[str] = ("agent",),
 ) -> Dict[str, int]:
     """Copy existing agent/qwen metrics.json into the new output directory."""
     counts = {m: 0 for m in models}
@@ -604,7 +604,7 @@ def copy_existing_results(
 def load_existing_per_episode_results(
     existing_dir: Path,
     episode_ids: Set[str],
-    models: List[str] = ("agent", "qwen"),
+    models: List[str] = ("agent",),
 ) -> Dict[str, List[Dict]]:
     """Load existing per-episode metrics.json for aggregation."""
     results: Dict[str, List[Dict]] = {m: [] for m in models}
@@ -854,7 +854,7 @@ def main():
 
     # 7. Load existing agent/qwen results for unified summary (only if not evaluated fresh)
     if args.existing_results:
-        models_needing_existing = [m for m in ("agent", "qwen") if m not in args.models]
+        models_needing_existing = [m for m in ("agent",) if m not in args.models]
         if models_needing_existing:
             existing = load_existing_per_episode_results(
                 Path(args.existing_results), all_episode_ids, models=models_needing_existing
@@ -873,7 +873,7 @@ def main():
 
     # Include all evaluated models + any pre-loaded ones
     all_model_names = list(args.models)
-    for m in ("agent", "qwen"):
+    for m in ("agent",):
         if m not in all_model_names and m in all_results and all_results[m]:
             all_model_names.append(m)
 

@@ -67,7 +67,7 @@ Then run the agent (replace `<QWEN_GPU_IDS>` / `<TOOL_GPU_IDS>` with your own
 comma-separated GPU ids, e.g. `0,1`):
 
 ```bash
-python -m REDESIGN.run_agent_crello \
+python -m ReDesign.run_agent_crello \
     --data_dir crello_data/records \
     --output_dir outputs/crello_agent \
     --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --tool_gpus <TOOL_GPU_IDS>
