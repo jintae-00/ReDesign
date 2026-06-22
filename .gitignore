@@ -1,0 +1,34 @@
+# ── Secrets ──────────────────────────────────────────────────────────────
+.env
+
+# ── Model checkpoints (downloaded via scripts/download_checkpoints.py) ──────
+weights/
+
+# ── Datasets (downloaded separately; see docs/) ────────────────────────────
+# Figma: HuggingFace dataset Jintae-Park/ReDesign-Figma909
+# Crello: see crello_data/README.md (CyberAgent canvas-vae)
+figma_data/
+crello_data/*
+!crello_data/README.md
+
+# ── Inference / evaluation outputs ─────────────────────────────────────────
+outputs/
+editability_matches/
+eval_*/
+*_experiment*/
+
+# ── Python ─────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.ipynb_checkpoints/
+
+# ── HuggingFace / Torch caches ─────────────────────────────────────────────
+.cache/
+*.lock
+
+# ── OS / editor ────────────────────────────────────────────────────────────
+.DS_Store
+*.swp

@@ -1,0 +1,19 @@
+## Hi-SAM config
+HISAM_CONF_default1:
+  options:
+
+## OCR Config
+OCR_CONF_default1:
+  IoU_threathhold: 0.001
+
+## LaMa config
+LAMA_CONF_default1:
+  options:
+
+## Layout-Yolo config
+LAYOUT_CONF_default1:
+  iou: 0.6
+  conf: 0.25
+  layout_filter:
+    min_region_pix: 0
+    max_region_ratio: 0.75

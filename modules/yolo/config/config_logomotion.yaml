@@ -1,0 +1,18 @@
+## Animation Config
+Animation_CONF_default: 
+  options:
+    loop:
+
+## Gemini Config
+Gemini_CONF_default1:
+  num_generation: 3
+  num_threads: 1
+  textgroup:
+    temperature: 0.0
+  animation:
+    temperature: 0.0
+
+## Rendering COnfig
+Render_CONF_default1:
+  max_video_duration: 30
+  num_threads: 1

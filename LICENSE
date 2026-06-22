@@ -1,0 +1,40 @@
+MIT License
+
+Copyright (c) 2026 ReDesign Authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+------------------------------------------------------------------------------
+NOTICE — third-party components and data
+
+The MIT license above applies to the original ReDesign code in this repository.
+It does NOT extend to:
+
+  * The Figma-909 dataset under figma_data/, which is redistributed under
+    Creative Commons Attribution 4.0 International (CC BY 4.0). Each frame
+    retains its original author attribution; see ATTRIBUTION.md and
+    figma_data/ATTRIBUTIONS.csv.
+
+  * Third-party model code under modules/ (GroundingDINO, SAM 2, Hi-SAM, LaMa,
+    ObjectClear, PaddleOCR, YOLO, vtracer) and the model checkpoints downloaded
+    by scripts/download_checkpoints.py, each of which retains its own upstream
+    license. See modules/README.md.
+
+  * The Crello dataset, which is NOT redistributed here; obtain it from
+    CyberAgent under its own terms (see crello_data/README.md).
