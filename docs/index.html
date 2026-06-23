@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="ReDesign: Recovering Editable Design Structures from Images via Agentic Decomposition">
     <title>ReDesign – Editable Design Recovery from Images</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --gradient-coral: linear-gradient(135deg, #f97316 0%, #ff5722 100%);
@@ -22,9 +22,9 @@
             --color-gray-700: #495057;
             --color-gray-800: #343a40;
             --color-gray-900: #212529;
-            --font-heading: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            --font-heading: "Playfair Display", Georgia, serif;
             --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            --font-mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            --font-mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
             --shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
             --shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
             --shadow-lg: 0 1rem 3rem rgba(0, 0, 0, 0.175);
@@ -35,8 +35,8 @@
         html { scroll-behavior: smooth; }
         body {
             font-family: var(--font-body);
-            font-size: 1rem;
-            line-height: 1.8;
+            font-size: 1.1rem;
+            line-height: 1.7;
             color: var(--color-gray-900);
             background: var(--color-white);
             margin: 0;
@@ -55,85 +55,57 @@
             background-clip: text;
         }
 
-        .gradient-text {
-            background: var(--gradient-coral);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
         /* Spacing */
-        .mt-0 { margin-top: 0; }
-        .mt-2 { margin-top: 0.5rem; }
-        .mt-3 { margin-top: 1rem; }
-        .mt-4 { margin-top: 1.5rem; }
-        .mt-5 { margin-top: 3rem; }
-        .mb-0 { margin-bottom: 0; }
-        .mb-2 { margin-bottom: 0.5rem; }
-        .mb-3 { margin-bottom: 1rem; }
-        .mb-4 { margin-bottom: 1.5rem; }
-        .mb-5 { margin-bottom: 3rem; }
-        .mx-auto { margin-left: auto; margin-right: auto; }
-
-        /* Container and grid */
         .container {
             max-width: 1140px;
-            margin-left: auto;
-            margin-right: auto;
+            margin: 0 auto;
             padding: 0 1rem;
         }
 
         .narrow {
             max-width: 950px;
-            margin-left: auto;
-            margin-right: auto;
+            margin: 0 auto;
+            padding: 0 1rem;
         }
 
         /* Headings */
         h1 {
             font-family: var(--font-heading);
-            font-size: 3.5rem;
+            font-size: 4rem;
             font-weight: 700;
             line-height: 1.2;
-            margin: 0.5rem 0;
+            margin: 1rem 0;
             letter-spacing: -0.02em;
         }
 
         h2 {
             font-family: var(--font-heading);
-            font-size: 2rem;
+            font-size: 2.5rem;
             font-weight: 700;
             line-height: 1.3;
-            margin: 3rem 0 1.5rem 0;
+            margin: 2rem 0 1.5rem 0;
             letter-spacing: -0.01em;
         }
 
         h3 {
             font-family: var(--font-heading);
-            font-size: 1.5rem;
+            font-size: 1.8rem;
             font-weight: 700;
             margin: 1.5rem 0 1rem 0;
-            letter-spacing: -0.01em;
         }
+
         h4 {
             font-family: var(--font-heading);
-            font-size: 1.25rem;
+            font-size: 1.3rem;
             font-weight: 600;
             margin: 1rem 0;
-        }
-        h5 {
-            font-family: var(--font-heading);
-            font-size: 1.25rem;
-            font-weight: 700;
-            margin: 0;
         }
 
         p {
             font-family: var(--font-body);
             font-weight: 400;
-            letter-spacing: 0.3px;
-            line-height: 1.8;
-            margin-bottom: 1rem;
+            margin-bottom: 0.8rem;
+            color: var(--color-gray-800);
         }
 
         /* Links and buttons */
@@ -143,7 +115,7 @@
         .btn {
             display: inline-block;
             padding: 0.75rem 1.5rem;
-            font-size: 1rem;
+            font-size: 1.05rem;
             font-weight: 600;
             font-family: var(--font-heading);
             border: none;
@@ -151,17 +123,6 @@
             cursor: pointer;
             transition: all 0.2s ease-in-out;
             text-decoration: none;
-            color: inherit;
-        }
-
-        .btn:visited {
-            color: inherit;
-            background: inherit;
-        }
-
-        .btn:focus {
-            outline: 2px solid var(--color-coral-primary);
-            outline-offset: 2px;
         }
 
         .btn-gradient {
@@ -197,6 +158,7 @@
         figure {
             margin: 0;
             padding: 0;
+            text-align: center;
         }
 
         img {
@@ -204,12 +166,15 @@
             height: auto;
             border-radius: var(--radius);
             box-shadow: var(--shadow);
+            display: block;
+            margin: 0 auto;
         }
 
         figcaption {
-            font-size: 0.95rem;
+            font-size: 1rem;
             font-style: italic;
-            color: var(--color-gray-600);
+            color: #000;
+            font-weight: 600;
             line-height: 1.7;
             margin-top: 1.5rem;
             font-family: var(--font-body);
@@ -218,7 +183,6 @@
         /* Tables */
         table {
             width: 100%;
-            max-width: 100%;
             margin: 2rem 0;
             border-collapse: collapse;
             background: var(--color-white);
@@ -236,7 +200,7 @@
             padding: 1rem;
             text-align: center;
             font-weight: 700;
-            font-size: 0.95rem;
+            font-size: 1rem;
             color: var(--color-gray-900);
             font-family: var(--font-heading);
         }
@@ -244,7 +208,7 @@
         td {
             padding: 1rem;
             text-align: center;
-            font-size: 0.95rem;
+            font-size: 1rem;
             border-bottom: 1px solid var(--color-gray-200);
             font-family: var(--font-body);
         }
@@ -256,8 +220,9 @@
         .bold-best {
             font-weight: 700;
             color: var(--color-coral-primary);
-            border-bottom: 3px solid var(--color-coral-primary);
-            padding-bottom: 3px;
+            text-decoration: underline;
+            text-decoration-thickness: 3px;
+            text-underline-offset: 4px;
         }
 
         /* Callout box */
@@ -270,11 +235,10 @@
         }
 
         .callout p {
-            margin: 0;
+            margin: 0.8rem 0;
             line-height: 1.8;
             color: var(--color-gray-800);
             font-family: var(--font-body);
-            font-weight: 500;
         }
 
         /* Sections */
@@ -303,13 +267,8 @@
             box-shadow: var(--shadow);
         }
 
-        .stat-card:hover .stat-label {
-            color: var(--color-coral-primary);
-            font-weight: 700;
-        }
-
         .stat-number {
-            font-size: 2.5rem;
+            font-size: 3rem;
             font-weight: 700;
             margin: 1rem 0;
             background: var(--gradient-coral);
@@ -320,12 +279,11 @@
         }
 
         .stat-label {
-            font-size: 1rem;
+            font-size: 1.1rem;
             color: var(--color-gray-600);
             margin: 0;
             font-family: var(--font-body);
             font-weight: 600;
-            transition: all 0.3s ease;
         }
 
         /* Action cards */
@@ -357,28 +315,13 @@
 
         .action-title {
             font-weight: 700;
-            font-size: 1rem;
-            margin-bottom: 0.75rem;
-            color: var(--color-gray-900);
-            font-family: var(--font-heading);
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
             background: var(--gradient-coral);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-        }
-
-        .action-desc {
-            font-size: 0.85rem;
-            color: var(--color-gray-600);
-            line-height: 1.5;
-            font-family: var(--font-body);
-        }
-
-        .action-desc-small {
-            font-size: 0.8rem;
-            color: var(--color-gray-600);
-            line-height: 1.4;
-            font-family: var(--font-body);
+            font-family: var(--font-heading);
         }
 
         /* Comparison grid */
@@ -412,7 +355,7 @@
         }
 
         .comparison-label {
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             font-weight: 700;
             color: var(--color-gray-700);
             font-family: var(--font-heading);
@@ -433,8 +376,8 @@
         /* Reveal animations */
         .reveal {
             opacity: 0;
-            transform: translateY(20px);
-            transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateY(30px);
+            transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
             will-change: transform, opacity;
         }
 
@@ -443,9 +386,9 @@
             transform: translateY(0);
         }
 
-        /* Negative tone heading */
+        /* Negative tone */
         .negative-tone {
-            color: #6c757d;
+            color: #9ca3af;
             font-weight: 600;
         }
 
@@ -459,7 +402,7 @@
         }
 
         .footer-text {
-            font-size: 0.95rem;
+            font-size: 1rem;
             color: var(--color-gray-600);
             margin: 0.5rem 0;
             font-family: var(--font-body);
@@ -467,92 +410,45 @@
 
         /* Responsive */
         @media (max-width: 1024px) {
-            .action-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
-            .action-grid.six-col {
-                grid-template-columns: repeat(3, 1fr);
-            }
-            .benchmark-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .comparison-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
+            .action-grid { grid-template-columns: repeat(3, 1fr); }
+            .action-grid.six-col { grid-template-columns: repeat(3, 1fr); }
+            .benchmark-grid { grid-template-columns: repeat(2, 1fr); }
+            .comparison-grid { grid-template-columns: repeat(3, 1fr); }
         }
 
         @media (max-width: 768px) {
-            h1 { font-size: 2.4rem; }
-            h2 { font-size: 1.5rem; }
-            .action-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .action-grid.six-col {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .benchmark-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .comparison-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
+            h1 { font-size: 2.5rem; }
+            h2 { font-size: 1.8rem; }
+            .action-grid { grid-template-columns: repeat(2, 1fr); }
+            .action-grid.six-col { grid-template-columns: repeat(2, 1fr); }
+            .benchmark-grid { grid-template-columns: repeat(2, 1fr); }
+            .comparison-grid { grid-template-columns: repeat(2, 1fr); }
         }
 
         @media (max-width: 576px) {
             h1 { font-size: 2rem; }
-            h2 { font-size: 1.25rem; }
-            .action-grid {
-                grid-template-columns: 1fr;
-            }
-            .action-grid.six-col {
-                grid-template-columns: 1fr;
-            }
-            .benchmark-grid {
-                grid-template-columns: 1fr;
-            }
-            .comparison-grid {
-                grid-template-columns: 1fr;
-            }
-            .btn {
-                padding: 0.5rem 1rem;
-                font-size: 0.95rem;
-            }
+            h2 { font-size: 1.5rem; }
+            .action-grid { grid-template-columns: 1fr; }
+            .action-grid.six-col { grid-template-columns: 1fr; }
+            .benchmark-grid { grid-template-columns: 1fr; }
+            .comparison-grid { grid-template-columns: 1fr; }
         }
 
-        /* Accessibility */
         @media (prefers-reduced-motion: reduce) {
             * {
                 animation-duration: 0.01ms !important;
                 animation-iteration-count: 1 !important;
                 transition-duration: 0.01ms !important;
-                scroll-behavior: auto !important;
             }
-            .reveal {
-                opacity: 1;
-                transform: none;
-            }
-        }
-
-        /* Utility classes */
-        .hidden { display: none; }
-        .sr-only {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border-width: 0;
+            .reveal { opacity: 1; transform: none; }
         }
     </style>
 </head>
 <body>
     <!-- HERO SECTION -->
-    <header class="container text-center" style="padding: 4rem 1rem;">
-        <h1 class="text-gradient" style="margin-bottom: 1rem;">ReDesign</h1>
-        <h4 class="text-muted" style="margin-bottom: 2rem; font-weight: 500;">Recovering Editable Design Structures from Images via Agentic Decomposition</h4>
+    <header class="container text-center" style="padding: 4rem 0;">
+        <h1 class="text-gradient">ReDesign</h1>
+        <h4 class="text-muted">Recovering Editable Design Structures from Images via Agentic Decomposition</h4>
         <div style="margin: 2rem 0;">
             <a href="https://openreview.net/pdf?id=JiEr8B3WBr" class="btn btn-gradient" style="margin: 0.5rem;">📄 Paper</a>
             <a href="https://github.com/sonjt00/ReDesign" class="btn btn-outline" style="margin: 0.5rem;">💻 Code</a>
@@ -561,110 +457,67 @@
     </header>
 
     <!-- PROBLEM SECTION -->
-    <section class="container narrow reveal">
-        <h2 class="negative-tone text-center" style="color: #9ca3af;">A Flat Image Is a Dead End for Editing</h2>
-        <p style="text-align: justify;">
-            When design files are lost, only a flat image remains.<br>
-            You cannot move elements, change colors, fix text, or reflow layouts.<br>
-            <br>
-            The image holds no semantic information; it doesn't say which pixels form which object, what created them, or how they layer.
+    <section class="narrow reveal">
+        <h2 class="negative-tone text-center">A Flat Image Is a Dead End for Editing</h2>
+        <p style="text-align: center; color: var(--color-gray-700); font-size: 1.15rem;">
+            When design files are lost, only a flat image remains. You cannot move elements, change colors, fix text, or reflow layouts.
         </p>
     </section>
 
     <!-- WHAT WE DO -->
-    <section class="container narrow reveal">
+    <section class="narrow reveal">
         <div class="callout">
             <h3 style="margin-top: 0; text-align: center; color: var(--color-coral-primary);">What ReDesign Does</h3>
-            <p>
-                <strong>ReDesign recovers a fully editable design hierarchy from a single image.</strong>
-            </p>
-            <p>
-                A vision-language controller grows a layer tree breadth-first; a verifier checks every step. The output: semantic text layers with real fonts, vector shapes with fills, groups with z-order, and isolated elements that survive real edits (delete, recolor, rotate, transition) without disturbing the rest of the design.
-            </p>
-            <p style="margin-bottom: 0;">
-                Instead of pixel-space edits that blur and corrupt, ReDesign exposes discrete, editable elements.
-            </p>
+            <p>ReDesign recovers a fully editable design hierarchy from a single image.</p>
+            <p>A vision-language controller grows a layer tree breadth-first; a verifier checks every step. The output: semantic text layers with real fonts, vector shapes with fills, groups with z-order, and isolated elements that survive real edits without disturbing the rest of the design.</p>
         </div>
     </section>
 
     <!-- TEASER FIGURE -->
-    <section class="figure-wrapper container narrow reveal">
-        <figure style="text-align: center;">
-            <img src="assets/figures/intro_teaser.webp" alt="ReDesign: from flat image to editable design" style="max-width: 100%; display: inline-block;">
+    <section class="narrow">
+        <figure class="reveal">
+            <img src="assets/figures/intro_teaser.webp" alt="ReDesign: from flat image to editable design" style="max-width: 100%;">
             <figcaption>From flat image to editable design: text layers with real fonts, vector shapes with colors, groups with z-order, and elements that respond to real design edits.</figcaption>
         </figure>
     </section>
 
     <!-- METHOD SECTION -->
-    <section class="container narrow">
+    <section class="narrow">
         <h2 class="text-gradient text-center reveal">The Agentic Approach: Grow the Tree</h2>
-        <p style="line-height: 1.8; font-size: 1.05rem; text-align: justify;" class="reveal">
-            Starting from the whole image as root, a VLM controller expands breadth-first (coarse to fine).<br>
-            <br>
-            At each node: choose one tool-backed action; a verifier checks validity (accept, prune, or retry).<br>
-            <br>
-            Repeat until every leaf is atomic and editable.
+        <p style="text-align: center; font-size: 1.15rem;" class="reveal">
+            Starting from the whole image as root, a VLM controller expands breadth-first. At each node: choose one tool-backed action; a verifier checks validity. Repeat until every leaf is atomic and editable.
         </p>
 
-        <div class="figure-wrapper reveal" style="margin-top: 2rem;">
-            <figure>
-                <img src="assets/figures/method_main.webp" alt="Agentic tree expansion with tool actions and verification">
-                <figcaption>Controller orchestrates five actions: each produces child layers. Verifier ensures no duplication, no incomplete coverage. Output: editable JSON hierarchy.</figcaption>
-            </figure>
-        </div>
+        <figure class="reveal" style="margin-top: 3rem;">
+            <img src="assets/figures/method_main.webp" alt="Agentic tree expansion with tool actions and verification" style="max-width: 100%;">
+            <figcaption>Controller orchestrates five actions; each produces child layers. Verifier ensures no duplication, no incomplete coverage. Output: editable JSON hierarchy.</figcaption>
+        </figure>
 
-        <h3 style="text-align: center; margin-top: 2.5rem; margin-bottom: 2rem;">Five Tool-Backed Actions</h3>
+        <h3 class="text-center reveal" style="margin-top: 3rem;">Five Tool-Backed Actions</h3>
         <div class="action-grid reveal">
             <div class="action-card">
                 <div class="action-title">Text extraction</div>
-                <div class="action-desc-small">
-                    PaddleOCR (text)<br>
-                    Font recognition<br>
-                    Hi-SAM (segmentation)<br>
-                    LaMa (inpaint)
-                </div>
             </div>
             <div class="action-card">
                 <div class="action-title">Multi-layer decomposition</div>
-                <div class="action-desc-small">
-                    Qwen-Image-Layered<br>
-                    <br>
-                    Z-ordered RGBA layers
-                </div>
             </div>
             <div class="action-card">
                 <div class="action-title">Connected Component Labeling</div>
-                <div class="action-desc-small">
-                    CCA analysis<br>
-                    <br>
-                    Disjoint elements
-                </div>
             </div>
             <div class="action-card">
                 <div class="action-title">Detection & Segmentation</div>
-                <div class="action-desc-small">
-                    GroundingDINO<br>
-                    SAM 2<br>
-                    LaMa (inpaint)
-                </div>
             </div>
             <div class="action-card">
                 <div class="action-title">Vectorization & Typography</div>
-                <div class="action-desc-small">
-                    VTracer (vector)<br>
-                    <br>
-                    Photos (raster)
-                </div>
             </div>
         </div>
     </section>
 
     <!-- RESULTS: PARSING ACCURACY (QUANTITATIVE) -->
-    <section class="container narrow">
+    <section class="narrow">
         <h2 class="text-gradient text-center reveal">Reconstruction Accuracy</h2>
-        <p style="text-align: center; line-height: 1.8; margin-bottom: 2rem; font-size: 0.95rem;" class="reveal">
-            Figma-909 benchmark; 909 real-world designs.<br>
-            ReDesign wins on every metric.
+        <p style="text-align: center; font-size: 1.15rem;" class="reveal">
+            Figma-909 benchmark; 909 real-world designs. ReDesign wins on every metric.
         </p>
 
         <div style="overflow-x: auto;" class="reveal">
@@ -681,7 +534,7 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td style="text-align: left; font-size: 0.9rem;">VTracer</td>
+                        <td style="text-align: left;">VTracer</td>
                         <td>0.0977</td>
                         <td>20.487</td>
                         <td>0.1917</td>
@@ -689,7 +542,7 @@
                         <td>0.309</td>
                     </tr>
                     <tr>
-                        <td style="text-align: left; font-size: 0.9rem;">LayerD</td>
+                        <td style="text-align: left;">LayerD</td>
                         <td>0.0704</td>
                         <td>16.141</td>
                         <td>0.3381</td>
@@ -697,7 +550,7 @@
                         <td>0.350</td>
                     </tr>
                     <tr>
-                        <td style="text-align: left; font-size: 0.9rem;">Qwen-Image-Layered</td>
+                        <td style="text-align: left;">Qwen-Image-Layered</td>
                         <td>0.0493</td>
                         <td>26.192</td>
                         <td>0.1073</td>
@@ -705,7 +558,7 @@
                         <td>0.429</td>
                     </tr>
                     <tr>
-                        <td style="text-align: left; font-size: 0.9rem;">Tool Agent</td>
+                        <td style="text-align: left;">Tool Agent</td>
                         <td>0.0493</td>
                         <td>13.923</td>
                         <td>0.3869</td>
@@ -714,11 +567,11 @@
                     </tr>
                     <tr style="background: rgba(249, 115, 22, 0.05);">
                         <td style="text-align: left;"><strong class="text-gradient">Ours</strong></td>
-                        <td class="bold-best"><strong>0.0431</strong></td>
-                        <td class="bold-best"><strong>26.286</strong></td>
-                        <td class="bold-best"><strong>0.0883</strong></td>
-                        <td class="bold-best"><strong>45.37</strong></td>
-                        <td class="bold-best"><strong>0.535</strong></td>
+                        <td class="bold-best">0.0431</td>
+                        <td class="bold-best">26.286</td>
+                        <td class="bold-best">0.0883</td>
+                        <td class="bold-best">45.37</td>
+                        <td class="bold-best">0.535</td>
                     </tr>
                 </tbody>
             </table>
@@ -726,89 +579,80 @@
     </section>
 
     <!-- RESULTS: PARSING ACCURACY (QUALITATIVE) -->
-    <section class="container narrow reveal">
-        <h2 class="text-gradient text-center mb-5">Per-Element Reconstruction</h2>
-        <figure class="figure-wrapper">
-            <img src="assets/figures/exp_accuracy_quali.webp" alt="Per-element reconstruction across methods">
-            <figcaption>Each row shows a design input (left) and output under each method. Highlighted elements (green box): ReDesign recovers them cleanly and completely; baselines miss, break, or distort them.</figcaption>
+    <section class="narrow">
+        <h2 class="text-gradient text-center reveal">Per-Element Reconstruction</h2>
+        <figure class="reveal">
+            <img src="assets/figures/exp_accuracy_quali.webp" alt="Per-element reconstruction across methods" style="max-width: 100%;">
+            <figcaption>Each row shows design input and outputs across methods. Highlighted elements (green box): ReDesign recovers them cleanly and completely; baselines miss, break, or distort them.</figcaption>
         </figure>
     </section>
 
     <!-- RESULTS: EDITABILITY -->
     <section class="section-band">
-        <div class="container narrow">
+        <div class="narrow">
             <h2 class="text-gradient text-center reveal">Editability: Structure That Survives Edits</h2>
-            <p class="text-center" style="line-height: 1.8; margin-bottom: 2rem; font-size: 0.95rem;" class="reveal">
-                Six atomic edits on predicted designs; measured against ground truth.
+            <p style="text-align: center; font-size: 1.15rem;" class="reveal">
+                Six atomic edits on predicted designs; measured against ground truth. ReDesign dominates on all axes.
             </p>
 
-            <h3 style="text-align: center; margin-bottom: 2rem;" class="reveal">Edit Types Tested</h3>
+            <h3 class="text-center reveal" style="margin-top: 2rem;">Edit Types Tested</h3>
             <div class="action-grid six-col reveal">
                 <div class="action-card">
                     <div class="action-title">Delete</div>
-                    <div class="action-desc-small">Remove element</div>
                 </div>
                 <div class="action-card">
                     <div class="action-title">Opacity</div>
-                    <div class="action-desc-small">Change transparency</div>
                 </div>
                 <div class="action-card">
                     <div class="action-title">Recolor</div>
-                    <div class="action-desc-small">Change fill color</div>
                 </div>
                 <div class="action-card">
                     <div class="action-title">Rotation</div>
-                    <div class="action-desc-small">Rotate element</div>
                 </div>
                 <div class="action-card">
                     <div class="action-title">Transition</div>
-                    <div class="action-desc-small">Add animation</div>
                 </div>
                 <div class="action-card">
                     <div class="action-title">Z-Order</div>
-                    <div class="action-desc-small">Change layer depth</div>
                 </div>
             </div>
 
-            <figure class="figure-wrapper reveal">
-                <img src="assets/figures/exp_editability_quanti.webp" alt="Editability metrics across atomic edits">
+            <figure class="reveal">
+                <img src="assets/figures/exp_editability_quanti.webp" alt="Editability metrics across atomic edits" style="max-width: 100%;">
                 <figcaption>(a) SSIM after edit replay; ReDesign (orange/red line) is highest on all axes. (b) Text recall after text edits; ReDesign dominates. Results show structure survives diverse real edits.</figcaption>
             </figure>
         </div>
     </section>
 
     <!-- RESULTS: EDITABILITY (QUALITATIVE) -->
-    <section class="container narrow">
+    <section class="narrow">
         <h2 class="text-gradient text-center reveal">Edit Examples: Before & After</h2>
-        <p class="text-center" style="line-height: 1.8; margin-bottom: 2rem; font-size: 0.95rem;" class="reveal">
-            ReDesign applies each edit cleanly to the correct element.<br>
-            Baselines move wrong regions or corrupt the layout.
+        <p style="text-align: center; font-size: 1.15rem;" class="reveal">
+            ReDesign applies each edit cleanly to the correct element. Baselines move wrong regions or corrupt the layout.
         </p>
-        <figure class="figure-wrapper reveal">
-            <img src="assets/figures/exp_edit_quali.webp" alt="Qualitative edit examples">
+        <figure class="reveal">
+            <img src="assets/figures/exp_edit_quali.webp" alt="Qualitative edit examples" style="max-width: 100%;">
             <figcaption>Each row: ground-truth edit (left) vs. output under each method. ReDesign's edits are precise and preserve layout integrity; baselines fail or distort.</figcaption>
         </figure>
     </section>
 
     <!-- ANALYSIS: VS GENERATIVE EDITING -->
     <section class="section-band">
-        <div class="container narrow">
+        <div class="narrow">
             <h2 class="text-gradient text-center reveal">Why Structure Beats Pixel Regeneration</h2>
-            <p class="text-center" style="line-height: 1.8; margin-bottom: 2rem; font-size: 0.95rem; max-width: 900px; margin-left: auto; margin-right: auto;" class="reveal">
-                Generative editors (Nano Banana 2) edit pixel-space: instructions leak, layouts blur, precision fails.<br>
-                <br>
-                ReDesign exposes discrete layers with explicit position and rotation; edits execute exactly.
+            <p style="text-align: center; font-size: 1.15rem;" class="reveal">
+                Generative editors (Nano Banana 2) edit pixel-space: instructions leak, layouts blur, precision fails. ReDesign exposes discrete layers with explicit position and rotation; edits execute exactly.
             </p>
-            <figure class="figure-wrapper reveal">
-                <img src="assets/figures/analysis_nanobanana_failure.webp" alt="ReDesign vs generative editor precision">
+            <figure class="reveal">
+                <img src="assets/figures/analysis_nanobanana_failure.webp" alt="ReDesign vs generative editor precision" style="max-width: 100%;">
                 <figcaption>Three move/rotate instructions: ReDesign (green, top) executes each precisely on the isolated layer. Nano Banana 2 (red, bottom) misplaces and corrupts surrounding design.</figcaption>
             </figure>
         </div>
     </section>
 
     <!-- FIGMA-909 BENCHMARK -->
-    <section class="container narrow text-center">
-        <h2 class="text-gradient mb-5 reveal">Figma-909: The Benchmark</h2>
+    <section class="narrow text-center">
+        <h2 class="text-gradient reveal">Figma-909: The Benchmark</h2>
         <div class="benchmark-grid">
             <div class="stat-card reveal">
                 <div class="stat-label">Real-World Frames</div>
@@ -824,27 +668,25 @@
             </div>
             <div class="stat-card reveal">
                 <div class="stat-label">License</div>
-                <div class="stat-number" style="background: var(--gradient-coral); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-size: 1.3rem;">CC BY 4.0</div>
+                <div class="stat-number" style="background: var(--gradient-coral); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">CC BY 4.0</div>
             </div>
         </div>
-        <p class="text-muted" style="font-size: 0.95rem; margin-top: 2rem; line-height: 1.8;" class="reveal">
-            All 909 frames redistributed under CC BY 4.0 with full attribution.<br>
-            <a href="https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909" target="_blank">Download on HuggingFace</a>.
+        <p class="text-muted" style="font-size: 1.1rem; margin-top: 2rem;" class="reveal">
+            All 909 frames redistributed under CC BY 4.0 with full attribution. <a href="https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909" target="_blank">Download on HuggingFace</a>.
         </p>
     </section>
 
     <!-- FOOTER -->
     <footer>
-        <div class="container narrow">
-            <h2 class="text-gradient text-center mb-4 reveal">Get Started</h2>
-            <div class="text-center mb-5 reveal">
+        <div class="narrow">
+            <div class="text-center" style="margin-bottom: 2rem;">
                 <a href="https://openreview.net/pdf?id=JiEr8B3WBr" class="btn btn-gradient" style="margin: 0.5rem;">📄 Paper</a>
                 <a href="https://github.com/sonjt00/ReDesign" class="btn btn-outline" style="margin: 0.5rem;">💻 Code</a>
                 <a href="https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909" class="btn btn-outline" style="margin: 0.5rem;">📊 Dataset</a>
             </div>
-            <div class="footer-text reveal">
+            <div class="footer-text">
                 <p>ReDesign: Recovering Editable Design Structures from Images via Agentic Decomposition</p>
-                <p style="font-size: 0.9rem; color: var(--color-gray-500);">
+                <p style="font-size: 0.95rem; color: var(--color-gray-500);">
                     Figma-909: <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" style="color: var(--color-gray-500);">CC BY 4.0</a> ·
                     Code: <a href="https://github.com/sonjt00/ReDesign/blob/main/LICENSE" target="_blank" style="color: var(--color-gray-500);">MIT</a>
                 </p>
@@ -853,7 +695,6 @@
     </footer>
 
     <script>
-        // Setup reveal animations on scroll
         const setupRevealObserver = () => {
             const options = {
                 threshold: 0.15,
@@ -872,7 +713,6 @@
             document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
         };
 
-        // Initialize on load
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', setupRevealObserver);
         } else {
