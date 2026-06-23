@@ -35,10 +35,7 @@
         }
 
         * { box-sizing: border-box; }
-        html {
-            scroll-behavior: smooth;
-            scroll-snap-type: y proximity; /* Webflow/FullPage-style section snapping */
-        }
+        html { scroll-behavior: smooth; }
         body {
             font-family: var(--font-body);
             font-size: 1.1rem;
@@ -422,96 +419,89 @@
         }
 
         /* ============================================
-           Scroll-snap slide deck (Webflow / FullPage.js feel)
-           Each top-level block fills the viewport and snaps into
-           place as you scroll. 'proximity' keeps it gentle so a
-           section taller than one screen never traps the user.
+           Full-page scroll engine (FullPage.js style)
+           JS hijacks wheel/touch so the native scrollbar never
+           moves; each gesture flips the WHOLE viewport to the next
+           full-screen section. Gated by html.fp-on, so with no JS
+           or reduced-motion it stays a normal scrolling page.
            ============================================ */
-        body > header,
-        body > section:not(.toss-scrolly),
-        body > footer { scroll-snap-align: start; }
+        html.fp-on,
+        html.fp-on body {
+            height: 100%;
+            overflow: hidden;
+        }
 
-        body > header,
-        body > section:not(.toss-scrolly),
-        body > footer {
-            min-height: 100vh;
-            min-height: 100svh;
+        #fp { will-change: transform; }
+        html.fp-on #fp {
+            transition: transform 0.7s cubic-bezier(0.86, 0, 0.07, 1);
+        }
+
+        /* Each direct child of #fp is one full-screen panel. */
+        html.fp-on #fp > header,
+        html.fp-on #fp > section,
+        html.fp-on #fp > footer {
+            height: 100vh;
+            height: 100dvh;
             margin-top: 0;
             margin-bottom: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
             display: flex;
             flex-direction: column;
-            /* 'safe center' centers content that fits, but falls back to
-               top-alignment when a slide's content exceeds the viewport —
-               otherwise centered overflow is clipped/unreachable off the top. */
+            /* 'safe center' centers content that fits but top-aligns
+               (and lets it inner-scroll) when a panel overflows. */
             justify-content: safe center;
+            scrollbar-width: none;
         }
+        html.fp-on #fp > header::-webkit-scrollbar,
+        html.fp-on #fp > section::-webkit-scrollbar,
+        html.fp-on #fp > footer::-webkit-scrollbar { width: 0; height: 0; }
 
-        /* Vertical centering supplies generous space above each title,
-           so neutralize the large flow-margins that would overflow a
-           full-screen slide. */
-        body > header h1,
-        body > section:not(.toss-scrolly) h1,
-        body > section:not(.toss-scrolly) h2,
-        body > section:not(.toss-scrolly) h3 { margin-top: 0; }
+        /* Centering supplies the space above titles in full-page mode;
+           neutralize big flow-margins that would overflow a panel. */
+        html.fp-on #fp > header h1,
+        html.fp-on #fp > section h1,
+        html.fp-on #fp > section h2,
+        html.fp-on #fp > section h3 { margin-top: 0; }
 
-        /* Keep every figure within a single screen. */
-        body > section figure { margin: 1.5rem auto; }
-        body > section figure img { max-height: 58vh; height: auto; }
+        /* Keep figures within a single screen. */
+        #fp figure { margin: 1.5rem auto; }
+        html.fp-on #fp figure img { max-height: 56vh; height: auto; }
+
+        /* Right-side pagination dots (FullPage.js style) */
+        #fp-nav { display: none; }
+        html.fp-on #fp-nav {
+            position: fixed;
+            top: 50%;
+            right: 22px;
+            transform: translateY(-50%);
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+        }
+        #fp-nav button {
+            width: 11px;
+            height: 11px;
+            padding: 0;
+            border: 2px solid var(--color-gray-400);
+            border-radius: 50%;
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        #fp-nav button:hover { border-color: var(--color-coral-primary); }
+        #fp-nav button.active {
+            border-color: transparent;
+            background: var(--gradient-coral);
+            transform: scale(1.3);
+        }
 
         /* ============================================
-           Toss-style pinned scrollytelling
-           A tall wrapper holds a sticky full-viewport
-           stage; scroll progress crossfades the panels.
+           Intro statement panels (full-page slides)
            ============================================ */
-        /* DEFAULT (no-JS / pre-JS): a clean static stacked layout so the
-           Problem/Idea/Result narrative is always readable. */
-        .toss-scrolly {
-            position: relative;
-        }
-
-        .toss-stage {
-            display: block;
-            padding: 2rem 0;
-        }
-
-        .toss-panel {
-            position: relative;
-            width: min(90%, 880px);
-            margin: 5rem auto;
-            text-align: center;
-        }
-
-        .toss-progress { display: none; }
-
-        /* ACTIVE (JS confirmed + motion allowed): pinned crossfade stage.
-           .is-active is added by JS only when it will drive the animation. */
-        .toss-scrolly.is-active {
-            height: 400vh; /* 3 panels → (n+1)*100vh of scroll */
-        }
-
-        .toss-scrolly.is-active .toss-stage {
-            position: sticky;
-            top: 0;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            padding: 2rem 1rem 14vh;
-        }
-
-        .toss-scrolly.is-active .toss-panel {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            margin: 0;
-            max-height: 84vh;
-            transform: translate(-50%, -50%);
-            opacity: 0;
-            will-change: opacity, transform;
-        }
-
-        .toss-scrolly.is-active .toss-progress { display: flex; }
+        .fp-statement { }
 
         .toss-eyebrow {
             display: inline-block;
@@ -546,32 +536,6 @@
             margin: 0 auto;
             max-width: 620px;
         }
-
-        .toss-progress {
-            position: absolute;
-            bottom: 8vh;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 0.6rem;
-        }
-
-        .toss-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--color-gray-300);
-            transition: all 0.3s ease;
-        }
-
-        .toss-dot.active {
-            width: 28px;
-            border-radius: 4px;
-            background: var(--gradient-coral);
-        }
-
-        /* Under reduced motion JS never adds .is-active, so the default
-           static toss layout applies — no extra overrides needed here. */
 
         /* Negative tone */
         .negative-tone {
@@ -614,8 +578,7 @@
             .action-grid.six-col { grid-template-columns: repeat(2, 1fr); }
             .benchmark-grid { grid-template-columns: repeat(2, 1fr); }
             .comparison-grid { grid-template-columns: repeat(2, 1fr); }
-            /* Toss scrolly: shorter wrapper + smaller headline on mobile */
-            .toss-scrolly.is-active { height: 320vh; }
+            /* Smaller intro headline on mobile */
             .toss-headline { font-size: clamp(1.8rem, 8vw, 2.6rem); }
             .toss-sub { font-size: 1rem; }
         }
@@ -640,6 +603,8 @@
     </style>
 </head>
 <body>
+    <nav id="fp-nav" aria-label="Section navigation"></nav>
+    <div id="fp">
     <!-- HERO SECTION -->
     <header class="container text-center" style="padding: 4rem 0;">
         <h1 class="text-gradient reveal">ReDesign</h1>
@@ -651,30 +616,21 @@
         </div>
     </header>
 
-    <!-- TOSS-STYLE PINNED SCROLLYTELLING -->
-    <section class="toss-scrolly" id="scrolly">
-        <div class="toss-stage">
-            <div class="toss-panel" data-panel="0">
-                <span class="toss-eyebrow">The Problem</span>
-                <h2 class="toss-headline">A flat image is a dead end.</h2>
-                <p class="toss-sub">When the design file is lost, only pixels remain. You can't move an element, recolor a shape, fix a typo, or reflow the layout.</p>
-            </div>
-            <div class="toss-panel" data-panel="1">
-                <span class="toss-eyebrow">The Idea</span>
-                <h2 class="toss-headline">ReDesign grows the design back.</h2>
-                <p class="toss-sub">A vision-language controller rebuilds the layer hierarchy as a tree — coarse to fine — verifying every step until each element is atomic.</p>
-            </div>
-            <div class="toss-panel" data-panel="2">
-                <span class="toss-eyebrow">The Result</span>
-                <h2 class="toss-headline">Every element, editable again.</h2>
-                <p class="toss-sub">Text layers with real fonts, vector shapes with fills, grouped elements with z-order — recovered from a single image, ready to re-edit.</p>
-            </div>
-            <div class="toss-progress" aria-hidden="true">
-                <span class="toss-dot"></span>
-                <span class="toss-dot"></span>
-                <span class="toss-dot"></span>
-            </div>
-        </div>
+    <!-- INTRO STATEMENTS (full-page slides) -->
+    <section class="narrow text-center fp-statement">
+        <span class="toss-eyebrow reveal">The Problem</span>
+        <h2 class="toss-headline reveal">A flat image is a dead end.</h2>
+        <p class="toss-sub reveal">When the design file is lost, only pixels remain. You can't move an element, recolor a shape, fix a typo, or reflow the layout.</p>
+    </section>
+    <section class="narrow text-center fp-statement">
+        <span class="toss-eyebrow reveal">The Idea</span>
+        <h2 class="toss-headline reveal">ReDesign grows the design back.</h2>
+        <p class="toss-sub reveal">A vision-language controller rebuilds the layer hierarchy as a tree — coarse to fine — verifying every step until each element is atomic.</p>
+    </section>
+    <section class="narrow text-center fp-statement">
+        <span class="toss-eyebrow reveal">The Result</span>
+        <h2 class="toss-headline reveal">Every element, editable again.</h2>
+        <p class="toss-sub reveal">Text layers with real fonts, vector shapes with fills, grouped elements with z-order — recovered from a single image, ready to re-edit.</p>
     </section>
 
     <!-- WHAT WE DO -->
@@ -901,6 +857,7 @@
             </div>
         </div>
     </footer>
+    </div><!-- /#fp -->
 
     <script>
         const setupRevealObserver = () => {
@@ -933,85 +890,138 @@
             });
         };
 
-        // Ensure DOM is ready before observing
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', setupRevealObserver);
-        } else {
-            requestAnimationFrame(() => setupRevealObserver());
-        }
-
         /* ============================================
-           Toss-style pinned scrollytelling engine
-           Maps scroll progress through the tall wrapper
-           to a crossfade across the stacked panels.
+           Full-page scroll engine (FullPage.js style)
+           Hijacks wheel/touch/keys so the native scrollbar never
+           moves; each gesture flips the whole viewport to the next
+           full-screen panel. Panels taller than the screen scroll
+           internally; only their top/bottom edge advances a panel.
+           Returns true when engaged, false to fall back to a normal
+           scrolling page (no JS support feel / reduced motion).
            ============================================ */
-        const setupTossScrolly = () => {
-            const scrolly = document.getElementById('scrolly');
-            if (!scrolly) return;
+        const setupFullPage = () => {
+            const fp = document.getElementById('fp');
+            if (!fp) return false;
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
 
-            const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-            if (reduceMotion) return; // CSS already lays panels out statically
+            const panels = Array.from(fp.children)
+                .filter(el => el.matches('header, section, footer'));
+            if (panels.length < 2) return false;
 
-            const stage = scrolly.querySelector('.toss-stage');
-            const panels = Array.from(scrolly.querySelectorAll('.toss-panel'));
-            const dots = Array.from(scrolly.querySelectorAll('.toss-dot'));
-            const n = panels.length;
-            if (!stage || n === 0) return;
+            document.documentElement.classList.add('fp-on');
 
-            // Switch from the static fallback layout to the pinned crossfade
-            // stage. Done in JS so no-JS users keep the readable static layout.
-            scrolly.classList.add('is-active');
+            let current = 0;
+            let animating = false;
+            let animTimer = null;
+            const DURATION = 720; // keep in sync with CSS transition (0.7s)
 
-            const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-            const FADE = 0.7; // narrower band → cleaner crossfade, less ghosting
-            let ticking = false;
+            const clampIdx = (i) => Math.max(0, Math.min(panels.length - 1, i));
+            const apply = () => {
+                fp.style.transform = 'translateY(' + (-current * window.innerHeight) + 'px)';
+            };
+            const reveal = (panel) => {
+                panel.querySelectorAll('.reveal').forEach(el => el.classList.add('is-in'));
+            };
 
-            const render = () => {
-                ticking = false;
-                const rect = scrolly.getBoundingClientRect();
-                // Measure against the sticky stage (not window.innerHeight) so the
-                // vh-based wrapper height and the scroll math share one reference —
-                // avoids flicker when the mobile URL bar resizes the viewport.
-                const scrollable = scrolly.offsetHeight - stage.offsetHeight;
-                // progress 0..1 through the tall wrapper
-                const p = clamp(-rect.top / scrollable, 0, 1);
-                // position in "panel space": 0 .. n-1
-                const s = p * (n - 1);
-
-                const activeIdx = Math.round(s);
-                panels.forEach((panel, i) => {
-                    const dist = Math.abs(s - i);
-                    // Sharpen: linear ramp then square it so the dominant panel
-                    // clearly wins and adjacent panels don't ghost over each other.
-                    let opacity = clamp(1 - dist / FADE, 0, 1);
-                    opacity = opacity * opacity;
-                    // subtle vertical parallax: slides up as we move past it
-                    const ty = (s - i) * -40;
-                    panel.style.opacity = opacity.toFixed(3);
-                    panel.style.transform = `translate(-50%, calc(-50% + ${ty.toFixed(1)}px))`;
-                    // Paint the most-opaque panel on top during the crossfade.
-                    panel.style.zIndex = String(Math.round(opacity * 100));
+            // Right-side pagination dots
+            const nav = document.getElementById('fp-nav');
+            const dots = [];
+            if (nav) {
+                panels.forEach((_, i) => {
+                    const b = document.createElement('button');
+                    b.type = 'button';
+                    b.setAttribute('aria-label', 'Go to section ' + (i + 1));
+                    b.addEventListener('click', () => goTo(i));
+                    nav.appendChild(b);
+                    dots.push(b);
                 });
+            }
+            const updateDots = () => dots.forEach((d, i) => d.classList.toggle('active', i === current));
 
-                dots.forEach((dot, i) => dot.classList.toggle('active', i === activeIdx));
+            function goTo(i) {
+                i = clampIdx(i);
+                if (i === current || animating) return;
+                current = i;
+                const panel = panels[i];
+                panel.scrollTop = 0;            // arrive at the top of the new panel
+                apply();
+                reveal(panel);
+                updateDots();
+                animating = true;
+                clearTimeout(animTimer);
+                animTimer = setTimeout(() => { animating = false; }, DURATION);
+            }
+
+            // Can the current panel still scroll inside, in this direction?
+            const atEdge = (panel, dir) => {
+                const canScroll = panel.scrollHeight > panel.clientHeight + 2;
+                if (!canScroll) return true;
+                if (dir > 0) return panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 2;
+                return panel.scrollTop <= 0;
             };
 
-            const onScroll = () => {
-                if (!ticking) {
-                    ticking = true;
-                    requestAnimationFrame(render);
+            const onWheel = (e) => {
+                const dir = e.deltaY > 0 ? 1 : (e.deltaY < 0 ? -1 : 0);
+                if (!dir) return;
+                if (animating) { e.preventDefault(); return; }
+                if (atEdge(panels[current], dir)) {
+                    e.preventDefault();
+                    goTo(current + dir);
                 }
+                // otherwise let the panel scroll its overflow natively
             };
 
-            window.addEventListener('scroll', onScroll, { passive: true });
-            window.addEventListener('resize', onScroll, { passive: true });
-            render(); // initial paint
+            // Touch (mobile)
+            let touchY = null, touchOn = false;
+            const onTouchStart = (e) => { touchY = e.touches[0].clientY; touchOn = true; };
+            const onTouchMove = (e) => {
+                if (!touchOn) return;
+                const dy = touchY - e.touches[0].clientY;
+                const dir = dy > 0 ? 1 : -1;
+                if (Math.abs(dy) < 40) return;
+                if (atEdge(panels[current], dir)) {
+                    e.preventDefault();
+                    if (!animating) { goTo(current + dir); touchOn = false; }
+                }
+                // otherwise allow native inner scroll
+            };
+            const onTouchEnd = () => { touchOn = false; touchY = null; };
+
+            const onKey = (e) => {
+                const down = ['ArrowDown', 'PageDown', ' ', 'Spacebar'].includes(e.key);
+                const up = ['ArrowUp', 'PageUp'].includes(e.key);
+                if (!down && !up && e.key !== 'Home' && e.key !== 'End') return;
+                e.preventDefault();
+                if (e.key === 'Home') return goTo(0);
+                if (e.key === 'End') return goTo(panels.length - 1);
+                const dir = down ? 1 : -1;
+                const panel = panels[current];
+                if (atEdge(panel, dir)) goTo(current + dir);
+                else panel.scrollBy({ top: dir * panel.clientHeight * 0.85, behavior: 'smooth' });
+            };
+
+            window.addEventListener('wheel', onWheel, { passive: false });
+            window.addEventListener('touchstart', onTouchStart, { passive: true });
+            window.addEventListener('touchmove', onTouchMove, { passive: false });
+            window.addEventListener('touchend', onTouchEnd, { passive: true });
+            window.addEventListener('keydown', onKey);
+            window.addEventListener('resize', apply);
+
+            apply();
+            reveal(panels[0]);
+            updateDots();
+            return true;
         };
 
+        // Boot: try full-page mode; if it declines (no JS-worthy support /
+        // reduced motion), fall back to a normal page with reveal-on-scroll.
+        const boot = () => {
+            if (!setupFullPage()) setupRevealObserver();
+        };
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', setupTossScrolly);
+            document.addEventListener('DOMContentLoaded', boot);
         } else {
-            requestAnimationFrame(() => setupTossScrolly());
+            requestAnimationFrame(boot);
         }
     </script>
 </body>
