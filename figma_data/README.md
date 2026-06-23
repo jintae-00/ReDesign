@@ -1,5 +1,26 @@
 # ReDesign Figma-909 Benchmark
 
+<p align="center">
+  <a href="https://openreview.net/pdf?id=JiEr8B3WBr"><img alt="Paper" src="https://img.shields.io/badge/Paper-OpenReview-b31b1b?style=for-the-badge&logo=readthedocs&logoColor=white"></a>
+  <a href="https://sonjt00.github.io/ReDesign/"><img alt="Project Page" src="https://img.shields.io/badge/Project_Page-ReDesign-2ea44f?style=for-the-badge&logo=githubpages&logoColor=white"></a>
+  <a href="https://github.com/sonjt00/ReDesign"><img alt="Code" src="https://img.shields.io/badge/Code-GitHub-181717?style=for-the-badge&logo=github&logoColor=white"></a>
+</p>
+
+![ReDesign Figma-909 dataset overview](./exp_dataset.png)
+
+> **Abstract.** ReDesign is an agentic framework that recursively decomposes a
+> flattened raster graphic design into an editable, hierarchical layer structure.
+> A vision-language controller grows a layer tree from the input image; at each
+> node it chooses among complementary tools — text extraction, layered generation
+> (Qwen-Image-Layered), connected-component splitting, open-vocabulary
+> detect-and-segment, and vectorization — while a modular verifier accepts, prunes,
+> or retries every expansion, producing a faithfully re-renderable hierarchy of
+> editable elements. **Figma-909** is the project's evaluation benchmark: 909
+> real-world Figma Community designs with ground-truth layer decompositions,
+> supporting both **reconstruction-accuracy** and **editability** evaluation.
+> ReDesign outperforms vectorization (VTracer), layered-decomposition (LayerD,
+> Qwen-Image-Layered), and linear tool-agent baselines.
+
 📦 **Download:** [`Jintae-Park/ReDesign-Figma909` on HuggingFace](https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909)
 — or run `python scripts/download_figma_dataset.py` to fetch it into `./figma_data`.
 
@@ -81,3 +102,11 @@ full pipeline (environment, checkpoints, inference, evaluation).
 
 Complete per-episode attribution for all 288 original authors is provided in
 [`ATTRIBUTIONS.csv`](https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909/blob/main/ATTRIBUTIONS.csv).
+
+## Discussion
+
+Questions, feedback, or requests? Open a thread in the
+**[Community tab](https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909/discussions)**
+of this dataset. If you are the author of a frame and would like it removed,
+please start a discussion here or open an issue on the
+[GitHub repository](https://github.com/sonjt00/ReDesign).
