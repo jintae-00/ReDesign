@@ -5,13 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="ReDesign: Recovering Editable Design Structures from Images via Agentic Decomposition">
     <title>ReDesign – Editable Design Recovery from Images</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --gradient-afterglow: linear-gradient(135deg, #FFA7A6 0%, #FF6A8A 33%, #5A78FF 66%, #9D4FFF 100%);
-            --color-coral: #FFA7A6;
-            --color-pink: #FF6A8A;
-            --color-blue: #5A78FF;
-            --color-purple: #9D4FFF;
+            --gradient-coral: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            --color-coral-primary: #f97316;
+            --color-coral-dark: #ea580c;
             --color-white: #ffffff;
             --color-gray-50: #f8f9fa;
             --color-gray-100: #f0f2f5;
@@ -23,7 +22,8 @@
             --color-gray-700: #495057;
             --color-gray-800: #343a40;
             --color-gray-900: #212529;
-            --font-family: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --font-heading: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             --font-mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
             --shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
             --shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
@@ -34,21 +34,22 @@
         * { box-sizing: border-box; }
         html { scroll-behavior: smooth; }
         body {
-            font-family: var(--font-family);
+            font-family: var(--font-body);
             font-size: 1rem;
-            line-height: 1.5;
+            line-height: 1.6;
             color: var(--color-gray-900);
             background: var(--color-white);
             margin: 0;
             padding: 0;
+            font-weight: 400;
         }
 
         /* Text utilities */
         .text-center { text-align: center; }
         .text-muted { color: var(--color-gray-600); }
-        .text-primary { color: var(--color-pink); }
+        .text-primary { color: var(--color-coral-primary); }
         .text-gradient {
-            background: var(--gradient-afterglow);
+            background: var(--gradient-coral);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -83,58 +84,88 @@
 
         /* Headings */
         h1 {
+            font-family: var(--font-heading);
             font-size: 3.5rem;
-            font-weight: 600;
+            font-weight: 700;
             line-height: 1.2;
             margin: 0.5rem 0;
+            letter-spacing: -0.02em;
         }
 
         h2 {
+            font-family: var(--font-heading);
             font-size: 2rem;
-            font-weight: 600;
+            font-weight: 700;
             line-height: 1.2;
             margin: 3rem 0 1.5rem 0;
+            letter-spacing: -0.01em;
         }
 
-        h3 { font-size: 1.5rem; font-weight: 600; margin: 1.5rem 0 1rem 0; }
-        h4 { font-size: 1.25rem; font-weight: 400; margin: 1rem 0; }
-        h5 { font-size: 1.25rem; font-weight: 600; margin: 0; }
+        h3 {
+            font-family: var(--font-heading);
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 1.5rem 0 1rem 0;
+            letter-spacing: -0.01em;
+        }
+        h4 {
+            font-family: var(--font-heading);
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 1rem 0;
+        }
+        h5 {
+            font-family: var(--font-heading);
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        p {
+            font-family: var(--font-body);
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
 
         /* Links and buttons */
-        a { color: var(--color-pink); text-decoration: none; transition: all 0.15s ease-in-out; }
-        a:hover { opacity: 0.85; }
+        a { color: var(--color-coral-primary); text-decoration: none; transition: all 0.15s ease-in-out; }
+        a:hover { opacity: 0.8; }
 
         .btn {
             display: inline-block;
             padding: 0.75rem 1.5rem;
-            font-size: 1.25rem;
-            font-weight: 500;
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: var(--font-heading);
             border: none;
             border-radius: var(--radius);
             cursor: pointer;
-            transition: all 0.15s ease-in-out;
+            transition: all 0.2s ease-in-out;
             text-decoration: none;
         }
 
         .btn-gradient {
-            background: var(--gradient-afterglow);
+            background: var(--gradient-coral);
             color: var(--color-white);
         }
 
         .btn-gradient:hover {
             transform: translateY(-2px);
             box-shadow: var(--shadow);
+            opacity: 0.9;
         }
 
         .btn-outline {
             background: transparent;
-            color: var(--color-pink);
-            border: 1px solid var(--color-pink);
+            color: var(--color-coral-primary);
+            border: 2px solid var(--color-coral-primary);
         }
 
         .btn-outline:hover {
-            background: var(--color-pink);
+            background: var(--color-coral-primary);
             color: var(--color-white);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
         }
 
         /* Figures */
@@ -156,18 +187,12 @@
         }
 
         figcaption {
-            font-size: 0.85rem;
+            font-size: 0.95rem;
             font-style: italic;
             color: var(--color-gray-600);
-            line-height: 1.4;
-            margin-top: 0.75rem;
-        }
-
-        .figure-alt {
-            font-size: 0.85rem;
-            color: var(--color-gray-700);
             line-height: 1.6;
             margin-top: 1rem;
+            font-family: var(--font-body);
         }
 
         /* Tables */
@@ -188,31 +213,36 @@
         }
 
         th {
-            padding: 0.75rem;
+            padding: 1rem;
             text-align: center;
-            font-weight: 600;
-            font-size: 0.9rem;
+            font-weight: 700;
+            font-size: 0.95rem;
             color: var(--color-gray-900);
+            font-family: var(--font-heading);
         }
 
         td {
-            padding: 0.75rem;
+            padding: 1rem;
             text-align: center;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             border-bottom: 1px solid var(--color-gray-200);
+            font-family: var(--font-body);
         }
 
         tbody tr:last-child td {
             border-bottom: none;
         }
 
-        .bold-best { font-weight: 700; color: var(--color-pink); }
+        .bold-best {
+            font-weight: 700;
+            color: var(--color-coral-primary);
+        }
 
         /* Callout box */
         .callout {
-            background: linear-gradient(135deg, rgba(255, 167, 166, 0.1) 0%, rgba(157, 79, 255, 0.1) 100%);
-            border-left: 4px solid var(--color-pink);
-            padding: 1.5rem;
+            background: linear-gradient(135deg, rgba(249, 115, 22, 0.08) 0%, rgba(234, 88, 12, 0.08) 100%);
+            border-left: 4px solid var(--color-coral-primary);
+            padding: 2rem;
             margin: 2rem 0;
             border-radius: var(--radius);
         }
@@ -221,6 +251,8 @@
             margin: 0;
             line-height: 1.8;
             color: var(--color-gray-800);
+            font-family: var(--font-body);
+            font-weight: 500;
         }
 
         /* Sections */
@@ -238,64 +270,30 @@
             border-radius: var(--radius);
             box-shadow: var(--shadow-sm);
             border-top: 4px solid transparent;
-            border-image: var(--gradient-afterglow) 1;
+            border-image: var(--gradient-coral) 1;
             text-align: center;
-            margin: 1rem;
         }
 
         .stat-number {
-            font-size: 3rem;
+            font-size: 2.5rem;
             font-weight: 700;
-            margin: 0.5rem 0;
-            background: var(--gradient-afterglow);
+            margin: 1rem 0;
+            background: var(--gradient-coral);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            font-family: var(--font-heading);
         }
 
         .stat-label {
             font-size: 1rem;
             color: var(--color-gray-600);
             margin: 0;
+            font-family: var(--font-body);
+            font-weight: 600;
         }
 
-        /* Reveal animations */
-        .reveal {
-            opacity: 0;
-            transform: translateY(24px);
-            transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-            will-change: transform, opacity;
-        }
-
-        .reveal.is-in {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        /* Pinned section */
-        .pin-section {
-            position: relative;
-            height: 400vh;
-        }
-
-        .pin-stage {
-            position: sticky;
-            top: 0;
-            height: 100vh;
-            overflow: hidden;
-            background: var(--color-white);
-        }
-
-        .pin-inner {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-        }
-
-        /* Method action cards */
+        /* Action cards */
         .action-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -305,9 +303,9 @@
 
         .action-card {
             background: var(--color-white);
-            border: 1px solid var(--color-gray-200);
+            border: 2px solid var(--color-gray-200);
             border-radius: var(--radius);
-            padding: 1.5rem;
+            padding: 2rem;
             text-align: center;
             transition: all 0.3s ease;
         }
@@ -315,6 +313,7 @@
         .action-card:hover {
             box-shadow: var(--shadow);
             transform: translateY(-4px);
+            border-color: var(--color-coral-primary);
         }
 
         .action-icon {
@@ -323,16 +322,18 @@
         }
 
         .action-title {
-            font-weight: 600;
+            font-weight: 700;
             font-size: 1.1rem;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.75rem;
             color: var(--color-gray-900);
+            font-family: var(--font-heading);
         }
 
         .action-desc {
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             color: var(--color-gray-600);
-            line-height: 1.5;
+            line-height: 1.6;
+            font-family: var(--font-body);
         }
 
         /* Comparison grid */
@@ -361,18 +362,27 @@
         }
 
         .comparison-ours .comparison-img {
-            border: 2px solid var(--color-pink);
-            box-shadow: 0 0 0 3px rgba(255, 106, 138, 0.2);
+            border: 2px solid var(--color-coral-primary);
+            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2);
         }
 
         .comparison-label {
-            font-size: 0.8rem;
-            font-weight: 600;
+            font-size: 0.85rem;
+            font-weight: 700;
             color: var(--color-gray-700);
+            font-family: var(--font-heading);
         }
 
         .comparison-ours .comparison-label {
-            color: var(--color-pink);
+            color: var(--color-coral-primary);
+        }
+
+        /* Benchmark grid */
+        .benchmark-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin: 2rem 0;
         }
 
         /* Footer */
@@ -385,32 +395,45 @@
         }
 
         .footer-text {
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             color: var(--color-gray-600);
             margin: 0.5rem 0;
+            font-family: var(--font-body);
         }
 
         /* Responsive */
+        @media (max-width: 1024px) {
+            .benchmark-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .comparison-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
         @media (max-width: 768px) {
             h1 { font-size: 2.4rem; }
             h2 { font-size: 1.5rem; }
-            .comparison-grid {
+            .benchmark-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
-            .stat-card {
-                margin: 0.5rem 0;
+            .comparison-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
         }
 
         @media (max-width: 576px) {
             h1 { font-size: 2rem; }
             h2 { font-size: 1.25rem; }
+            .benchmark-grid {
+                grid-template-columns: 1fr;
+            }
             .comparison-grid {
                 grid-template-columns: 1fr;
             }
             .btn {
                 padding: 0.5rem 1rem;
-                font-size: 1rem;
+                font-size: 0.95rem;
             }
         }
 
@@ -421,11 +444,6 @@
                 animation-iteration-count: 1 !important;
                 transition-duration: 0.01ms !important;
                 scroll-behavior: auto !important;
-            }
-
-            .reveal {
-                opacity: 1;
-                transform: none;
             }
         }
 
@@ -448,21 +466,13 @@
     <!-- HERO SECTION -->
     <header class="container text-center" style="padding: 4rem 1rem;">
         <h1 class="text-gradient" style="margin-bottom: 1rem;">ReDesign</h1>
-        <h4 class="text-muted" style="margin-bottom: 2rem; font-weight: 400;">Recovering Editable Design Structures from Images via Agentic Decomposition</h4>
+        <h4 class="text-muted" style="margin-bottom: 2rem; font-weight: 500;">Recovering Editable Design Structures from Images via Agentic Decomposition</h4>
         <div style="margin: 2rem 0;">
-            <a href="https://github.com/sonjt00/ReDesign" class="btn btn-gradient" style="margin: 0.5rem;">📄 Paper</a>
+            <a href="https://openreview.net/pdf?id=JiEr8B3WBr" class="btn btn-gradient" style="margin: 0.5rem;">📄 Paper</a>
             <a href="https://github.com/sonjt00/ReDesign" class="btn btn-outline" style="margin: 0.5rem;">💻 Code</a>
             <a href="https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909" class="btn btn-outline" style="margin: 0.5rem;">📊 Dataset</a>
         </div>
     </header>
-
-    <!-- TEASER FIGURE -->
-    <section class="figure-wrapper container narrow">
-        <figure>
-            <img src="assets/figures/intro_teaser.webp" alt="ReDesign teaser: from flat image to editable design" style="max-width: 100%;">
-            <figcaption>From a single flat image, ReDesign recovers a fully editable design — text layers with real typography, vector shapes with fill colors, grouped elements, and z-order — so the design can be re-edited: rewrite text, swap theme, reflow layout.</figcaption>
-        </figure>
-    </section>
 
     <!-- PROBLEM SECTION -->
     <section class="container narrow">
@@ -472,52 +482,67 @@
         </p>
     </section>
 
-    <!-- METHOD SECTION (PINNED WITH SCROLL STAGES) -->
-    <section class="pin-section container narrow" id="method-pin">
-        <div class="pin-stage">
-            <div class="pin-inner">
-                <div style="width: 100%; max-width: 100%; text-align: center;">
-                    <h2 class="text-gradient reveal">We Grow the Design Back, Layer by Layer</h2>
-                    <p class="reveal" style="line-height: 1.8; font-size: 1.05rem; text-align: left; opacity: 0.9;">
-                        ReDesign casts raster-to-editable reconstruction as <strong>growing a layer hierarchy</strong>. Starting from the whole image as the root, a VLM controller expands the tree breadth-first (coarse → fine). At each node it chooses one tool-backed action that produces child layers; a modular verifier checks every expansion — accepting it, pruning broken or duplicate branches, or retrying with another tool — until every leaf is an atomic, editable element.
-                    </p>
-                    <div class="figure-wrapper" style="margin-top: 2rem;">
-                        <figure>
-                            <img src="assets/figures/method_main.webp" alt="ReDesign method: agentic tree expansion with 5 tool actions" style="max-width: 100%; border-radius: var(--radius); box-shadow: var(--shadow);">
-                            <figcaption style="margin-top: 1rem;">VLM-driven layer hierarchy growth. The controller orchestrates five tool-backed actions; a verifier checks every expansion for validity, preventing duplication and ensuring complete coverage.</figcaption>
-                        </figure>
-                    </div>
-                    <div style="margin-top: 2rem; text-align: left;">
-                        <h3 style="text-align: center; font-size: 1.3rem; margin-bottom: 1.5rem;">Five Tool-Backed Actions</h3>
-                        <div class="action-grid">
-                            <div class="action-card reveal">
-                                <div class="action-icon">📝</div>
-                                <div class="action-title">Extract Text</div>
-                                <div class="action-desc">PaddleOCR + font recognition + Hi-SAM + LaMa inpaint → editable text layer + clean background</div>
-                            </div>
-                            <div class="action-card reveal">
-                                <div class="action-icon">🖼</div>
-                                <div class="action-title">Fork Layers</div>
-                                <div class="action-desc">Qwen-Image-Layered → several z-ordered RGBA layers at once</div>
-                            </div>
-                            <div class="action-card reveal">
-                                <div class="action-icon">🔀</div>
-                                <div class="action-title">Connected-Component Split</div>
-                                <div class="action-desc">CCA → disjoint elements within one layer</div>
-                            </div>
-                            <div class="action-card reveal">
-                                <div class="action-icon">🎯</div>
-                                <div class="action-title">Detect & Segment</div>
-                                <div class="action-desc">GroundingDINO + SAM 2 + inpaint → a foreground object + background</div>
-                            </div>
-                            <div class="action-card reveal">
-                                <div class="action-icon">✏️</div>
-                                <div class="action-title">Vectorize</div>
-                                <div class="action-desc">VTracer → shape-like leaves become vector paths (photos stay raster)</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+    <!-- WHAT WE DO -->
+    <section class="container narrow">
+        <div class="callout">
+            <h3 style="margin-top: 0; text-align: center; color: var(--color-coral-primary);">What ReDesign Does</h3>
+            <p style="margin-bottom: 1rem;">
+                <strong>ReDesign recovers a fully editable design hierarchy from a single image.</strong> Starting from the whole image as the root, a vision-language controller grows a layer tree breadth-first (coarse → fine), choosing tool-backed actions at each node and verifying every expansion. The output is an editable JSON hierarchy: text layers with real typography, vector shapes with fill colors, groups with z-order, and isolated elements that survive real edits — delete, recolor, rotate, reflow — without disturbing the rest of the design.
+            </p>
+            <p>
+                Instead of pixel-space edits that blur and corrupt (like generative image tools), ReDesign exposes <strong>discrete, semantic elements</strong> that you can manipulate precisely: move a logo 100px right, change a title color, reorder layers in the stack.
+            </p>
+        </div>
+    </section>
+
+    <!-- TEASER FIGURE -->
+    <section class="figure-wrapper container narrow">
+        <figure>
+            <img src="assets/figures/intro_teaser.webp" alt="ReDesign teaser: from flat image to editable design with text, theme, and layout controls" style="max-width: 100%;">
+            <figcaption>From a single flat image, ReDesign recovers a fully editable design — text layers with real typography, vector shapes, grouped elements, and z-order — enabling direct edits: rewrite text, swap theme, reflow layout.</figcaption>
+        </figure>
+    </section>
+
+    <!-- METHOD SECTION -->
+    <section class="container narrow">
+        <h2 class="text-gradient text-center">We Grow the Design Back, Layer by Layer</h2>
+        <p style="line-height: 1.8; font-size: 1.05rem; text-align: justify;">
+            ReDesign casts raster-to-editable reconstruction as <strong>growing a layer hierarchy</strong>. Starting from the whole image as the root, a VLM controller expands the tree breadth-first (coarse → fine). At each node it chooses one tool-backed action that produces child layers; a modular verifier checks every expansion — accepting it, pruning broken or duplicate branches, or retrying with another tool — until every leaf is an atomic, editable element.
+        </p>
+
+        <div class="figure-wrapper" style="margin-top: 2rem;">
+            <figure>
+                <img src="assets/figures/method_main.webp" alt="ReDesign method: agentic tree expansion with VLM controller, 5 tool actions, and graceful verification" style="max-width: 100%; border-radius: var(--radius); box-shadow: var(--shadow);">
+                <figcaption>VLM-driven layer hierarchy growth. The controller orchestrates five tool-backed actions; a verifier checks every expansion for validity, preventing duplication and ensuring complete coverage.</figcaption>
+            </figure>
+        </div>
+
+        <h3 style="text-align: center; margin-top: 2.5rem; margin-bottom: 2rem;">Five Tool-Backed Actions</h3>
+        <div class="action-grid">
+            <div class="action-card">
+                <div class="action-icon">📝</div>
+                <div class="action-title">Extract Text</div>
+                <div class="action-desc">PaddleOCR + font recognition + Hi-SAM + LaMa inpaint → editable text layer + clean background</div>
+            </div>
+            <div class="action-card">
+                <div class="action-icon">🖼</div>
+                <div class="action-title">Fork Layers</div>
+                <div class="action-desc">Qwen-Image-Layered → several z-ordered RGBA layers at once</div>
+            </div>
+            <div class="action-card">
+                <div class="action-icon">🔀</div>
+                <div class="action-title">Connected-Component Split</div>
+                <div class="action-desc">CCA → disjoint elements within one layer</div>
+            </div>
+            <div class="action-card">
+                <div class="action-icon">🎯</div>
+                <div class="action-title">Detect & Segment</div>
+                <div class="action-desc">GroundingDINO + SAM 2 + inpaint → a foreground object + background</div>
+            </div>
+            <div class="action-card">
+                <div class="action-icon">✏️</div>
+                <div class="action-title">Vectorize</div>
+                <div class="action-desc">VTracer → shape-like leaves become vector paths (photos stay raster)</div>
             </div>
         </div>
     </section>
@@ -574,8 +599,8 @@
                         <td>45.33</td>
                         <td>0.527</td>
                     </tr>
-                    <tr style="background: rgba(255, 106, 138, 0.05);">
-                        <td style="text-align: left; font-weight: 700;"><strong style="color: var(--color-pink);">Ours</strong></td>
+                    <tr style="background: rgba(249, 115, 22, 0.05);">
+                        <td style="text-align: left; font-weight: 700;"><strong style="color: var(--color-coral-primary);">Ours</strong></td>
                         <td class="bold-best"><strong>0.0431</strong></td>
                         <td class="bold-best"><strong>26.286</strong></td>
                         <td class="bold-best"><strong>0.0883</strong></td>
@@ -585,7 +610,7 @@
                 </tbody>
             </table>
         </div>
-        <figcaption style="text-align: center; font-size: 0.85rem; color: var(--color-gray-600); margin-top: 1rem;">
+        <figcaption style="text-align: center; font-size: 0.95rem; color: var(--color-gray-600); margin-top: 1rem;">
             Reconstruction accuracy on the Figma-909 dataset. Lower is better for L1/LPIPS; higher for PSNR/PQ/F1. Best scores in bold.
         </figcaption>
     </section>
@@ -608,35 +633,8 @@
             </p>
             <figure class="figure-wrapper">
                 <img src="assets/figures/exp_editability_quanti.webp" alt="Editability quantitative: SSIM and text recall across 6 atomic edits" style="max-width: 100%;">
-                <figcaption>(a) SSIM after edit replay across six atomic edits — ReDesign (pink) dominates on all axes. (b) Text recall after text edits. ReDesign achieves best scores on every edit type.</figcaption>
+                <figcaption>(a) SSIM after edit replay across six atomic edits — ReDesign (orange) dominates on all axes. (b) Text recall after text edits. ReDesign achieves best scores on every edit type.</figcaption>
             </figure>
-
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin: 2rem 0;">
-                <div class="stat-card reveal">
-                    <div class="stat-label">Delete</div>
-                    <div class="stat-number count-up" data-to="0.869" data-dec="3">0.869</div>
-                </div>
-                <div class="stat-card reveal">
-                    <div class="stat-label">Recolor</div>
-                    <div class="stat-number count-up" data-to="0.839" data-dec="3">0.839</div>
-                </div>
-                <div class="stat-card reveal">
-                    <div class="stat-label">Opacity</div>
-                    <div class="stat-number count-up" data-to="0.819" data-dec="3">0.819</div>
-                </div>
-                <div class="stat-card reveal">
-                    <div class="stat-label">Z-Order</div>
-                    <div class="stat-number count-up" data-to="0.802" data-dec="3">0.802</div>
-                </div>
-                <div class="stat-card reveal">
-                    <div class="stat-label">Rotation</div>
-                    <div class="stat-number count-up" data-to="0.800" data-dec="3">0.800</div>
-                </div>
-                <div class="stat-card reveal">
-                    <div class="stat-label">Transition</div>
-                    <div class="stat-number count-up" data-to="0.766" data-dec="3">0.766</div>
-                </div>
-            </div>
         </div>
     </section>
 
@@ -666,17 +664,13 @@
         </div>
     </section>
 
-    <!-- KEY STATS SECTION -->
+    <!-- FIGMA-909 BENCHMARK -->
     <section class="container narrow text-center">
         <h2 class="text-gradient mb-5">Figma-909: The Benchmark</h2>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 2rem; margin: 2rem 0;">
+        <div class="benchmark-grid">
             <div class="stat-card">
                 <div class="stat-label">Real-World Frames</div>
                 <div class="stat-number">909</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">License</div>
-                <div style="font-size: 1.2rem; color: var(--color-gray-700); margin-top: 1rem;">CC BY 4.0</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">Unique Authors</div>
@@ -686,9 +680,13 @@
                 <div class="stat-label">Unique Figma Files</div>
                 <div class="stat-number">389</div>
             </div>
+            <div class="stat-card">
+                <div class="stat-label">License</div>
+                <div style="font-size: 1.1rem; color: var(--color-gray-700); margin-top: 1rem; font-family: var(--font-body); font-weight: 600;">CC BY 4.0</div>
+            </div>
         </div>
         <p class="text-muted" style="font-size: 0.95rem; margin-top: 2rem;">
-            All 909 frames are redistributed under CC BY 4.0 with full per-episode attribution. Download the dataset from <a href="https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909" target="_blank">HuggingFace</a>.
+            All 909 frames are redistributed under <strong>CC BY 4.0</strong> with full per-episode attribution. Download the dataset from <a href="https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909" target="_blank">HuggingFace</a>.
         </p>
     </section>
 
@@ -697,147 +695,34 @@
         <div class="container narrow">
             <h2 class="text-gradient text-center mb-4">Get Started</h2>
             <div class="text-center mb-5">
-                <a href="https://openreview.net/pdf?id=JiEr8B3WBr" class="btn btn-gradient" style="margin: 0.5rem;">📄 Paper (OpenReview)</a>
-                <a href="https://github.com/sonjt00/ReDesign" class="btn btn-outline" style="margin: 0.5rem;">💻 Code (GitHub)</a>
-                <a href="https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909" class="btn btn-outline" style="margin: 0.5rem;">📊 Dataset (HuggingFace)</a>
+                <a href="https://openreview.net/pdf?id=JiEr8B3WBr" class="btn btn-gradient" style="margin: 0.5rem;">📄 Paper</a>
+                <a href="https://github.com/sonjt00/ReDesign" class="btn btn-outline" style="margin: 0.5rem;">💻 Code</a>
+                <a href="https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909" class="btn btn-outline" style="margin: 0.5rem;">📊 Dataset</a>
             </div>
             <div class="footer-text">
                 <p>ReDesign: Recovering Editable Design Structures from Images via Agentic Decomposition</p>
-                <p style="font-size: 0.85rem; color: var(--color-gray-500);">
-                    Figma-909 dataset: <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank">CC BY 4.0</a>
-                    (100% of frames) · Code: <a href="https://github.com/sonjt00/ReDesign/blob/main/LICENSE" target="_blank">MIT</a>
+                <p style="font-size: 0.9rem; color: var(--color-gray-500);">
+                    Figma-909 dataset: <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" style="color: var(--color-gray-500);">CC BY 4.0</a>
+                    (100% of frames) · Code: <a href="https://github.com/sonjt00/ReDesign/blob/main/LICENSE" target="_blank" style="color: var(--color-gray-500);">MIT</a>
                 </p>
             </div>
         </div>
     </footer>
 
     <script>
-        // Scroll engine: one rAF loop for all animations
-        class ScrollEngine {
-            constructor() {
-                this.isDirty = false;
-                this.lastTime = 0;
-                this.pinSections = [];
-
-                // Set up IntersectionObserver for enter reveals
-                this.setupRevealObserver();
-                this.setupCountUpObserver();
-
-                // Register pinned sections
-                const methodPin = document.getElementById('method-pin');
-                if (methodPin) {
-                    this.pinSections.push({
-                        el: methodPin,
-                        stage: methodPin.querySelector('.pin-stage'),
-                        inner: methodPin.querySelector('.pin-inner'),
-                        reveals: methodPin.querySelectorAll('.reveal'),
-                    });
-                }
-
-                // Listen for scroll and resize
-                window.addEventListener('scroll', () => { this.isDirty = true; }, { passive: true });
-                window.addEventListener('resize', () => { this.isDirty = true; }, { passive: true });
-
-                // Start the rAF loop
-                this.tick();
-            }
-
-            setupRevealObserver() {
-                const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-                const options = {
-                    threshold: 0.15,
-                    rootMargin: '0px 0px -10% 0px',
-                };
-
-                this.revealIO = new IntersectionObserver((entries) => {
-                    entries.forEach((entry) => {
-                        if (entry.isIntersecting && !reduce) {
-                            entry.target.classList.add('is-in');
-                            this.revealIO.unobserve(entry.target);
-                        } else if (reduce) {
-                            entry.target.classList.add('is-in');
-                        }
-                    });
-                }, options);
-
-                document.querySelectorAll('.reveal').forEach(el => this.revealIO.observe(el));
-            }
-
-            setupCountUpObserver() {
-                const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-                const options = { threshold: 0.5 };
-
-                this.countIO = new IntersectionObserver((entries) => {
-                    entries.forEach((entry) => {
-                        if (entry.isIntersecting && entry.target.dataset.to && !entry.target.dataset.counted) {
-                            entry.target.dataset.counted = 'true';
-                            if (!reduce) {
-                                this.countUp(entry.target);
-                            } else {
-                                entry.target.textContent = parseFloat(entry.target.dataset.to).toFixed(parseInt(entry.target.dataset.dec || 0));
-                            }
-                            this.countIO.unobserve(entry.target);
-                        }
-                    });
-                }, options);
-
-                document.querySelectorAll('.count-up').forEach(el => this.countIO.observe(el));
-            }
-
-            countUp(el) {
-                const start = performance.now();
-                const duration = 1200;
-                const from = 0;
-                const to = parseFloat(el.dataset.to);
-                const decimals = parseInt(el.dataset.dec || 0);
-
-                const tick = (now) => {
-                    const t = Math.min((now - start) / duration, 1);
-                    const easeOut = 1 - Math.pow(1 - t, 3);
-                    const val = from + (to - from) * easeOut;
-                    el.textContent = val.toFixed(decimals);
-
-                    if (t < 1) {
-                        requestAnimationFrame(tick);
-                    }
-                };
-
-                requestAnimationFrame(tick);
-            }
-
-            tick() {
-                if (this.isDirty) {
-                    this.isDirty = false;
-                    this.updatePinnedSections();
-                }
-
-                requestAnimationFrame(() => this.tick());
-            }
-
-            updatePinnedSections() {
-                this.pinSections.forEach(({ el, stage, inner, reveals }) => {
-                    const rect = el.getBoundingClientRect();
-                    const progress = Math.max(0, Math.min(1, (-rect.top) / (rect.height - window.innerHeight)));
-
-                    // Reveal inner content based on progress
-                    reveals.forEach((reveal, idx) => {
-                        const delay = idx * 0.1;
-                        const revealStart = Math.max(0, Math.min(1, (progress - delay) / 0.3));
-                        reveal.style.opacity = revealStart;
-                        reveal.style.transform = `translateY(${(1 - revealStart) * 24}px)`;
-                    });
+        // Simple initialization - all content visible by default, no complex scroll animations
+        document.addEventListener('DOMContentLoaded', () => {
+            // Ensure all buttons have proper hover states
+            const buttons = document.querySelectorAll('.btn');
+            buttons.forEach(btn => {
+                btn.addEventListener('mouseenter', function() {
+                    this.style.opacity = '0.9';
                 });
-            }
-        }
-
-        // Initialize on page load
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-                new ScrollEngine();
+                btn.addEventListener('mouseleave', function() {
+                    this.style.opacity = '1';
+                });
             });
-        } else {
-            new ScrollEngine();
-        }
+        });
     </script>
 </body>
 </html>
