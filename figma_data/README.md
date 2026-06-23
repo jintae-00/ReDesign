@@ -28,7 +28,7 @@ with full attribution preserved.
 
 Per-episode attribution (author name, author URL, source URL, license type,
 license URL) is preserved in **every `valid_frames/*.json`** and aggregated in
-[`ATTRIBUTIONS.csv`](./ATTRIBUTIONS.csv). When you use this dataset, please credit
+[`ATTRIBUTIONS.csv`](https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909/blob/main/ATTRIBUTIONS.csv). When you use this dataset, please credit
 the original authors and retain the CC BY 4.0 license and source links.
 
 > If you are an author and would like a frame removed, please open an issue on the
@@ -80,4 +80,4 @@ See the [ReDesign GitHub repository](https://github.com/sonjt00/ReDesign) for th
 full pipeline (environment, checkpoints, inference, evaluation).
 
 Complete per-episode attribution for all 288 original authors is provided in
-[`ATTRIBUTIONS.csv`](./ATTRIBUTIONS.csv).
+[`ATTRIBUTIONS.csv`](https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909/blob/main/ATTRIBUTIONS.csv).

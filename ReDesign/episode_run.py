@@ -1655,8 +1655,8 @@ def _run_final_verification(
     
     # Initialize LLM (same config as router_vlm.py)
     llm = ChatOpenAI(
-        model="gemini-3-flash-preview",
-        base_url="https://gateway.letsur.ai/v1",
+        model=os.environ.get("VLM_MODEL", "gemini-3-flash-preview"),
+        base_url=os.environ.get("OPENAI_BASE_URL"),
         temperature=0,
         model_kwargs={"top_p": 1},
         max_retries=3,

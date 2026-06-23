@@ -10,7 +10,7 @@ dependencies:
   - wheel=0.45.1
   - pip:
       # ============================================================
-      # 핵심 ML/AI 프레임워크 (버전 고정)
+      # Core ML/AI frameworks (pinned)
       # ============================================================
       - accelerate==1.12.0
       # diffusers is installed from git in post_install.sh (provides QwenImageLayeredPipeline)
@@ -26,7 +26,7 @@ dependencies:
       - ultralytics==8.3.166
 
       # ============================================================
-      # LangChain / LangGraph 생태계 (버전 고정)
+      # LangChain / LangGraph ecosystem (pinned)
       # ============================================================
       - langchain==0.3.26
       - langchain-community==0.3.27
@@ -40,7 +40,7 @@ dependencies:
       - langsmith==0.4.5
 
       # ============================================================
-      # LLM API 클라이언트 (버전 고정)
+      # LLM API clients (pinned)
       # ============================================================
       - openai==1.95.1
       - google-genai==1.25.0
@@ -48,7 +48,7 @@ dependencies:
       - tiktoken==0.9.0
 
       # ============================================================
-      # PaddleOCR 관련 (버전 고정, paddlepaddle-gpu는 별도 설치)
+      # PaddleOCR (pinned; paddlepaddle-gpu installed separately in post_install.sh)
       # ============================================================
       - paddleocr==3.1.0
       - paddlex==3.1.3
@@ -56,7 +56,7 @@ dependencies:
       - pypdfium2
 
       # ============================================================
-      # 컴퓨터 비전 (버전 고정)
+      # Computer vision (pinned)
       # ============================================================
       - opencv-python
       - opencv-contrib-python
@@ -69,7 +69,7 @@ dependencies:
       - simple-lama-inpainting
 
       # ============================================================
-      # 데이터/과학 (버전 풀림 - 의존성 자동 해결)
+      # Data / scientific (unpinned - resolved automatically)
       # ============================================================
       - numpy
       - pandas
@@ -82,7 +82,7 @@ dependencies:
       - tifffile
 
       # ============================================================
-      # 웹/API 프레임워크
+      # Web / API frameworks
       # ============================================================
       - fastapi==0.116.1
       - uvicorn==0.35.0
@@ -97,7 +97,7 @@ dependencies:
       - websockets
 
       # ============================================================
-      # Jupyter 관련
+      # Jupyter
       # ============================================================
       - jupyterlab
       - notebook
@@ -105,7 +105,7 @@ dependencies:
       - ipython
 
       # ============================================================
-      # 유틸리티 (버전 풀림)
+      # Utilities (unpinned)
       # ============================================================
       - packaging
       - pydantic
@@ -137,7 +137,7 @@ dependencies:
       - sqlalchemy
 
       # ============================================================
-      # 문서/파일 처리
+      # Document / file processing
       # ============================================================
       - openpyxl
       - xlsxwriter
@@ -151,7 +151,7 @@ dependencies:
       - psd-tools
 
       # ============================================================
-      # 기타 도구
+      # Misc tools
       # ============================================================
       - playwright
       - vtracer
@@ -195,7 +195,7 @@ dependencies:
       - pyside6==6.10.0
 
       # ============================================================
-      # 기타 (원본에 있던 것들)
+      # Misc (carried over from the original environment)
       # ============================================================
       - antlr4-python3-runtime==4.9.3
       - ffmpy
@@ -219,15 +219,15 @@ dependencies:
       - sniffio
 
 # ============================================================
-# 별도 설치 필요 (conda env create 후 수동 실행):
+# Installed separately (run after `conda env create`) — see post_install.sh:
 # ============================================================
 #
-# 1. PyTorch nightly (pytorch-triton, nvidia-* 패키지 자동 포함)
+# 1. PyTorch (cu128 wheels; pulls pytorch-triton + nvidia-* automatically)
 #    pip install --pre torch torchaudio torchvision --index-url https://download.pytorch.org/whl/nightly/cu129
 #
-# 2. PaddlePaddle GPU (PyPI에 없음, 공식 저장소 사용)
+# 2. PaddlePaddle GPU (not on PyPI; use the official index)
 #    pip install paddlepaddle-gpu==3.0.0 -i https://www.paddlepaddle.org.cn/packages/stable/cu126/
 #
-# 3. SAM 2 (PyPI에 없음, GitHub에서 설치)
+# 3. SAM 2 (not on PyPI; install from GitHub)
 #    pip install git+https://github.com/facebookresearch/sam2.git
 # ============================================================

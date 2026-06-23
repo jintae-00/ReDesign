@@ -122,8 +122,8 @@ def node(state: Dict[str, Any]) -> Dict[str, Any]:
 
 
     _llm = ChatOpenAI(
-        model_name="gpt-5-mini",
-        base_url=os.environ.get("OPENAI_BASE_URL", "https://gateway.letsur.ai/v1"),
+        model_name=os.environ.get("VLM_MODEL", "gpt-5-mini"),
+        base_url=os.environ.get("OPENAI_BASE_URL"),
         temperature=0,
         top_p=1,
     )

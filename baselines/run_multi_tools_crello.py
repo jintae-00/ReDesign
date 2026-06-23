@@ -261,8 +261,8 @@ def call_vlm_front_pick(image_path: str, logger: logging.Logger) -> List[str]:
     b64_str = base64.b64encode(img_bytes).decode("utf-8")
 
     llm = ChatOpenAI(
-        model="gemini-3-flash-preview",
-        base_url="https://gateway.letsur.ai/v1",
+        model=os.environ.get("VLM_MODEL", "gemini-3-flash-preview"),
+        base_url=os.environ.get("OPENAI_BASE_URL"),
         temperature=0,
         model_kwargs={"top_p": 1},
         max_retries=3,

@@ -65,12 +65,19 @@ bash post_install.sh          # PyTorch cu128, PaddlePaddle, diffusers(git), sam
 `QwenImageLayeredPipeline`, transformers, langchain-openai, paddleocr, lpips,
 vtracer, opencv). Everything `[ OK ]` ⇒ the environment is ready.
 
-### 2. API keys
+### 2. API keys & VLM endpoint
+
+The controller is any **OpenAI-compatible chat-completions** endpoint — the
+official OpenAI API, a gateway/proxy, or a self-hosted vLLM server. Configure it
+in `.env` (nothing is hard-coded):
 
 ```bash
 cp .env.example .env
-# edit .env:  OPENAI_API_KEY=...   (the VLM controller; required)
-#             GEMINI_API_KEY=...   (optional nanobanana tool)
+# edit .env:
+#   OPENAI_API_KEY=...     # required — key for your VLM endpoint
+#   OPENAI_BASE_URL=...    # optional — custom endpoint; empty = https://api.openai.com/v1
+#   VLM_MODEL=...          # optional — controller model; empty = gemini-3-flash-preview
+#   GEMINI_API_KEY=...     # optional — only for the nanobanana tool
 ```
 
 ### 3. Checkpoints
@@ -114,25 +121,34 @@ machine:
   `--qwen_gpus 0,1 --qwen_pair_size 2`; four 24 GB GPUs → `--qwen_gpus 0,1,2,3
   --qwen_pair_size 4`.
 - **`--tool_gpus`** — GPU(s) for the vision tools (~10–16 GB; can reuse a Qwen GPU).
+- **`--workers W`** — number of **parallel VLM-API workers** (default `1`). Each
+  worker drives one episode and issues its own controller (LLM) calls, so raising
+  `W` — up to whatever your VLM endpoint's rate limit allows — shortens total
+  runtime. The controller model itself is set with `VLM_MODEL` in `.env` (default
+  `gemini-3-flash-preview`); see §2.
 
-(See **Compute & API configuration** below for the full reasoning and the
-`--workers` / API knobs. All ids are placeholders — pick free ones with `nvidia-smi`.)
+**Throughput scales ~linearly with the compute you give it.** Two independent
+knobs: (a) more **Qwen GPUs** → more parallel Qwen workers
+(`len(--qwen_gpus) / --qwen_pair_size`), which cuts the GPU-bound parsing time;
+(b) more **`--workers`** → more concurrent VLM-API calls, which cuts the API-bound
+time. Add both and end-to-end time drops roughly proportionally (until you hit
+your API rate limit). All GPU ids are placeholders — pick free ones with `nvidia-smi`.
 
 ```bash
 # Single image
 python -m ReDesign.run_single_image \
     --image path/to/design.png --output_dir outputs/single \
-    --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size <N> --tool_gpus <TOOL_GPU_IDS>
+    --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size <N> --tool_gpus <TOOL_GPU_IDS> --workers <W>
 
 # Figma (all 909 episodes)
 python -m ReDesign.run_agent_figma \
     --data_dir figma_data --output_dir outputs/figma_agent \
-    --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size <N> --tool_gpus <TOOL_GPU_IDS>
+    --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size <N> --tool_gpus <TOOL_GPU_IDS> --workers <W>
 
 # Crello (records built via crello_data/README.md)
 python -m ReDesign.run_agent_crello \
     --data_dir crello_data/records --output_dir outputs/crello_agent \
-    --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size <N> --tool_gpus <TOOL_GPU_IDS>
+    --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size <N> --tool_gpus <TOOL_GPU_IDS> --workers <W>
 ```
 
 Outputs go to `--output_dir/episodes/<id>/` (`parse.json`, `history_tree.json`,
@@ -169,21 +185,6 @@ REDESIGN_FIGMA_DATA=figma_data REDESIGN_AGENT_DIR=outputs/figma_agent \
 See [`evaluation/README.md`](evaluation/README.md) for the full evaluation guide
 (metrics, per-baseline editability, text editability, and result layout).
 
-## How the pieces connect (data flow)
-
-The pipeline is always **download → inference → evaluation**. The directory
-placeholders above are produced as follows:
-
-| Placeholder | Produced by | Contents |
-|---|---|---|
-| `figma_data/` | `scripts/download_figma_dataset.py` | the ground-truth dataset (909 episodes) |
-| `outputs/figma_agent` (`--agent-dir`) | `python -m ReDesign.run_agent_figma` | the agent's predictions (`episodes/<id>/parse.json`, …) |
-| `outputs/baseline_<model>` (`--<model>-dir`) | the corresponding `baselines/run_*` script | each baseline's predictions (qwen is just one of them) |
-| `outputs/editability_matches` | auto-built by the editability eval (or `before_eval_editability_precompute_matches.py`) | GT↔prediction element matches |
-
-So a full Figma run is: download `figma_data` → run the agent (and baselines) →
-pass the dataset + output dirs to the evaluation scripts.
-
 ## Compute & API configuration (set to your budget)
 
 Nothing about the hardware is hard-coded — every GPU id, the number of GPUs, the
@@ -208,13 +209,19 @@ machine and budget. There are two kinds of cost:
 - The tools fit on one ≥16 GB GPU and may share a Qwen GPU when memory allows.
 
 **B. LLM API (the VLM controller)** — the agent calls an OpenAI-compatible
-chat-completions endpoint for its expansion decisions:
+chat-completions endpoint for its expansion decisions. All of it is configured in
+`.env` (never hard-coded):
 
-- Set `OPENAI_API_KEY` in `.env` (and `GEMINI_API_KEY` only for the optional
-  nanobanana tool).
-- `--workers <N>` processes `N` episodes in parallel; each issues its own API
-  calls → **more workers = faster but more concurrent API usage** (mind rate
-  limits and spend). `--llm_limit` caps LLM calls per episode.
+- `OPENAI_API_KEY` — key for your endpoint (required). `GEMINI_API_KEY` is only for
+  the optional nanobanana tool.
+- `OPENAI_BASE_URL` — the endpoint. Leave empty for the official OpenAI API
+  (`https://api.openai.com/v1`), or point it at a gateway/proxy or a self-hosted
+  vLLM server.
+- `VLM_MODEL` — the controller model. **Default: `gemini-3-flash-preview`.** Change
+  it to any chat model your endpoint serves (e.g. `gpt-5-mini`, `gpt-4o`, …).
+- `--workers <W>` processes `W` episodes in parallel; each issues its own API
+  calls → **more workers = faster, up to your endpoint's rate limit** (mind spend).
+  `--llm_limit` caps LLM calls per episode.
 
 ## Dataset, license & attribution
 

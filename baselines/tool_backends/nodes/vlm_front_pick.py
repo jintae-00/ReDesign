@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Dict, Any
 from pathlib import Path
 import gc
+import os
 
 from langchain.chat_models import ChatOpenAI
 from langchain_core.messages import HumanMessage
@@ -18,8 +19,8 @@ from ..prompts import VLM_FRONT_ELEMS_PICK
 from ._common import _pop_current_action, _bump_next_or
 
 _llm = ChatOpenAI(
-    model_name="gpt-5-mini",
-    base_url="https://gateway.letsur.ai/v1",
+    model_name=os.environ.get("VLM_MODEL", "gpt-5-mini"),
+    base_url=os.environ.get("OPENAI_BASE_URL"),
     temperature=0,           # greedy decoding -> nearly deterministic
     top_p= 1,
 )

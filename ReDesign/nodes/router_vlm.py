@@ -167,7 +167,7 @@ def node(state: GraphState) -> Dict[str, Any]:
     vlm_model = os.environ.get("VLM_MODEL", "gemini-3-flash-preview")
     llm = ChatOpenAI(
         model=vlm_model,
-        base_url="https://gateway.letsur.ai/v1",
+        base_url=os.environ.get("OPENAI_BASE_URL"),
         temperature=0,
         model_kwargs={"top_p": 1},
         max_retries=3,       # Retry up to 3 times

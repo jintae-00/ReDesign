@@ -11,7 +11,7 @@ by their original Figma Community authors.
 - Full per-episode attribution — `author_name`, `author_url`, `source_url`,
   `license_type`, `license_url` — is preserved in **every**
   `figma_data/valid_frames/*.json` and aggregated in
-  [`figma_data/ATTRIBUTIONS.csv`](figma_data/ATTRIBUTIONS.csv).
+  [`ATTRIBUTIONS.csv` (HuggingFace)](https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909/blob/main/ATTRIBUTIONS.csv).
 
 If you use this dataset, you must credit the original authors, indicate any
 changes, and retain the CC BY 4.0 license notice and source links, in accordance

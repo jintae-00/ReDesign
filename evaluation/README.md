@@ -110,6 +110,4 @@ python evaluation/eval_editability_text_figma.py \
 ```
 
 > Editability depends on LPIPS / DINO (auto-downloaded); text editability also
-> uses PaddleOCR PP-OCRv5 (auto-downloaded, GPU). `qwen` is treated exactly like
-> the other baselines (stored at `outputs/baseline_qwen`); evaluating only the
-> agent shows the agent's table alone.
+> uses PaddleOCR PP-OCRv5 (auto-downloaded, GPU).
