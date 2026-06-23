@@ -2,20 +2,24 @@
 
 ### Recovering Editable Design Structures from Images via Agentic Decomposition
 
-When the original design file is lost, all that remains is a flat image — and a
-raster export no longer says which pixels belong to which object, what attributes
-produced them, or how elements were layered. **ReDesign reconstructs an editable
-design from a single raster image**: text layers with real typography, vector
-shapes with fill/stroke, images, groups, and z-order — exported as an editable
-JSON hierarchy.
+<p align="center">
+  <a href="https://openreview.net/pdf?id=JiEr8B3WBr"><img alt="Paper" src="https://img.shields.io/badge/Paper-OpenReview-b31b1b?style=for-the-badge&logo=readthedocs&logoColor=white"></a>
+  &nbsp;
+  <a href="https://sonjt00.github.io/ReDesign/"><img alt="Project Page" src="https://img.shields.io/badge/Project_Page-ReDesign-2ea44f?style=for-the-badge&logo=githubpages&logoColor=white"></a>
+  &nbsp;
+  <a href="https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909"><img alt="Dataset" src="https://img.shields.io/badge/Dataset-Figma--909-ffce1c?style=for-the-badge&logo=huggingface&logoColor=black"></a>
+</p>
 
-**How it works.** ReDesign casts raster-to-editable reconstruction as *growing a
-layer hierarchy*. Starting from the whole image as the root, a **VLM controller**
-expands the tree breadth-first (coarse → fine), at each node choosing one
-tool-backed action and producing child layers. A **modular verifier** checks every
-expansion — accepting it, pruning invalid branches, or retrying with a different
-tool — which prevents sibling duplication and incomplete coverage and keeps the
-tree growing toward atomic, editable leaves.
+> **ReDesign turns a single flat raster image back into an editable design** — text
+> with real typography, vector shapes (fill/stroke), images, groups, and z-order,
+> exported as an editable **JSON hierarchy**. When the original file is lost, a flat
+> export no longer says which pixels form which object or how layers stack — ReDesign
+> recovers that structure.
+
+**How it works.** A **VLM controller** grows a *layer hierarchy* from the image —
+expanding it breadth-first (coarse → fine) and choosing one tool-backed action per
+node — while a **modular verifier** accepts, prunes, or retries each step, driving the
+tree toward clean, atomic, editable leaves.
 
 The controller orchestrates five tool actions:
 
