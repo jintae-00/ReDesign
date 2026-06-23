@@ -55,11 +55,6 @@ figma_data/
 per-element `image_path` fields are paths **relative to the dataset root**, so the
 GT reconstruction resolves to `<root>/<unit_images_dir>/<reconstructed_image_path>`.
 
-> The 909 frames are the de-duplicated union of two difficulty subsets
-> (`dino80_obj_5_60_char_25`: 435, `dino90_obj_5_25_char_50`: 474). Build-time
-> intermediate artifacts (inpainting/segmentation byproducts) have been removed;
-> only ground-truth assets remain.
-
 ## Usage with ReDesign
 
 ```bash
@@ -70,11 +65,15 @@ python scripts/download_figma_dataset.py        # -> ./figma_data
 python -m ReDesign.run_agent_figma \
     --data_dir figma_data --output_dir outputs/figma_agent
 
-# Evaluate reconstruction accuracy
+# Reconstruction accuracy
 python evaluation/eval_accuracy_baselines_figma.py \
     --figma-data figma_data --models agent \
     --agent-dir outputs/figma_agent \
     --output outputs/eval_accuracy_figma
+
+# Atomic-edit editability (uses the same figma_data; matches auto-precomputed)
+REDESIGN_FIGMA_DATA=figma_data REDESIGN_AGENT_DIR=outputs/figma_agent \
+    python evaluation/eval_editability_figma.py --models agent
 ```
 
 See the [ReDesign GitHub repository](https://github.com/sonjt00/ReDesign) for the

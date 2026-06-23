@@ -70,5 +70,5 @@ comma-separated GPU ids, e.g. `0,1`):
 python -m ReDesign.run_agent_crello \
     --data_dir crello_data/records \
     --output_dir outputs/crello_agent \
-    --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size 2 --tool_gpus <TOOL_GPU_IDS>
+    --qwen_gpus <QWEN_GPU_IDS> --qwen_pair_size <N> --tool_gpus <TOOL_GPU_IDS>
 ```
