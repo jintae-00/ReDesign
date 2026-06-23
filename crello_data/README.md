@@ -4,6 +4,8 @@ ReDesign uses the **Crello dataset** from CyberAgent AI Lab for the Crello desig
 benchmark. We do **not** redistribute it here — please download it from the
 official source.
 
+<br>
+
 ## 1. Download the raw Crello dataset
 
 Follow the official CyberAgent canvas-vae instructions:
@@ -30,6 +32,8 @@ PY
 
 Please cite the Crello dataset and follow its license/terms as described on the
 pages above.
+
+<br>
 
 ## 2. Render records for the agent
 

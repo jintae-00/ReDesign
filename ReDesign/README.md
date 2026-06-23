@@ -14,6 +14,8 @@ inpaint), or **vectorize/finalize** (VTracer; photos stay raster).
 Run entrypoints **from the repository root** (the package imports as `ReDesign`;
 the per-episode worker is launched as `python -m ReDesign.episode_run`).
 
+<br>
+
 ## Entry points
 
 | File | Purpose |
@@ -33,6 +35,8 @@ Output per episode: `outputs/<...>/episodes/<episode_id>/` with `parse.json`
 (editable hierarchy), `history_tree.json` (the decomposition tree),
 reconstruction images, and logs. Completed episodes are skipped on re-run.
 
+<br>
+
 ## Components
 
 - `build_graph.py`, `state.py`, `reducers.py`, `registry.py` — the controller graph, tree state, and tool registry
@@ -40,6 +44,8 @@ reconstruction images, and logs. Completed episodes are skipped on re-run.
 - `tools/` — wrappers around the `../modules/` backends (GDINO, SAM 2, Hi-SAM, LaMa, ObjectClear, OCR, VTracer) and Qwen-Image-Layered
 - `qwen_pool.py`, `qwen_worker.py`, `tool_gpu_manager.py`, `tool_gpu_config.py` — multi-GPU pooling for the Qwen model and the tools
 - `reconstruction.py`, `visualizer.py`, `prompts.py`, `prompt_builders.py` — JSON export, tree visualization, controller prompts
+
+<br>
 
 ## Requirements
 

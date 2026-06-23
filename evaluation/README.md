@@ -14,6 +14,8 @@ Run every script **from the repository root** (so `evaluation`, `ReDesign`, and
 `modules` resolve). The metric models run on the GPU set by `--gpu-ids <GPU_ID>`
 (PaddleOCR text eval uses `--ocr-gpu <GPU_ID>`); both default to GPU 0.
 
+<br>
+
 ## Contents
 
 | File | Purpose |
@@ -28,6 +30,8 @@ Run every script **from the repository root** (so `evaluation`, `ReDesign`, and
 | `eval_editability_baselines.py` | Editability subtask runners used by `eval_editability_figma.py` |
 | `assets/atomic_selected_subset.json` | Frozen episode/edit subset for paper-reproducible editability numbers |
 
+<br>
+
 ## Prerequisite
 
 Evaluation scores inference outputs, so first run the agent (and any baselines you
@@ -35,6 +39,8 @@ want to compare) — see the top-level README §5. Each model writes
 `episodes/<id>/parse.json` (agent / multi-tools / sparse-verif) or `layer_*.png`
 (qwen / layered) under its output dir. You pass the agent dir with `--agent-dir`
 and each baseline dir with `--<model>-dir` (defaults: `outputs/baseline_<model>`).
+
+<br>
 
 ## 1. Reconstruction accuracy
 
@@ -67,6 +73,8 @@ Baseline dirs default to `outputs/baseline_<model>`; override any with
 - `comparison_accuracy.md` / `comparison_accuracy.csv` — the agent-vs-baselines table
 - `evaluation_unified_summary.json` — full per-model / per-episode metrics
 - `worker_*_gpu*.log` — per-worker logs
+
+<br>
 
 ## 2. Editability (atomic edits)
 

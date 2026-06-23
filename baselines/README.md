@@ -31,6 +31,8 @@ These share the agent's tool backends:
 So the same environment (`environment.yml` + `post_install.sh`) and checkpoints
 (`scripts/download_checkpoints.py`) cover the baselines too.
 
+<br>
+
 ## Input / output (split-agnostic)
 
 Like the agent runners, every baseline takes a **whole dataset directory** and an

@@ -35,6 +35,8 @@ Every frame is a self-contained episode with ground-truth layer decomposition
 metadata and per-element images, enabling both **reconstruction-accuracy** and
 **editability** evaluation.
 
+<br>
+
 ## License & Attribution
 
 **All 909 episodes are licensed under [Creative Commons Attribution 4.0
@@ -54,6 +56,8 @@ the original authors and retain the CC BY 4.0 license and source links.
 
 > If you are an author and would like a frame removed, please open an issue on the
 > GitHub repository.
+
+<br>
 
 ## Dataset structure
 
@@ -75,6 +79,8 @@ figma_data/
 `1002728450918630649_2_1898`). Inside each JSON, `unit_images_dir` and the
 per-element `image_path` fields are paths **relative to the dataset root**, so the
 GT reconstruction resolves to `<root>/<unit_images_dir>/<reconstructed_image_path>`.
+
+<br>
 
 ## Usage with ReDesign
 
@@ -102,6 +108,8 @@ full pipeline (environment, checkpoints, inference, evaluation).
 
 Complete per-episode attribution for all 288 original authors is provided in
 [`ATTRIBUTIONS.csv`](https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909/blob/main/ATTRIBUTIONS.csv).
+
+<br>
 
 ## Discussion
 

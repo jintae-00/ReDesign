@@ -2,6 +2,8 @@
 
 A responsive, scroll-driven project page for the ReDesign paper: "Recovering Editable Design Structures from Images via Agentic Decomposition".
 
+<br>
+
 ## Features
 
 - **Responsive Design**: Mobile, tablet, and desktop layouts
@@ -11,11 +13,15 @@ A responsive, scroll-driven project page for the ReDesign paper: "Recovering Edi
 - **Interactive Table 1**: Quantitative accuracy results with best scores highlighted
 - **Accessibility**: `prefers-reduced-motion` support, keyboard navigation, proper alt text
 
+<br>
+
 ## Contents
 
 - `index.html` — single-file responsive project page (inline CSS + vanilla JS)
 - `assets/figures/` — all 6 paper figures optimized to WebP
 - `.nojekyll` — tells GitHub Pages to skip Jekyll processing
+
+<br>
 
 ## Deploy to GitHub Pages
 
@@ -29,6 +35,8 @@ GitHub will build and deploy the site to: **https://sonjt00.github.io/ReDesign**
 
 The URL will show "ReDesign" as requested.
 
+<br>
+
 ## Sections
 
 1. **Hero** — Title, subtitle, buttons (Paper/Code/Dataset)
@@ -40,6 +48,8 @@ The URL will show "ReDesign" as requested.
 7. **Analysis** — Figure 8: vs. generative editing (Nano Banana 2)
 8. **Benchmark Stats** — Figma-909 dataset details
 9. **Footer** — Repeated buttons, license info
+
+<br>
 
 ## Technical Details
 
