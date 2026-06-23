@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="ReDesign: Recovering Editable Design Structures from Images via Agentic Decomposition">
     <title>ReDesign – Editable Design Recovery from Images</title>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --gradient-coral: linear-gradient(135deg, #E91E63 0%, #FF9800 100%);
-            --color-coral-primary: #f97316;
-            --color-coral-dark: #ff5722;
+            --gradient-coral: linear-gradient(135deg, #FF6B6B 0%, #00BCD4 100%);
+            --color-coral-primary: #FF6B6B;
+            --color-teal: #00BCD4;
             --color-white: #ffffff;
             --color-gray-50: #f8f9fa;
             --color-gray-100: #f0f2f5;
@@ -22,7 +22,7 @@
             --color-gray-700: #495057;
             --color-gray-800: #343a40;
             --color-gray-900: #212529;
-            --font-heading: "Playfair Display", Georgia, serif;
+            --font-heading: "Fredoka", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             --font-mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
             --shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
@@ -243,7 +243,7 @@
 
         /* Callout box */
         .callout {
-            background: linear-gradient(135deg, rgba(249, 115, 22, 0.08) 0%, rgba(255, 87, 34, 0.08) 100%);
+            background: linear-gradient(135deg, rgba(255, 107, 107, 0.08) 0%, rgba(0, 188, 212, 0.08) 100%);
             border-left: 4px solid var(--color-coral-primary);
             padding: 2rem;
             margin: 2rem 0;
@@ -278,7 +278,7 @@
         }
 
         .stat-card:hover {
-            background: linear-gradient(135deg, rgba(249, 115, 22, 0.05) 0%, rgba(255, 87, 34, 0.05) 100%);
+            background: linear-gradient(135deg, rgba(255, 107, 107, 0.05) 0%, rgba(0, 188, 212, 0.05) 100%);
             transform: translateY(-4px);
             box-shadow: var(--shadow);
         }
@@ -296,7 +296,7 @@
 
         .stat-label {
             font-size: 1.1rem;
-            color: var(--color-gray-600);
+            color: var(--color-gray-700);
             margin: 0;
             font-family: var(--font-body);
             font-weight: 600;
@@ -340,6 +340,13 @@
             font-family: var(--font-heading);
         }
 
+        .action-desc {
+            font-size: 0.95rem;
+            color: var(--color-gray-600);
+            line-height: 1.5;
+            font-family: var(--font-body);
+        }
+
         /* Comparison grid */
         .comparison-grid {
             display: grid;
@@ -367,7 +374,7 @@
 
         .comparison-ours .comparison-img {
             border: 2px solid var(--color-coral-primary);
-            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2);
+            box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.2);
         }
 
         .comparison-label {
@@ -401,6 +408,14 @@
             opacity: 1;
             transform: translateY(0);
         }
+
+        /* Stagger effect */
+        .reveal:nth-child(1) { transition-delay: 0ms; }
+        .reveal:nth-child(2) { transition-delay: 100ms; }
+        .reveal:nth-child(3) { transition-delay: 200ms; }
+        .reveal:nth-child(4) { transition-delay: 300ms; }
+        .reveal:nth-child(5) { transition-delay: 400ms; }
+        .reveal:nth-child(6) { transition-delay: 500ms; }
 
         /* Negative tone */
         .negative-tone {
@@ -467,9 +482,9 @@
 <body>
     <!-- HERO SECTION -->
     <header class="container text-center" style="padding: 4rem 0;">
-        <h1 class="text-gradient">ReDesign</h1>
-        <h4 class="text-muted">Recovering Editable Design Structures from Images via Agentic Decomposition</h4>
-        <div style="margin: 2rem 0;">
+        <h1 class="text-gradient reveal">ReDesign</h1>
+        <h4 class="text-muted reveal">Recovering Editable Design Structures from Images via Agentic Decomposition</h4>
+        <div style="margin: 2rem 0;" class="reveal">
             <a href="https://openreview.net/pdf?id=JiEr8B3WBr" class="btn btn-gradient" style="margin: 0.5rem;">📄 Paper</a>
             <a href="https://github.com/sonjt00/ReDesign" class="btn btn-outline" style="margin: 0.5rem;">💻 Code</a>
             <a href="https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909" class="btn btn-outline" style="margin: 0.5rem;">📊 Dataset</a>
@@ -479,7 +494,7 @@
     <!-- PROBLEM SECTION -->
     <section class="narrow reveal">
         <h2 class="negative-tone text-center">A Flat Image Is a Dead End for Editing</h2>
-        <p style="text-align: center; color: var(--color-gray-700); font-size: 1.15rem;">
+        <p style="text-align: center; color: var(--color-gray-700); font-size: 1.15rem;" class="reveal">
             When design files are lost, only a flat image remains. You cannot move elements, change colors, fix text, or reflow layouts.
         </p>
     </section>
@@ -487,9 +502,9 @@
     <!-- WHAT WE DO -->
     <section class="narrow reveal">
         <div class="callout">
-            <h3 style="margin-top: 0; text-align: center; color: var(--color-coral-primary);">What ReDesign Does</h3>
-            <p>ReDesign recovers a fully editable design hierarchy from a single image.</p>
-            <p>A vision-language controller grows a layer tree breadth-first; a verifier checks every step. The output: semantic text layers with real fonts, vector shapes with fills, groups with z-order, and isolated elements that survive real edits without disturbing the rest of the design.</p>
+            <h3 style="margin-top: 0; text-align: center;" class="reveal">What ReDesign Does</h3>
+            <p class="reveal">ReDesign recovers a fully editable design hierarchy from a single image.</p>
+            <p class="reveal">A vision-language controller grows a layer tree breadth-first; a verifier checks every step. The output: semantic text layers with real fonts, vector shapes with fills, groups with z-order, and isolated elements that survive real edits without disturbing the rest of the design.</p>
         </div>
     </section>
 
@@ -515,19 +530,19 @@
 
         <h3 class="text-center reveal" style="margin-top: 3rem;">Five Tool-Backed Actions</h3>
         <div class="action-grid reveal">
-            <div class="action-card">
+            <div class="action-card reveal">
                 <div class="action-title">Text extraction</div>
             </div>
-            <div class="action-card">
+            <div class="action-card reveal">
                 <div class="action-title">Multi-layer decomposition</div>
             </div>
-            <div class="action-card">
+            <div class="action-card reveal">
                 <div class="action-title">Connected Component Labeling</div>
             </div>
-            <div class="action-card">
+            <div class="action-card reveal">
                 <div class="action-title">Detection & Segmentation</div>
             </div>
-            <div class="action-card">
+            <div class="action-card reveal">
                 <div class="action-title">Vectorization & Typography</div>
             </div>
         </div>
@@ -553,7 +568,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
+                    <tr class="reveal">
                         <td style="text-align: left;">VTracer</td>
                         <td>0.0977</td>
                         <td>20.487</td>
@@ -561,7 +576,7 @@
                         <td>24.64</td>
                         <td>0.309</td>
                     </tr>
-                    <tr>
+                    <tr class="reveal">
                         <td style="text-align: left;">LayerD</td>
                         <td>0.0704</td>
                         <td>16.141</td>
@@ -569,7 +584,7 @@
                         <td>30.09</td>
                         <td>0.350</td>
                     </tr>
-                    <tr>
+                    <tr class="reveal">
                         <td style="text-align: left;">Qwen-Image-Layered</td>
                         <td>0.0493</td>
                         <td>26.192</td>
@@ -577,7 +592,7 @@
                         <td>35.37</td>
                         <td>0.429</td>
                     </tr>
-                    <tr>
+                    <tr class="reveal">
                         <td style="text-align: left;">Tool Agent</td>
                         <td>0.0493</td>
                         <td>13.923</td>
@@ -585,7 +600,7 @@
                         <td>45.33</td>
                         <td>0.527</td>
                     </tr>
-                    <tr style="background: rgba(249, 115, 22, 0.05);">
+                    <tr style="background: rgba(255, 107, 107, 0.05);" class="reveal">
                         <td style="text-align: left;"><strong class="text-gradient">Ours</strong></td>
                         <td class="bold-best">0.0431</td>
                         <td class="bold-best">26.286</td>
@@ -617,29 +632,29 @@
 
             <h3 class="text-center reveal" style="margin-top: 2rem;">Edit Types Tested</h3>
             <div class="action-grid six-col reveal">
-                <div class="action-card">
+                <div class="action-card reveal">
                     <div class="action-title">Delete</div>
                 </div>
-                <div class="action-card">
+                <div class="action-card reveal">
                     <div class="action-title">Opacity</div>
                 </div>
-                <div class="action-card">
+                <div class="action-card reveal">
                     <div class="action-title">Recolor</div>
                 </div>
-                <div class="action-card">
+                <div class="action-card reveal">
                     <div class="action-title">Rotation</div>
                 </div>
-                <div class="action-card">
+                <div class="action-card reveal">
                     <div class="action-title">Transition</div>
                 </div>
-                <div class="action-card">
+                <div class="action-card reveal">
                     <div class="action-title">Z-Order</div>
                 </div>
             </div>
 
             <figure class="reveal">
                 <img src="assets/figures/exp_editability_quanti.webp" alt="Editability metrics across atomic edits" style="max-width: 100%;">
-                <figcaption>(a) SSIM after edit replay; ReDesign (orange/red line) is highest on all axes. (b) Text recall after text edits; ReDesign dominates. Results show structure survives diverse real edits.</figcaption>
+                <figcaption>(a) SSIM after edit replay; ReDesign (orange/teal line) is highest on all axes. (b) Text recall after text edits; ReDesign dominates. Results show structure survives diverse real edits.</figcaption>
             </figure>
         </div>
     </section>
@@ -699,7 +714,7 @@
     <!-- FOOTER -->
     <footer>
         <div class="narrow">
-            <div class="footer-text">
+            <div class="footer-text reveal">
                 <p>ReDesign: Recovering Editable Design Structures from Images via Agentic Decomposition</p>
                 <p style="font-size: 0.95rem; color: var(--color-gray-500);">
                     Figma-909: <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" style="color: var(--color-gray-500);">CC BY 4.0</a> ·
