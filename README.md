@@ -3,11 +3,11 @@
 ### Recovering Editable Design Structures from Images via Agentic Decomposition
 
 <p align="center">
-  <a href="https://openreview.net/pdf?id=JiEr8B3WBr"><img alt="Paper" src="https://img.shields.io/badge/Paper-OpenReview-b31b1b?style=flat-square&logo=readthedocs&logoColor=white"></a>
+  <a href="https://openreview.net/pdf?id=JiEr8B3WBr"><img alt="Paper" height="30" src="https://img.shields.io/badge/Paper-OpenReview-b31b1b?style=flat-square&logo=readthedocs&logoColor=white"></a>
   &emsp;&emsp;&emsp;
-  <a href="https://sonjt00.github.io/ReDesign/"><img alt="Project Page" src="https://img.shields.io/badge/Project_Page-ReDesign-2ea44f?style=flat-square&logo=githubpages&logoColor=white"></a>
+  <a href="https://sonjt00.github.io/ReDesign/"><img alt="Project Page" height="30" src="https://img.shields.io/badge/Project_Page-ReDesign-2ea44f?style=flat-square&logo=githubpages&logoColor=white"></a>
   &emsp;&emsp;&emsp;
-  <a href="https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909"><img alt="Dataset" src="https://img.shields.io/badge/Dataset-Figma--909-ffce1c?style=flat-square&logo=huggingface&logoColor=black"></a>
+  <a href="https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909"><img alt="Dataset" height="30" src="https://img.shields.io/badge/Dataset-Figma--909-ffce1c?style=flat-square&logo=huggingface&logoColor=black"></a>
 </p>
 
 > **ReDesign turns a single flat raster image back into an editable design:** text with real typography, vector shapes (fill/stroke), images, groups, and z-order, exported as an editable **JSON hierarchy**.
