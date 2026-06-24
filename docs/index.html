@@ -412,6 +412,10 @@
             border-radius: var(--radius);
             padding: 0.85rem 0.7rem;
             text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             transition: all 0.3s ease;
         }
 
@@ -874,6 +878,23 @@
         </div>
     </header>
 
+    <!-- INTRO STATEMENTS (full-page slides) -->
+    <section class="narrow text-center fp-statement">
+        <span class="toss-eyebrow reveal">The Problem</span>
+        <h2 class="toss-headline reveal">A flat image is a dead end.</h2>
+        <p class="toss-sub reveal">When the design file is lost, only pixels remain.<br>You can't move an element, recolor a shape, fix a typo, or reflow the layout.</p>
+    </section>
+    <section class="narrow text-center fp-statement">
+        <span class="toss-eyebrow reveal">The Idea</span>
+        <h2 class="toss-headline reveal">ReDesign grows the design back.</h2>
+        <p class="toss-sub reveal">A vision-language controller rebuilds the layer hierarchy as a tree, coarse to fine,<br>verifying every step until each element is atomic.</p>
+    </section>
+    <section class="narrow text-center fp-statement">
+        <span class="toss-eyebrow reveal">The Result</span>
+        <h2 class="toss-headline reveal">Every element, editable again.</h2>
+        <p class="toss-sub reveal">Text layers with real fonts, vector shapes with fills, grouped elements with z-order,<br>recovered from a single image, ready to re-edit.</p>
+    </section>
+
     <!-- EDIT PLAYGROUND -->
     <section class="narrow pg-panel" id="playground">
         <div class="pg">
@@ -923,27 +944,10 @@
         </div>
     </section>
 
-    <!-- INTRO STATEMENTS (full-page slides) -->
-    <section class="narrow text-center fp-statement">
-        <span class="toss-eyebrow reveal">The Problem</span>
-        <h2 class="toss-headline reveal">A flat image is a dead end.</h2>
-        <p class="toss-sub reveal">When the design file is lost, only pixels remain.<br>You can't move an element, recolor a shape, fix a typo, or reflow the layout.</p>
-    </section>
-    <section class="narrow text-center fp-statement">
-        <span class="toss-eyebrow reveal">The Idea</span>
-        <h2 class="toss-headline reveal">ReDesign grows the design back.</h2>
-        <p class="toss-sub reveal">A vision-language controller rebuilds the layer hierarchy as a tree, coarse to fine,<br>verifying every step until each element is atomic.</p>
-    </section>
-    <section class="narrow text-center fp-statement">
-        <span class="toss-eyebrow reveal">The Result</span>
-        <h2 class="toss-headline reveal">Every element, editable again.</h2>
-        <p class="toss-sub reveal">Text layers with real fonts, vector shapes with fills, grouped elements with z-order,<br>recovered from a single image, ready to re-edit.</p>
-    </section>
-
     <!-- WHAT REDESIGN DOES + INTRO FIGURE -->
     <section class="narrow text-center fp-center">
         <h2 class="reveal">What ReDesign Does</h2>
-        <p class="reveal whatwedo-lead">ReDesign recovers a fully editable design hierarchy from a single image.<br>A vision-language agent extracts semantic text layers, vector shapes, grouped elements, and isolated elements, making every element editable.</p>
+        <p class="reveal whatwedo-lead">ReDesign recovers a fully editable design hierarchy from a single image.<br>A vision-language agent extracts semantic text layers, vector shapes, and grouped elements, making every element editable.</p>
         <figure class="reveal intro-fig" style="margin-top: 3.2rem;">
             <img src="assets/figures/intro_teaser.webp" alt="ReDesign: from flat image to editable design" style="max-width: 100%;">
         </figure>
@@ -1211,13 +1215,13 @@
             // Pretty per-panel background sequence (afterglow: coral → pink →
             // lilac → periwinkle → sky → back). Each panel a distinct soft
             // gradient, so every crossfade also shifts the whole backdrop.
-            // Hero (0) + Playground (1) + everything from 'What ReDesign Does'
+            // Hero (0), the Playground, and everything from 'What ReDesign Does'
             // onward are clean white; only the three intro statement panels
-            // (indices 2,3,4) carry a bold full-screen color.
+            // (indices 1,2,3) carry a bold full-screen color.
             const STATEMENT_BG = {
-                2: 'linear-gradient(155deg,#ffd0dd 0%,#ff8fae 100%)', // The Problem — rose
-                3: 'linear-gradient(155deg,#d8d3fc 0%,#a294fb 100%)', // The Idea — violet
-                4: 'linear-gradient(155deg,#c4dcff 0%,#7ab8ff 100%)', // The Result — blue
+                1: 'linear-gradient(155deg,#ffd0dd 0%,#ff8fae 100%)', // The Problem — rose
+                2: 'linear-gradient(155deg,#d8d3fc 0%,#a294fb 100%)', // The Idea — violet
+                3: 'linear-gradient(155deg,#c4dcff 0%,#7ab8ff 100%)', // The Result — blue
             };
             panels.forEach((p, i) => { p.style.background = STATEMENT_BG[i] || '#ffffff'; });
 
