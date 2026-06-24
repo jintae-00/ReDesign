@@ -584,7 +584,7 @@
         /* dense panels (heading + paragraph + cards + figure) need a smaller
            figure so the whole panel fits one screen and nothing is clipped */
         html.fp-on #fp figure.dense-fig img { max-height: 42vh; }
-        html.fp-on #fp figure.method-fig img { max-height: 47vh; }
+        html.fp-on #fp figure.method-fig img { max-height: 50vh; }
         /* method panel is content-dense → trim its padding so the bigger
            figure still fits one screen */
         html.fp-on #fp > section.method-panel { padding-top: 4vh; padding-bottom: 3.5vh; }
@@ -592,15 +592,15 @@
         html.fp-on #fp > section.method-panel h2 { margin-bottom: 0.8rem; }
         html.fp-on #fp > section.method-panel h3 { margin-bottom: 0.5rem; }
         html.fp-on #fp > section.method-panel .action-grid { margin-top: 0.6rem; margin-bottom: 0.6rem; }
-        html.fp-on #fp figure.intro-fig img { max-height: 48vh; }
+        html.fp-on #fp figure.intro-fig img { max-height: 54vh; }
         html.fp-on #fp figure.tall-fig img { max-height: 54vh; }
         /* extra breathing room above/below a figure */
         html.fp-on #fp figure.airy-fig { margin: 3rem auto; }
 
         /* de-boxed 'What ReDesign Does' lead paragraph */
         .whatwedo-lead {
-            font-size: 1.18rem;
-            line-height: 2.0;
+            font-size: 1.04rem;
+            line-height: 1.95;
             color: var(--color-gray-700);
             max-width: 820px;
             margin: 0 auto;
@@ -871,7 +871,7 @@
     <section class="narrow pg-panel fp-center" id="playground">
         <div class="pg">
             <h2 class="text-center reveal" style="margin-bottom:0.5rem;">Try the Edit Playground</h2>
-            <p class="pg-sub reveal">Pick a parsed design, then move, rotate, recolor, restack, fade, or delete any recovered element.</p>
+            <p class="pg-sub reveal">Pick a design to see how the ReDesign agent parsed it &mdash; then move, rotate, recolor, restack, fade, or delete any recovered element.</p>
             <div class="pg-previews reveal" id="pgPreviews"></div>
             <div class="pg-editor reveal">
                 <div class="pg-stage-col">
@@ -932,7 +932,7 @@
     <!-- WHAT REDESIGN DOES + INTRO FIGURE -->
     <section class="narrow text-center">
         <h2 class="reveal">What ReDesign Does</h2>
-        <p class="reveal whatwedo-lead">ReDesign recovers a fully editable design hierarchy from a single image. A vision-language controller grows a layer tree breadth-first and a verifier checks every step, producing semantic text layers with real fonts, vector shapes with fills, grouped elements with z-order, and isolated elements that survive real edits without disturbing the rest of the design.</p>
+        <p class="reveal whatwedo-lead">ReDesign recovers a fully editable design hierarchy from a single image.<br>A vision-language controller grows a layer tree breadth-first and a verifier checks every step,<br>producing semantic text layers with real fonts, vector shapes with fills, grouped elements with z-order, and isolated elements that survive real edits without disturbing the rest of the design.</p>
         <figure class="reveal intro-fig" style="margin-top: 1.75rem;">
             <img src="assets/figures/intro_teaser.webp" alt="ReDesign: from flat image to editable design" style="max-width: 100%;">
         </figure>
@@ -941,8 +941,8 @@
     <!-- METHOD SECTION -->
     <section class="narrow method-panel">
         <h2 class="text-center reveal">The Agentic Approach: Grow the Tree</h2>
-        <p style="text-align: center; font-size: 1.15rem;" class="reveal">
-            Starting from the whole image as the root, a VLM controller expands an editable layer hierarchy by selecting and composing specialized tool actions across modalities, checking the validity of each editable element, and repeating until every element is atomic and editable.
+        <p style="text-align: center; font-size: 1.02rem;" class="reveal">
+            Starting from the whole image as the root, a VLM controller expands an editable layer hierarchy<br>by selecting and composing specialized tool actions across modalities,<br>checking the validity of each editable element, and repeating until every element is atomic and editable.
         </p>
 
         <h3 class="text-center reveal" style="margin-top: 1.2rem;">Five Tool-Backed Actions</h3>
@@ -1039,7 +1039,7 @@
         <h2 class="text-center reveal">Per-Element Reconstruction</h2>
         <figure class="reveal">
             <img src="assets/figures/exp_accuracy_quali.webp" alt="Per-element reconstruction across methods" style="max-width: 100%;">
-            <figcaption>Each row shows design input and outputs across methods. Highlighted elements (green box): ReDesign recovers them cleanly and completely; baselines miss, break, or distort them.</figcaption>
+            <figcaption>Each row shows design input and outputs across methods. Highlighted elements (green box):<br>ReDesign recovers them cleanly and completely; baselines miss, break, or distort them.</figcaption>
         </figure>
     </section>
 
@@ -1075,7 +1075,7 @@
 
             <figure class="reveal dense-fig">
                 <img src="assets/figures/exp_editability_quanti.webp" alt="Editability metrics across atomic edits" style="max-width: 100%;">
-                <figcaption>(a) SSIM after edit replay; ReDesign (orange/teal line) is highest on all axes. (b) Text recall after text edits; ReDesign dominates. Results show structure survives diverse real edits.</figcaption>
+                <figcaption>(a) SSIM after edit replay; ReDesign (orange/teal line) is highest on all axes. (b) Text recall after text edits;<br>ReDesign dominates. Results show structure survives diverse real edits.</figcaption>
             </figure>
         </div>
     </section>
@@ -1088,7 +1088,7 @@
         </p>
         <figure class="reveal tall-fig">
             <img src="assets/figures/exp_edit_quali.webp" alt="Qualitative edit examples" style="max-width: 100%;">
-            <figcaption>Each row: ground-truth edit (left) vs. output under each method. ReDesign's edits are precise and preserve layout integrity; baselines fail or distort.</figcaption>
+            <figcaption>Each row: ground-truth edit (left) vs. output under each method.<br>ReDesign's edits are precise and preserve layout integrity; baselines fail or distort.</figcaption>
         </figure>
     </section>
 
@@ -1101,7 +1101,7 @@
             </p>
             <figure class="reveal airy-fig">
                 <img src="assets/figures/analysis_nanobanana_failure.webp" alt="ReDesign vs generative editor precision" style="max-width: 100%;">
-                <figcaption>Three move/rotate instructions: ReDesign (green, top) executes each precisely on the isolated layer. Nano Banana 2 (red, bottom) misplaces and corrupts surrounding design.</figcaption>
+                <figcaption>Three move/rotate instructions: ReDesign (green, top) executes each precisely on the isolated layer.<br>Nano Banana 2 (red, bottom) misplaces and corrupts surrounding design.</figcaption>
             </figure>
         </div>
     </section>
