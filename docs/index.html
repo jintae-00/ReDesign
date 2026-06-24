@@ -38,8 +38,8 @@
         html { scroll-behavior: smooth; }
         body {
             font-family: var(--font-body);
-            font-size: 1.1rem;
-            line-height: 1.7;
+            font-size: 0.98rem;
+            line-height: 1.6;
             color: var(--color-gray-900);
             background: var(--color-white);
             margin: 0;
@@ -74,10 +74,10 @@
         /* Headings */
         h1 {
             font-family: var(--font-heading);
-            font-size: 4rem;
+            font-size: 3rem;
             font-weight: 800;
-            line-height: 1.2;
-            margin: 6.5rem 0 1.5rem 0;
+            line-height: 1.15;
+            margin: 0 0 1.25rem 0;
             letter-spacing: -0.02em;
             background: var(--gradient-coral);
             -webkit-background-clip: text;
@@ -85,29 +85,25 @@
             background-clip: text;
         }
 
+        /* Section headings are solid dark ink so they read on the bold
+           per-panel background colors (the color now lives in the backdrop). */
         h2 {
             font-family: var(--font-heading);
-            font-size: 2.5rem;
-            font-weight: 700;
+            font-size: 1.9rem;
+            font-weight: 800;
             line-height: 1.2;
-            margin: 8rem 0 1.75rem 0;
+            margin: 0 0 1.2rem 0;
             letter-spacing: -0.01em;
-            background: var(--gradient-coral);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: #1c1d2b;
         }
 
         h3 {
             font-family: var(--font-heading);
-            font-size: 1.8rem;
+            font-size: 1.3rem;
             font-weight: 700;
             line-height: 1.25;
-            margin: 5.5rem 0 1.25rem 0;
-            background: var(--gradient-coral);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            margin: 0 0 0.9rem 0;
+            color: #1c1d2b;
         }
 
         h4 {
@@ -310,8 +306,8 @@
         .action-grid {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
-            gap: 1.5rem;
-            margin: 2rem 0;
+            gap: 0.8rem;
+            margin: 1.25rem 0;
         }
 
         .action-grid.six-col {
@@ -320,9 +316,9 @@
 
         .action-card {
             background: var(--color-white);
-            border: 2px solid var(--color-gray-200);
+            border: 1.5px solid var(--color-gray-200);
             border-radius: var(--radius);
-            padding: 1.5rem;
+            padding: 0.85rem 0.7rem;
             text-align: center;
             transition: all 0.3s ease;
         }
@@ -335,8 +331,9 @@
 
         .action-title {
             font-weight: 700;
-            font-size: 1.1rem;
-            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            line-height: 1.25;
+            margin-bottom: 0;
             background: var(--gradient-coral);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -345,9 +342,9 @@
         }
 
         .action-desc {
-            font-size: 0.95rem;
+            font-size: 0.8rem;
             color: var(--color-gray-600);
-            line-height: 1.5;
+            line-height: 1.4;
             font-family: var(--font-body);
         }
 
@@ -431,45 +428,45 @@
             overflow: hidden;
         }
 
-        /* #fp is a fixed full-viewport stage; all panels are stacked on top of
-           each other and CROSS-FADED — only the .fp-current one is visible. */
+        /* #fp stacks panels vertically and SLIDES (translateY): each gesture
+           flips the whole viewport — scroll down → next rises from below,
+           scroll up → previous drops in from above (the reference feel).
+           Opaque panels mean each bold background fully covers the screen. */
+        #fp { will-change: transform; }
         html.fp-on #fp {
-            position: fixed;
-            inset: 0;
-            z-index: 1;
+            transition: transform 0.85s cubic-bezier(0.83, 0, 0.17, 1) !important;
         }
 
-        /* Each direct child of #fp is one full-screen panel. */
+        /* Each direct child of #fp is one full-BLEED panel: it spans the whole
+           viewport (so its background color covers the screen) while its
+           content is constrained to a centered column. */
         html.fp-on #fp > header,
         html.fp-on #fp > section,
         html.fp-on #fp > footer {
-            position: absolute;
-            inset: 0;
-            height: 100%;
+            width: 100%;
+            max-width: none;
+            height: 100vh;
+            height: 100dvh;
             margin: 0;
+            padding: 2.5rem 1.25rem;
             overflow-y: auto;
             overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
             display: flex;
             flex-direction: column;
-            /* 'safe center' centers content that fits but top-aligns
-               (and lets it inner-scroll) when a panel overflows. */
+            /* center content both axes; top-align only if a panel overflows */
             justify-content: safe center;
+            align-items: center;
             scrollbar-width: none;
-            /* fade out: stay clickable-hidden until the opacity finishes.
-               !important so the global reduced-motion rule (which zeroes all
-               transition-durations) can't flatten this gentle opacity fade. */
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-            transition: opacity 1.2s ease, visibility 0s linear 1.2s !important;
         }
-        html.fp-on #fp > .fp-current {
-            opacity: 1;
-            visibility: visible;
-            pointer-events: auto;
-            z-index: 2;
-            transition: opacity 1.2s ease, visibility 0s !important;
+        /* keep the content itself in a readable centered column */
+        html.fp-on #fp > header > *,
+        html.fp-on #fp > section > *,
+        html.fp-on #fp > footer > * {
+            width: 100%;
+            max-width: 950px;
+            margin-left: auto;
+            margin-right: auto;
         }
         html.fp-on #fp > header::-webkit-scrollbar,
         html.fp-on #fp > section::-webkit-scrollbar,
@@ -483,8 +480,11 @@
         html.fp-on #fp > section h3 { margin-top: 0; }
 
         /* Keep figures within a single screen. */
-        #fp figure { margin: 1.5rem auto; }
+        #fp figure { margin: 1rem auto; }
         html.fp-on #fp figure img { max-height: 56vh; height: auto; }
+        /* dense panels (heading + paragraph + cards + figure) need a smaller
+           figure so the whole panel fits one screen and nothing is clipped */
+        html.fp-on #fp figure.dense-fig img { max-height: 38vh; }
 
         /* Right-side pagination dots (FullPage.js style) */
         #fp-nav { display: none; }
@@ -523,35 +523,34 @@
         .toss-eyebrow {
             display: inline-block;
             font-family: var(--font-heading);
-            font-size: 1rem;
-            font-weight: 700;
-            letter-spacing: 0.18em;
+            font-size: 0.85rem;
+            font-weight: 800;
+            letter-spacing: 0.2em;
             text-transform: uppercase;
-            color: var(--color-coral-primary);
-            margin-bottom: 1.5rem;
+            color: #4a3a5e;
+            opacity: 0.85;
+            margin-bottom: 1.1rem;
         }
 
+        /* solid dark so it reads on the bold panel backgrounds */
         .toss-headline {
             font-family: var(--font-heading);
-            font-size: clamp(2.2rem, 6vw, 4.5rem);
+            font-size: clamp(1.7rem, 4.5vw, 3.1rem);
             font-weight: 800;
             line-height: 1.15;
             letter-spacing: -0.02em;
-            margin: 0 0 1.5rem 0;
-            background: var(--gradient-coral);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            margin: 0 0 1.1rem 0;
+            color: #1c1d2b;
         }
 
         .toss-sub {
             font-family: var(--font-body);
-            font-size: clamp(1.05rem, 2vw, 1.4rem);
-            font-weight: 400;
+            font-size: clamp(0.95rem, 1.6vw, 1.12rem);
+            font-weight: 500;
             line-height: 1.6;
-            color: var(--color-gray-600);
+            color: #43445a;
             margin: 0 auto;
-            max-width: 620px;
+            max-width: 600px;
         }
 
         /* Negative tone */
@@ -665,7 +664,7 @@
 
     <!-- METHOD SECTION -->
     <section class="narrow">
-        <h2 class="text-gradient text-center reveal">The Agentic Approach: Grow the Tree</h2>
+        <h2 class="text-center reveal">The Agentic Approach: Grow the Tree</h2>
         <p style="text-align: center; font-size: 1.15rem;" class="reveal">
             Starting from the whole image as root, a VLM controller expands breadth-first. At each node: choose one tool-backed action; a verifier checks validity. Repeat until every leaf is atomic and editable.
         </p>
@@ -689,7 +688,7 @@
             </div>
         </div>
 
-        <figure class="reveal" style="margin-top: 2.5rem;">
+        <figure class="reveal dense-fig" style="margin-top: 1.5rem;">
             <img src="assets/figures/method_main.webp" alt="Agentic tree expansion with tool actions and verification" style="max-width: 100%;">
             <figcaption>Controller orchestrates five actions; each produces child layers. Verifier ensures no duplication, no incomplete coverage. Output: editable JSON hierarchy.</figcaption>
         </figure>
@@ -697,7 +696,7 @@
 
     <!-- RESULTS: PARSING ACCURACY (QUANTITATIVE) -->
     <section class="narrow">
-        <h2 class="text-gradient text-center reveal">Reconstruction Accuracy</h2>
+        <h2 class="text-center reveal">Reconstruction Accuracy</h2>
         <p style="text-align: center; font-size: 1.15rem;" class="reveal">
             Figma-909 benchmark; 909 real-world designs. ReDesign wins on every metric.
         </p>
@@ -762,7 +761,7 @@
 
     <!-- RESULTS: PARSING ACCURACY (QUALITATIVE) -->
     <section class="narrow">
-        <h2 class="text-gradient text-center reveal">Per-Element Reconstruction</h2>
+        <h2 class="text-center reveal">Per-Element Reconstruction</h2>
         <figure class="reveal">
             <img src="assets/figures/exp_accuracy_quali.webp" alt="Per-element reconstruction across methods" style="max-width: 100%;">
             <figcaption>Each row shows design input and outputs across methods. Highlighted elements (green box): ReDesign recovers them cleanly and completely; baselines miss, break, or distort them.</figcaption>
@@ -772,7 +771,7 @@
     <!-- RESULTS: EDITABILITY -->
     <section class="section-band">
         <div class="narrow">
-            <h2 class="text-gradient text-center reveal">Editability: Structure That Survives Edits</h2>
+            <h2 class="text-center reveal">Editability: Structure That Survives Edits</h2>
             <p style="text-align: center; font-size: 1.15rem;" class="reveal">
                 Six atomic edits on predicted designs; measured against ground truth. ReDesign dominates on all axes.
             </p>
@@ -799,7 +798,7 @@
                 </div>
             </div>
 
-            <figure class="reveal">
+            <figure class="reveal dense-fig">
                 <img src="assets/figures/exp_editability_quanti.webp" alt="Editability metrics across atomic edits" style="max-width: 100%;">
                 <figcaption>(a) SSIM after edit replay; ReDesign (orange/teal line) is highest on all axes. (b) Text recall after text edits; ReDesign dominates. Results show structure survives diverse real edits.</figcaption>
             </figure>
@@ -808,7 +807,7 @@
 
     <!-- RESULTS: EDITABILITY (QUALITATIVE) -->
     <section class="narrow">
-        <h2 class="text-gradient text-center reveal">Edit Examples: Before & After</h2>
+        <h2 class="text-center reveal">Edit Examples: Before & After</h2>
         <p style="text-align: center; font-size: 1.15rem;" class="reveal">
             ReDesign applies each edit cleanly to the correct element. Baselines move wrong regions or corrupt the layout.
         </p>
@@ -821,7 +820,7 @@
     <!-- ANALYSIS: VS GENERATIVE EDITING -->
     <section class="section-band">
         <div class="narrow">
-            <h2 class="text-gradient text-center reveal">Why Structure Beats Pixel Regeneration</h2>
+            <h2 class="text-center reveal">Why Structure Beats Pixel Regeneration</h2>
             <p style="text-align: center; font-size: 1.15rem;" class="reveal">
                 Generative editors (Nano Banana 2) edit pixel-space: instructions leak, layouts blur, precision fails. ReDesign exposes discrete layers with explicit position and rotation; edits execute exactly.
             </p>
@@ -834,7 +833,7 @@
 
     <!-- FIGMA-909 BENCHMARK -->
     <section class="narrow text-center">
-        <h2 class="text-gradient reveal">Figma-909: The Benchmark</h2>
+        <h2 class="reveal">Figma-909: The Benchmark</h2>
         <div class="benchmark-grid">
             <div class="stat-card reveal">
                 <div class="stat-label">Real-World Frames</div>
@@ -924,33 +923,32 @@
             // lilac → periwinkle → sky → back). Each panel a distinct soft
             // gradient, so every crossfade also shifts the whole backdrop.
             const BGS = [
-                'linear-gradient(160deg,#ffffff 0%,#fff0f1 100%)',
-                'linear-gradient(160deg,#fff1f3 0%,#ffe0e7 100%)',
-                'linear-gradient(160deg,#ffe9f1 0%,#ffd6e6 100%)',
-                'linear-gradient(160deg,#fbe5f6 0%,#efd9fb 100%)',
-                'linear-gradient(160deg,#efe7fd 0%,#e0d9fb 100%)',
-                'linear-gradient(160deg,#e7eaff 0%,#d6deff 100%)',
-                'linear-gradient(160deg,#e3f0ff 0%,#cfe4ff 100%)',
-                'linear-gradient(160deg,#e9f5ff 0%,#dbefff 100%)',
-                'linear-gradient(160deg,#eee9ff 0%,#e2daff 100%)',
-                'linear-gradient(160deg,#fbe9f3 0%,#f5d9ea 100%)',
-                'linear-gradient(160deg,#fff0ec 0%,#ffdfe0 100%)',
-                'linear-gradient(160deg,#ffffff 0%,#edf1ff 100%)',
+                'linear-gradient(160deg,#ffffff 0%,#ffe7ee 100%)',
+                'linear-gradient(155deg,#ffd6df 0%,#ff9fbb 100%)',
+                'linear-gradient(155deg,#ffccea 0%,#ff8fcb 100%)',
+                'linear-gradient(155deg,#eccffb 0%,#ce97f6 100%)',
+                'linear-gradient(155deg,#d8d3fc 0%,#a99dfb 100%)',
+                'linear-gradient(155deg,#cbdcff 0%,#92b2ff 100%)',
+                'linear-gradient(155deg,#c7e8ff 0%,#84c7ff 100%)',
+                'linear-gradient(155deg,#d6e2ff 0%,#a6afff 100%)',
+                'linear-gradient(155deg,#ffcfe2 0%,#ff8fb8 100%)',
+                'linear-gradient(155deg,#ffd4cd 0%,#ff998c 100%)',
+                'linear-gradient(155deg,#ffe2c8 0%,#ffb277 100%)',
+                'linear-gradient(155deg,#e1dbff 0%,#b3b8ff 100%)',
             ];
             panels.forEach((p, i) => { p.style.background = BGS[i % BGS.length]; });
 
             let current = 0;
             let animating = false;
             let animTimer = null;
-            const DURATION = 1200; // keep in sync with CSS transition (1.2s)
+            const DURATION = 720; // a touch under the 0.85s slide so the wheel feels responsive
 
             const clampIdx = (i) => Math.max(0, Math.min(panels.length - 1, i));
             const apply = () => {
-                // Crossfade: only the .fp-current panel is visible. Toggling
-                // the class fades the outgoing panel out and the incoming in
-                // (CSS owns the opacity transition). No transform math → no
-                // mobile dvh drift.
-                panels.forEach((p, i) => p.classList.toggle('fp-current', i === current));
+                // Slide the vertical stack so the current panel fills the view.
+                // Measure the real panel height (100dvh) to avoid mobile drift.
+                const h = panels[0].getBoundingClientRect().height || window.innerHeight;
+                fp.style.transform = 'translateY(' + (-current * h) + 'px)';
             };
             const revealIn = (panel) => {
                 panel.querySelectorAll('.reveal').forEach(el => el.classList.add('is-in'));
@@ -1006,15 +1004,9 @@
             const onWheel = (e) => {
                 const dir = e.deltaY > 0 ? 1 : (e.deltaY < 0 ? -1 : 0);
                 if (!dir) return;
-                if (animating) {
-                    e.preventDefault();
-                    // A single inertial fling streams wheel events for ~1s;
-                    // re-arm the lock on each so it only releases once the
-                    // wheel goes quiet — prevents one fling chaining 2 panels.
-                    clearTimeout(animTimer);
-                    animTimer = setTimeout(settle, DURATION);
-                    return;
-                }
+                // lock only for the slide duration (no re-arm) so the wheel
+                // stays responsive — one gesture advances as soon as it's free.
+                if (animating) { e.preventDefault(); return; }
                 if (atEdge(panels[current], dir)) {
                     e.preventDefault();
                     goTo(current + dir);
@@ -1056,6 +1048,7 @@
             window.addEventListener('touchmove', onTouchMove, { passive: false });
             window.addEventListener('touchend', onTouchEnd, { passive: true });
             window.addEventListener('keydown', onKey);
+            window.addEventListener('resize', apply);
 
             apply();
             revealIn(panels[0]);
