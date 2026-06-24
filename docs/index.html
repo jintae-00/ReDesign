@@ -1461,8 +1461,7 @@
             }
             const o = els[i];
             side.classList.remove('disabled');
-            const desc = o.data.type === 'text' ? o.data.content : o.data.label;
-            selName.textContent = o.data.type.toUpperCase() + ' · ' + (desc || o.data.id);
+            selName.textContent = o.data.type.toUpperCase() + ' · ' + o.data.id;
             elOpacity.value = Math.round(o.opacity * 100);
             elOpacityVal.textContent = elOpacity.value + '%';
             elRotation.value = Math.round(o.angle);
@@ -1577,13 +1576,14 @@
                 if (!o.mask) return i; // mask not ready yet → fall back to bbox
                 const ax = clamp(Math.floor(lx / elW * o.aw), 0, o.aw - 1);
                 const ay = clamp(Math.floor(ly / elH * o.ah), 0, o.ah - 1);
-                // ~5px of click tolerance around the point so near-misses on thin
-                // edges still grab the element. The stored mask stays un-dilated,
-                // so z-order overlap testing remains pixel-accurate.
-                const radx = Math.max(1, Math.round(5 / elW * o.aw));
-                const rady = Math.max(1, Math.round(5 / elH * o.ah));
-                const yy0 = Math.max(0, ay - rady), yy1 = Math.min(o.ah - 1, ay + rady);
-                const xx0 = Math.max(0, ax - radx), xx1 = Math.min(o.aw - 1, ax + radx);
+                // Click tolerance around the point so near-misses on thin edges
+                // still grab the element — same proportional radius the old
+                // dilated mask used (~3% of the element's mask size), which felt
+                // right. The STORED mask stays un-dilated, so z-order overlap
+                // testing remains pixel-accurate.
+                const rad = Math.max(2, Math.round(0.03 * Math.max(o.aw, o.ah)));
+                const yy0 = Math.max(0, ay - rad), yy1 = Math.min(o.ah - 1, ay + rad);
+                const xx0 = Math.max(0, ax - rad), xx1 = Math.min(o.aw - 1, ax + rad);
                 for (let yy = yy0; yy <= yy1; yy++) {
                     const row = yy * o.aw;
                     for (let xx = xx0; xx <= xx1; xx++) if (o.mask[row + xx]) return i;
