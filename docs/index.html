@@ -585,16 +585,17 @@
         html.fp-on #fp > section h2,
         html.fp-on #fp > section h3 { margin-top: 0; }
 
-        /* Keep figures within a single screen. */
-        #fp figure { margin: 1.25rem auto; }
+        /* Keep figures within a single screen (with breathing room above/below). */
+        #fp figure { margin: 2.6rem auto; }
         html.fp-on #fp figure img { max-height: 60vh; height: auto; }
         /* dense panels (heading + paragraph + cards + figure) need a smaller
            figure so the whole panel fits one screen and nothing is clipped */
         html.fp-on #fp figure.dense-fig img { max-height: 42vh; }
-        html.fp-on #fp figure.method-fig img { max-height: 55vh; }
+        html.fp-on #fp figure.method-fig img { max-height: 53vh; }
+        html.fp-on #fp figure.method-fig { margin: 1rem auto; } /* dense panel: keep tight */
         /* method panel is content-dense → trim its padding so the bigger
            figure still fits one screen */
-        html.fp-on #fp > section.method-panel { padding-top: 4vh; padding-bottom: 3.5vh; }
+        html.fp-on #fp > section.method-panel { padding-top: 3vh; padding-bottom: 2vh; }
         /* tighten the gaps inside the method panel */
         html.fp-on #fp > section.method-panel h2 { margin-bottom: 0.8rem; }
         html.fp-on #fp > section.method-panel h3 { margin-bottom: 0.5rem; }
@@ -655,7 +656,7 @@
             letter-spacing: 0.2em;
             text-transform: uppercase;
             color: #43314f;
-            margin-bottom: 3.6rem;
+            margin-bottom: 4.5rem;
         }
 
         /* solid dark so it reads on the bold panel backgrounds */
@@ -665,7 +666,7 @@
             font-weight: 800;
             line-height: 1.15;
             letter-spacing: -0.02em;
-            margin: 0 0 3.8rem 0;
+            margin: 0 0 4.5rem 0;
             color: #1c1d2b;
         }
 
@@ -791,17 +792,9 @@
         }
         .pg-el { position: absolute; pointer-events: none; }
         .pg-el > img { width: 100%; height: 100%; display: block; pointer-events: none; -webkit-user-drag: none; }
-        /* selection paints the element's actual segmentation mask (its alpha
-           silhouette) in pink via mask-image -- never the rectangular bbox.
-           (drop-shadow was rendering the element's box for large scaled images.) */
-        .pg-selmask {
-            position: absolute; inset: 0; opacity: 0; pointer-events: none;
-            background: #ff2d8b;
-            -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
-            -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
-            transition: opacity .12s ease;
-        }
-        .pg-el.selected .pg-selmask { opacity: 0.4; }
+        /* selection: a pink stroke drawn exactly on the mask's OUTER boundary
+           (a canvas ring), never a fill and never the bbox rectangle */
+        .pg-outline { position: absolute; pointer-events: none; z-index: 6; }
         .pg-tint {
             position: absolute; inset: 0; opacity: 0; pointer-events: none;
             -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
@@ -879,7 +872,7 @@
     </header>
 
     <!-- EDIT PLAYGROUND -->
-    <section class="narrow pg-panel fp-center" id="playground">
+    <section class="narrow pg-panel" id="playground">
         <div class="pg">
             <h2 class="text-center reveal" style="margin-bottom:0.5rem;">Try the Edit Playground</h2>
             <p class="pg-sub reveal">Pick a design to see how the ReDesign agent parsed it.</p>
@@ -1380,7 +1373,7 @@
         function sizeStage() {
             if (!mani) return;
             const maxW = Math.max(100, stageOuter.clientWidth - 20);
-            const maxH = Math.max(160, window.innerHeight * 0.56);
+            const maxH = Math.max(160, window.innerHeight * 0.54);
             const scale = Math.min(maxW / mani.w, maxH / mani.h);
             stage.style.width = Math.round(mani.w * scale) + 'px';
             stage.style.height = Math.round(mani.h * scale) + 'px';
@@ -1435,13 +1428,9 @@
                 tint.className = 'pg-tint';
                 tint.style.webkitMaskImage = "url('" + imgUrl + "')";
                 tint.style.maskImage = "url('" + imgUrl + "')";
-                const selm = document.createElement('div');
-                selm.className = 'pg-selmask';
-                selm.style.webkitMaskImage = "url('" + imgUrl + "')";
-                selm.style.maskImage = "url('" + imgUrl + "')";
                 const rot = document.createElement('div');
                 rot.className = 'pg-rot';
-                d.appendChild(img); d.appendChild(tint); d.appendChild(selm); d.appendChild(rot);
+                d.appendChild(img); d.appendChild(tint); d.appendChild(rot);
                 o.dom = d; o.tint = tint; o.rot = rot;
                 stage.appendChild(d);
                 applyEl(o);
@@ -1453,7 +1442,10 @@
 
         function selectEl(i) {
             sel = i;
-            els.forEach((o, k) => o.dom.classList.toggle('selected', k === i));
+            els.forEach((o, k) => {
+                o.dom.classList.toggle('selected', k === i);
+                if (o.outline && k !== i) o.outline.style.display = 'none';
+            });
             if (i < 0 || els[i].deleted) {
                 sel = -1;
                 side.classList.add('disabled');
@@ -1469,6 +1461,47 @@
             elRotation.value = Math.round(o.angle);
             elRotVal.textContent = Math.round(o.angle) + '°';
             if (o.color) elColor.value = o.color;
+            drawOutline(o);
+        }
+
+        // Pink stroke on the mask's OUTER boundary only: dilate the element's
+        // alpha silhouette, fill pink, then subtract the original silhouette so
+        // only a ring around the edge remains (no fill, no bbox rectangle).
+        function drawOutline(o) {
+            const img = o.dom.querySelector('img');
+            if (!img) return;
+            if (!img.complete || !img.naturalWidth) {
+                img.addEventListener('load', () => { if (sel === o.i) drawOutline(o); }, { once: true });
+                return;
+            }
+            const sw = stage.clientWidth, sh = stage.clientHeight;
+            const W = Math.max(1, Math.round(o.w / 100 * sw));
+            const H = Math.max(1, Math.round(o.h / 100 * sh));
+            const R = 2.5, pad = Math.ceil(R) + 1;
+            let cv = o.outline;
+            if (!cv) {
+                cv = document.createElement('canvas');
+                cv.className = 'pg-outline';
+                o.outline = cv;
+                o.dom.appendChild(cv);
+            }
+            cv.width = W + 2 * pad; cv.height = H + 2 * pad;
+            cv.style.left = (-pad) + 'px'; cv.style.top = (-pad) + 'px';
+            cv.style.width = cv.width + 'px'; cv.style.height = cv.height + 'px';
+            const ctx = cv.getContext('2d');
+            ctx.clearRect(0, 0, cv.width, cv.height);
+            const steps = 28;
+            for (let k = 0; k < steps; k++) {
+                const a = k / steps * 2 * Math.PI;
+                ctx.drawImage(img, pad + Math.cos(a) * R, pad + Math.sin(a) * R, W, H);
+            }
+            ctx.globalCompositeOperation = 'source-in';
+            ctx.fillStyle = '#ff2d8b';
+            ctx.fillRect(0, 0, cv.width, cv.height);
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.drawImage(img, pad, pad, W, H);
+            ctx.globalCompositeOperation = 'source-over';
+            cv.style.display = 'block';
         }
 
         // Decode a precomputed packed bitmask (base64, LSB-first) into o.mask.
@@ -1623,7 +1656,7 @@
         // keep edit gestures from triggering full-page navigation
         stage.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
         stage.addEventListener('touchmove', (e) => e.stopPropagation(), { passive: false });
-        window.addEventListener('resize', sizeStage);
+        window.addEventListener('resize', () => { sizeStage(); if (sel >= 0 && els[sel]) drawOutline(els[sel]); });
 
         // ---- load episode list + manifests ----
         async function loadManifest(key) {
