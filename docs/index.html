@@ -153,20 +153,23 @@
         .hero h1 {
             font-size: clamp(3.5rem, 11vw, 7.5rem);
             line-height: 1.02;
-            margin: 0 0 2.2rem 0;
+            margin: 0 0 2.6rem 0;
         }
         .hero-sub {
-            font-size: clamp(1.15rem, 2.5vw, 1.8rem);
+            font-size: clamp(1rem, 1.9vw, 1.35rem);
             font-weight: 600;
-            line-height: 1.5;
-            margin: 0 auto 3.5rem auto;
+            line-height: 1.6;
+            margin: 0 auto 4.5rem auto;
         }
-        .hero-affil-wrap { margin: 0 auto 2.8rem auto; }
+        .hero-affil-wrap { margin: 0 auto 5rem auto; }
         .hero-affil {
             display: block;
-            width: clamp(240px, 26vw, 360px);
+            width: clamp(230px, 24vw, 340px);
             height: auto;
             margin: 0 auto;
+            border: 0;
+            outline: 0;
+            background: transparent;
         }
         .hero-btns {
             display: flex;
@@ -488,14 +491,15 @@
             height: 100vh;
             height: 100dvh;
             margin: 0;
-            padding: 2.5rem 1.25rem;
+            /* start content high on the page and let it breathe top-to-bottom
+               rather than bunching it in the dead center */
+            padding: 7vh 1.5rem 5vh;
             overflow-y: auto;
             overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
             display: flex;
             flex-direction: column;
-            /* center content both axes; top-align only if a panel overflows */
-            justify-content: safe center;
+            justify-content: flex-start;
             align-items: center;
             scrollbar-width: none;
         }
@@ -507,6 +511,14 @@
             max-width: 950px;
             margin-left: auto;
             margin-right: auto;
+        }
+        /* short text panels (hero + the 3 statements) spread their content
+           from top to bottom so the whole screen height is used */
+        html.fp-on #fp > header.hero,
+        html.fp-on #fp > section.fp-statement {
+            justify-content: space-between;
+            padding-top: 11vh;
+            padding-bottom: 11vh;
         }
         html.fp-on #fp > header::-webkit-scrollbar,
         html.fp-on #fp > section::-webkit-scrollbar,
@@ -525,7 +537,17 @@
         /* dense panels (heading + paragraph + cards + figure) need a smaller
            figure so the whole panel fits one screen and nothing is clipped */
         html.fp-on #fp figure.dense-fig img { max-height: 38vh; }
-        html.fp-on #fp figure.method-fig img { max-height: 45vh; }
+        html.fp-on #fp figure.method-fig img { max-height: 42vh; }
+        html.fp-on #fp figure.intro-fig img { max-height: 40vh; }
+
+        /* de-boxed 'What ReDesign Does' lead paragraph */
+        .whatwedo-lead {
+            font-size: 1.18rem;
+            line-height: 2.0;
+            color: var(--color-gray-700);
+            max-width: 820px;
+            margin: 0 auto;
+        }
 
         /* Right-side pagination dots (FullPage.js style) */
         #fp-nav { display: none; }
@@ -564,12 +586,12 @@
         .toss-eyebrow {
             display: inline-block;
             font-family: var(--font-heading);
-            font-size: 1.15rem;
+            font-size: 1.45rem;
             font-weight: 800;
-            letter-spacing: 0.22em;
+            letter-spacing: 0.2em;
             text-transform: uppercase;
             color: #43314f;
-            margin-bottom: 1.9rem;
+            margin-bottom: 2.6rem;
         }
 
         /* solid dark so it reads on the bold panel backgrounds */
@@ -579,7 +601,7 @@
             font-weight: 800;
             line-height: 1.15;
             letter-spacing: -0.02em;
-            margin: 0 0 1.9rem 0;
+            margin: 0 0 2.6rem 0;
             color: #1c1d2b;
         }
 
@@ -587,10 +609,10 @@
             font-family: var(--font-body);
             font-size: clamp(1.2rem, 2vw, 1.55rem);
             font-weight: 500;
-            line-height: 1.95;
+            line-height: 2.2;
             color: #3a3b4f;
             margin: 0 auto;
-            max-width: 760px;
+            max-width: 780px;
         }
 
         /* Negative tone */
@@ -689,19 +711,16 @@
     <section class="narrow text-center fp-statement">
         <span class="toss-eyebrow reveal">The Result</span>
         <h2 class="toss-headline reveal">Every element, editable again.</h2>
-        <p class="toss-sub reveal">Text layers with real fonts, vector shapes with fills, grouped elements with z-order — recovered from a single image, ready to re-edit.</p>
+        <p class="toss-sub reveal">Text layers with real fonts, vector shapes with fills, grouped elements with z-order,<br>recovered from a single image, ready to re-edit.</p>
     </section>
 
-    <!-- WHAT WE DO + INTRO FIGURE (merged into one panel) -->
-    <section class="narrow">
-        <div class="callout">
-            <h3 style="margin-top: 0; text-align: center;" class="reveal">What ReDesign Does</h3>
-            <p class="reveal">ReDesign recovers a fully editable design hierarchy from a single image.</p>
-            <p class="reveal">A vision-language controller grows a layer tree breadth-first; a verifier checks every step. The output: semantic text layers with real fonts, vector shapes with fills, groups with z-order, and isolated elements that survive real edits without disturbing the rest of the design.</p>
-        </div>
-        <figure class="reveal" style="margin-top: 1.5rem;">
+    <!-- WHAT REDESIGN DOES + INTRO FIGURE -->
+    <section class="narrow text-center">
+        <h2 class="reveal">What ReDesign Does</h2>
+        <p class="reveal whatwedo-lead">ReDesign recovers a fully editable design hierarchy from a single image. A vision-language controller grows a layer tree breadth-first and a verifier checks every step, producing semantic text layers with real fonts, vector shapes with fills, grouped elements with z-order, and isolated elements that survive real edits without disturbing the rest of the design.</p>
+        <figure class="reveal intro-fig" style="margin-top: 1.75rem;">
             <img src="assets/figures/intro_teaser.webp" alt="ReDesign: from flat image to editable design" style="max-width: 100%;">
-            <figcaption>From flat image to editable design: text layers with real fonts, vector shapes with colors, groups with z-order, and elements that respond to real design edits.</figcaption>
+            <figcaption>From flat image to editable design: text layers with real fonts, vector shapes with colors, grouped elements with z-order, and elements that respond to real design edits.</figcaption>
         </figure>
     </section>
 
