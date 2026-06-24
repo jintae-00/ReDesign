@@ -208,7 +208,7 @@
             color: var(--color-gray-600);
             margin-top: 0.4rem;
         }
-        .hero-affil-wrap { margin: 0 auto; }
+        .hero-affil-wrap { margin: 0 auto; text-align: center; }
         .hero-affil {
             display: block;
             width: clamp(280px, 29vw, 410px);
@@ -221,15 +221,17 @@
         /* venue line under the KAIST AI logo — matches the hero subtitle
            (same size/weight + the coral→blue gradient text) */
         .hero-venue {
-            font-size: clamp(1rem, 1.9vw, 1.35rem);
-            font-weight: 600;
+            display: inline-block;            /* gradient spans the TEXT, not the
+                                                 full row, so it starts at red */
+            font-size: clamp(1.35rem, 2.6vw, 1.9rem);
+            font-weight: 700;
             line-height: 1.6;
-            text-align: center;
-            margin-top: 1.6rem;
+            margin-top: 2.4rem;
             background: var(--gradient-coral);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
+            color: transparent;
         }
         .hero-btns {
             display: flex;
