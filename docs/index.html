@@ -512,13 +512,21 @@
             margin-left: auto;
             margin-right: auto;
         }
-        /* short text panels (hero + the 3 statements) spread their content
-           from top to bottom so the whole screen height is used */
-        html.fp-on #fp > header.hero,
-        html.fp-on #fp > section.fp-statement {
+        /* hero spreads its content from top to bottom */
+        html.fp-on #fp > header.hero {
             justify-content: space-between;
             padding-top: 11vh;
             padding-bottom: 11vh;
+        }
+        /* statements: grouped & vertically centered, tighter spacing */
+        html.fp-on #fp > section.fp-statement {
+            justify-content: center;
+            padding-top: 9vh;
+            padding-bottom: 9vh;
+        }
+        /* content panels that should sit vertically centered */
+        html.fp-on #fp > section.fp-center {
+            justify-content: safe center;
         }
         html.fp-on #fp > header::-webkit-scrollbar,
         html.fp-on #fp > section::-webkit-scrollbar,
@@ -532,13 +540,19 @@
         html.fp-on #fp > section h3 { margin-top: 0; }
 
         /* Keep figures within a single screen. */
-        #fp figure { margin: 1rem auto; }
-        html.fp-on #fp figure img { max-height: 56vh; height: auto; }
+        #fp figure { margin: 1.25rem auto; }
+        html.fp-on #fp figure img { max-height: 60vh; height: auto; }
         /* dense panels (heading + paragraph + cards + figure) need a smaller
            figure so the whole panel fits one screen and nothing is clipped */
-        html.fp-on #fp figure.dense-fig img { max-height: 38vh; }
+        html.fp-on #fp figure.dense-fig img { max-height: 42vh; }
         html.fp-on #fp figure.method-fig img { max-height: 42vh; }
-        html.fp-on #fp figure.intro-fig img { max-height: 40vh; }
+        /* method panel is content-dense → trim its padding so the bigger
+           figure still fits one screen */
+        html.fp-on #fp > section.method-panel { padding-top: 4vh; padding-bottom: 3.5vh; }
+        html.fp-on #fp figure.intro-fig img { max-height: 48vh; }
+        html.fp-on #fp figure.tall-fig img { max-height: 54vh; }
+        /* extra breathing room above/below a figure */
+        html.fp-on #fp figure.airy-fig { margin: 3rem auto; }
 
         /* de-boxed 'What ReDesign Does' lead paragraph */
         .whatwedo-lead {
@@ -591,7 +605,7 @@
             letter-spacing: 0.2em;
             text-transform: uppercase;
             color: #43314f;
-            margin-bottom: 2.6rem;
+            margin-bottom: 1.5rem;
         }
 
         /* solid dark so it reads on the bold panel backgrounds */
@@ -601,7 +615,7 @@
             font-weight: 800;
             line-height: 1.15;
             letter-spacing: -0.02em;
-            margin: 0 0 2.6rem 0;
+            margin: 0 0 1.8rem 0;
             color: #1c1d2b;
         }
 
@@ -609,7 +623,7 @@
             font-family: var(--font-body);
             font-size: clamp(1.2rem, 2vw, 1.55rem);
             font-weight: 500;
-            line-height: 2.2;
+            line-height: 1.85;
             color: #3a3b4f;
             margin: 0 auto;
             max-width: 780px;
@@ -720,18 +734,17 @@
         <p class="reveal whatwedo-lead">ReDesign recovers a fully editable design hierarchy from a single image. A vision-language controller grows a layer tree breadth-first and a verifier checks every step, producing semantic text layers with real fonts, vector shapes with fills, grouped elements with z-order, and isolated elements that survive real edits without disturbing the rest of the design.</p>
         <figure class="reveal intro-fig" style="margin-top: 1.75rem;">
             <img src="assets/figures/intro_teaser.webp" alt="ReDesign: from flat image to editable design" style="max-width: 100%;">
-            <figcaption>From flat image to editable design: text layers with real fonts, vector shapes with colors, grouped elements with z-order, and elements that respond to real design edits.</figcaption>
         </figure>
     </section>
 
     <!-- METHOD SECTION -->
-    <section class="narrow">
+    <section class="narrow method-panel">
         <h2 class="text-center reveal">The Agentic Approach: Grow the Tree</h2>
         <p style="text-align: center; font-size: 1.15rem;" class="reveal">
-            Starting from the whole image as root, a VLM controller expands breadth-first. At each node: choose one tool-backed action; a verifier checks validity. Repeat until every leaf is atomic and editable.
+            Starting from the whole image as the root, a VLM controller expands an editable layer hierarchy by selecting and composing specialized tool actions across modalities, checking the validity of each editable element, and repeating until every element is atomic and editable.
         </p>
 
-        <h3 class="text-center reveal" style="margin-top: 2.5rem;">Five Tool-Backed Actions</h3>
+        <h3 class="text-center reveal" style="margin-top: 1.2rem;">Five Tool-Backed Actions</h3>
         <div class="action-grid reveal">
             <div class="action-card reveal">
                 <div class="action-title">Text extraction</div>
@@ -756,13 +769,13 @@
     </section>
 
     <!-- RESULTS: PARSING ACCURACY (QUANTITATIVE) -->
-    <section class="narrow">
+    <section class="narrow fp-center">
         <h2 class="text-center reveal">Reconstruction Accuracy</h2>
         <p style="text-align: center; font-size: 1.15rem;" class="reveal">
             Figma-909 benchmark; 909 real-world designs. ReDesign wins on every metric.
         </p>
 
-        <div style="overflow-x: auto;" class="reveal">
+        <div style="overflow-x: auto; margin-top: 3rem;" class="reveal">
             <table class="narrow">
                 <thead>
                     <tr>
@@ -821,7 +834,7 @@
     </section>
 
     <!-- RESULTS: PARSING ACCURACY (QUALITATIVE) -->
-    <section class="narrow">
+    <section class="narrow fp-center fp-down">
         <h2 class="text-center reveal">Per-Element Reconstruction</h2>
         <figure class="reveal">
             <img src="assets/figures/exp_accuracy_quali.webp" alt="Per-element reconstruction across methods" style="max-width: 100%;">
@@ -830,7 +843,7 @@
     </section>
 
     <!-- RESULTS: EDITABILITY -->
-    <section class="section-band">
+    <section class="section-band fp-center fp-down">
         <div class="narrow">
             <h2 class="text-center reveal">Editability: Structure That Survives Edits</h2>
             <p style="text-align: center; font-size: 1.15rem;" class="reveal">
@@ -867,25 +880,25 @@
     </section>
 
     <!-- RESULTS: EDITABILITY (QUALITATIVE) -->
-    <section class="narrow">
+    <section class="narrow fp-center">
         <h2 class="text-center reveal">Edit Examples: Before & After</h2>
         <p style="text-align: center; font-size: 1.15rem;" class="reveal">
             ReDesign applies each edit cleanly to the correct element. Baselines move wrong regions or corrupt the layout.
         </p>
-        <figure class="reveal">
+        <figure class="reveal tall-fig">
             <img src="assets/figures/exp_edit_quali.webp" alt="Qualitative edit examples" style="max-width: 100%;">
             <figcaption>Each row: ground-truth edit (left) vs. output under each method. ReDesign's edits are precise and preserve layout integrity; baselines fail or distort.</figcaption>
         </figure>
     </section>
 
     <!-- ANALYSIS: VS GENERATIVE EDITING -->
-    <section class="section-band">
+    <section class="section-band fp-center">
         <div class="narrow">
             <h2 class="text-center reveal">Why Structure Beats Pixel Regeneration</h2>
             <p style="text-align: center; font-size: 1.15rem;" class="reveal">
                 Generative editors (Nano Banana 2) edit pixel-space: instructions leak, layouts blur, precision fails. ReDesign exposes discrete layers with explicit position and rotation; edits execute exactly.
             </p>
-            <figure class="reveal">
+            <figure class="reveal airy-fig">
                 <img src="assets/figures/analysis_nanobanana_failure.webp" alt="ReDesign vs generative editor precision" style="max-width: 100%;">
                 <figcaption>Three move/rotate instructions: ReDesign (green, top) executes each precisely on the isolated layer. Nano Banana 2 (red, bottom) misplaces and corrupts surrounding design.</figcaption>
             </figure>
@@ -893,9 +906,9 @@
     </section>
 
     <!-- FIGMA-909 BENCHMARK -->
-    <section class="narrow text-center">
+    <section class="narrow text-center fp-center">
         <h2 class="reveal">Figma-909: The Benchmark</h2>
-        <div class="benchmark-grid">
+        <div class="benchmark-grid" style="margin-top: 3.5rem;">
             <div class="stat-card reveal">
                 <div class="stat-label">Real-World Frames</div>
                 <div class="stat-number">909</div>
