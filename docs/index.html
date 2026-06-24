@@ -431,20 +431,22 @@
             overflow: hidden;
         }
 
-        #fp { will-change: transform; }
+        /* #fp is a fixed full-viewport stage; all panels are stacked on top of
+           each other and CROSS-FADED — only the .fp-current one is visible. */
         html.fp-on #fp {
-            /* match the reference (fullpage.js): translate3d slide, ~1s, ease */
-            transition: transform 1s ease;
+            position: fixed;
+            inset: 0;
+            z-index: 1;
         }
 
-        /* Each direct child of #fp is one full-screen panel that slides. */
+        /* Each direct child of #fp is one full-screen panel. */
         html.fp-on #fp > header,
         html.fp-on #fp > section,
         html.fp-on #fp > footer {
-            height: 100vh;
-            height: 100dvh;
-            margin-top: 0;
-            margin-bottom: 0;
+            position: absolute;
+            inset: 0;
+            height: 100%;
+            margin: 0;
             overflow-y: auto;
             overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
@@ -454,6 +456,18 @@
                (and lets it inner-scroll) when a panel overflows. */
             justify-content: safe center;
             scrollbar-width: none;
+            /* fade out: stay clickable-hidden until the opacity finishes */
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.8s ease, visibility 0s linear 0.8s;
+        }
+        html.fp-on #fp > .fp-current {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            z-index: 2;
+            transition: opacity 0.8s ease, visibility 0s;
         }
         html.fp-on #fp > header::-webkit-scrollbar,
         html.fp-on #fp > section::-webkit-scrollbar,
@@ -903,7 +917,9 @@
         const setupFullPage = () => {
             const fp = document.getElementById('fp');
             if (!fp) return false;
-            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+            // NOTE: we intentionally do NOT bail on prefers-reduced-motion —
+            // the section change is an opacity-only crossfade (gentle, no
+            // parallax/translation), and bailing left users with no effect.
 
             const panels = Array.from(fp.children)
                 .filter(el => el.matches('header, section, footer'));
@@ -914,15 +930,15 @@
             let current = 0;
             let animating = false;
             let animTimer = null;
-            const DURATION = 1000; // keep in sync with CSS transition (1s)
+            const DURATION = 800; // keep in sync with CSS transition (0.8s)
 
             const clampIdx = (i) => Math.max(0, Math.min(panels.length - 1, i));
             const apply = () => {
-                // Measure the real panel height (100dvh) instead of
-                // window.innerHeight (≈100lvh): on mobile the URL bar makes
-                // them differ, and -current*innerHeight would compound drift.
-                const h = panels[0].getBoundingClientRect().height || window.innerHeight;
-                fp.style.transform = 'translateY(' + (-current * h) + 'px)';
+                // Crossfade: only the .fp-current panel is visible. Toggling
+                // the class fades the outgoing panel out and the incoming in
+                // (CSS owns the opacity transition). No transform math → no
+                // mobile dvh drift.
+                panels.forEach((p, i) => p.classList.toggle('fp-current', i === current));
             };
             const reveal = (panel) => {
                 panel.querySelectorAll('.reveal').forEach(el => el.classList.add('is-in'));
@@ -1018,7 +1034,6 @@
             window.addEventListener('touchmove', onTouchMove, { passive: false });
             window.addEventListener('touchend', onTouchEnd, { passive: true });
             window.addEventListener('keydown', onKey);
-            window.addEventListener('resize', apply);
 
             apply();
             reveal(panels[0]);
