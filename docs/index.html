@@ -748,7 +748,15 @@
            ============================================ */
         .pg-panel { padding-top: 4.5vh !important; padding-bottom: 3.5vh !important; }
         .pg { width: 100%; max-width: 1180px; }
-        .pg-sub { text-align: center; color: var(--color-gray-600); font-size: 1rem; margin: 0 auto 2.4rem; max-width: 760px; }
+        .pg-sub { display: flex; justify-content: center; align-items: flex-start; gap: 0.6rem; color: #1c1d2b; font-weight: 600; font-size: 1rem; line-height: 1.4; margin: 0 auto 2.4rem; max-width: 760px; }
+        /* pretty numbered-step badge */
+        .pg-step {
+            flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+            width: 1.4rem; height: 1.4rem; border-radius: 50%; margin-top: 0.05rem;
+            background: var(--gradient-coral); color: #fff;
+            font-family: var(--font-heading); font-weight: 800; font-size: 0.8rem; line-height: 1;
+            box-shadow: 0 1px 3px rgba(255,74,109,.28);
+        }
 
         .pg-previews {
             display: flex; gap: 0.7rem; overflow-x: auto; padding: 0.3rem 0.2rem 0.9rem;
@@ -773,8 +781,11 @@
             font-family: var(--font-heading); font-weight: 700; font-size: 0.82rem; color: var(--color-gray-700);
         }
         .pg-modes button.active { background: var(--gradient-coral); color: #fff; }
-        .pg-hint { display: block; font-size: 0.92rem; line-height: 1.42; color: #1c1d2b; font-weight: 700; }
-        .pg-hint .pg-hint-2 { display: block; margin-top: 0.22rem; font-size: 0.84rem; font-weight: 600; color: #1c1d2b; }
+        .pg-hint { display: block; }
+        .pg-line { display: flex; align-items: flex-start; gap: 0.6rem; }
+        .pg-line + .pg-line { margin-top: 0.32rem; }
+        .pg-line-1 { font-size: 0.92rem; font-weight: 700; color: #1c1d2b; line-height: 1.4; }
+        .pg-line-2 { font-size: 0.84rem; font-weight: 600; color: #1c1d2b; line-height: 1.4; }
         .pg-reset {
             width: 100%; border: 1.5px solid var(--color-gray-300); background: #fff; border-radius: 9px;
             padding: 0.55rem 0; font-family: var(--font-heading); font-weight: 700; font-size: 0.85rem;
@@ -876,12 +887,12 @@
     <section class="narrow pg-panel" id="playground">
         <div class="pg">
             <h2 class="text-center reveal" style="margin-bottom:0.5rem;">Try the Edit Playground</h2>
-            <p class="pg-sub reveal">Pick a design to see how the ReDesign agent recovered editable design structures.</p>
+            <p class="pg-sub reveal"><span class="pg-step">1</span><span>Pick a design to see how the ReDesign agent recovered editable design structures.</span></p>
             <div class="pg-previews reveal" id="pgPreviews"></div>
             <div class="pg-editor reveal">
                 <div class="pg-stage-col">
                     <div class="pg-toolbar">
-                        <span class="pg-hint" id="pgHint">Click an element to select &middot; drag to move &middot; use the handle to rotate.<span class="pg-hint-2">On the right, adjust the selected element&rsquo;s opacity, rotation, scale, color, and z-order, or delete it.</span></span>
+                        <span class="pg-hint" id="pgHint"><span class="pg-line pg-line-1"><span class="pg-step">2</span><span>Click an element to select &middot; drag to move &middot; use the handle to rotate.</span></span><span class="pg-line pg-line-2"><span class="pg-step">3</span><span>On the right, adjust the selected element&rsquo;s opacity, rotation, scale, color, and z-order, or delete it.</span></span></span>
                     </div>
                     <div class="pg-stage-outer" id="pgStageOuter">
                         <div class="pg-stage" id="pgStage"></div>
