@@ -218,6 +218,15 @@
             outline: 0;
             background: transparent;
         }
+        /* venue line under the KAIST AI logo — matches the hero subtitle */
+        .hero-venue {
+            font-size: clamp(1rem, 1.9vw, 1.35rem);
+            font-weight: 600;
+            line-height: 1.6;
+            color: var(--color-gray-600);
+            text-align: center;
+            margin-top: 0.7rem;
+        }
         .hero-btns {
             display: flex;
             flex-wrap: wrap;
@@ -870,6 +879,7 @@
         </div>
         <div class="reveal hero-affil-wrap">
             <img class="hero-affil" src="assets/logo_kaist.svg" alt="KAIST AI">
+            <div class="hero-venue">ECCV 2026</div>
         </div>
         <div class="hero-btns reveal">
             <a href="https://openreview.net/pdf?id=JiEr8B3WBr" class="btn btn-outline"><img class="btn-icon" src="https://cdn.simpleicons.org/arxiv/B31B1B" alt="" aria-hidden="true"> Paper</a>
