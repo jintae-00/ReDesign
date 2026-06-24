@@ -388,9 +388,11 @@
         .action-grid {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
-            gap: 0.8rem;
+            gap: 1.15rem;
             margin: 1.25rem 0;
         }
+        /* Grow-the-Tree action cards: a bit wider than the text column */
+        .method-panel .action-grid { width: 120%; margin-left: -10%; }
 
         .action-grid.six-col {
             grid-template-columns: repeat(6, 1fr);
@@ -567,6 +569,11 @@
         html.fp-on #fp > section.fp-center {
             justify-content: safe center;
         }
+        /* playground sits toward the top so its header clears the thumbnail strip */
+        html.fp-on #fp > section.pg-panel {
+            justify-content: flex-start;
+            padding-top: 6.5vh !important;
+        }
         html.fp-on #fp > header::-webkit-scrollbar,
         html.fp-on #fp > section::-webkit-scrollbar,
         html.fp-on #fp > footer::-webkit-scrollbar { width: 0; height: 0; }
@@ -584,18 +591,18 @@
         /* dense panels (heading + paragraph + cards + figure) need a smaller
            figure so the whole panel fits one screen and nothing is clipped */
         html.fp-on #fp figure.dense-fig img { max-height: 42vh; }
-        html.fp-on #fp figure.method-fig img { max-height: 50vh; }
+        html.fp-on #fp figure.method-fig img { max-height: 55vh; }
         /* method panel is content-dense → trim its padding so the bigger
            figure still fits one screen */
         html.fp-on #fp > section.method-panel { padding-top: 4vh; padding-bottom: 3.5vh; }
         /* tighten the gaps inside the method panel */
         html.fp-on #fp > section.method-panel h2 { margin-bottom: 0.8rem; }
         html.fp-on #fp > section.method-panel h3 { margin-bottom: 0.5rem; }
-        html.fp-on #fp > section.method-panel .action-grid { margin-top: 0.6rem; margin-bottom: 0.6rem; }
-        html.fp-on #fp figure.intro-fig img { max-height: 54vh; }
+        html.fp-on #fp > section.method-panel .action-grid { margin-top: 0.6rem; margin-bottom: 2rem; }
+        html.fp-on #fp figure.intro-fig img { max-height: 65vh; }
         html.fp-on #fp figure.tall-fig img { max-height: 54vh; }
         /* extra breathing room above/below a figure */
-        html.fp-on #fp figure.airy-fig { margin: 3rem auto; }
+        html.fp-on #fp figure.airy-fig { margin: 3.6rem auto; }
 
         /* de-boxed 'What ReDesign Does' lead paragraph */
         .whatwedo-lead {
@@ -648,7 +655,7 @@
             letter-spacing: 0.2em;
             text-transform: uppercase;
             color: #43314f;
-            margin-bottom: 2.4rem;
+            margin-bottom: 3.6rem;
         }
 
         /* solid dark so it reads on the bold panel backgrounds */
@@ -658,7 +665,7 @@
             font-weight: 800;
             line-height: 1.15;
             letter-spacing: -0.02em;
-            margin: 0 0 2.6rem 0;
+            margin: 0 0 3.8rem 0;
             color: #1c1d2b;
         }
 
@@ -740,7 +747,7 @@
            ============================================ */
         .pg-panel { padding-top: 4.5vh !important; padding-bottom: 3.5vh !important; }
         .pg { width: 100%; max-width: 1180px; }
-        .pg-sub { text-align: center; color: var(--color-gray-600); font-size: 1rem; margin: 0 auto 1.1rem; max-width: 760px; }
+        .pg-sub { text-align: center; color: var(--color-gray-600); font-size: 1rem; margin: 0 auto 2.4rem; max-width: 760px; }
 
         .pg-previews {
             display: flex; gap: 0.7rem; overflow-x: auto; padding: 0.3rem 0.2rem 0.9rem;
@@ -756,7 +763,7 @@
         .pg-thumb:hover { border-color: var(--color-coral-primary); transform: translateY(-2px); }
         .pg-thumb.active { border-color: var(--color-coral-primary); box-shadow: 0 0 0 3px rgba(255,74,109,.22); }
 
-        .pg-editor { display: flex; gap: 1.1rem; align-items: stretch; margin-top: 0.5rem; }
+        .pg-editor { display: flex; gap: 1.1rem; align-items: stretch; margin-top: 1.9rem; }
         .pg-stage-col { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
         .pg-toolbar { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.55rem; }
         .pg-modes { display: inline-flex; border: 1.5px solid var(--color-gray-300); border-radius: 9px; overflow: hidden; }
@@ -784,13 +791,17 @@
         }
         .pg-el { position: absolute; pointer-events: none; }
         .pg-el > img { width: 100%; height: 100%; display: block; pointer-events: none; -webkit-user-drag: none; }
-        /* selection traces the element's actual mask silhouette (alpha) in pink,
-           not the rectangular bbox */
-        .pg-el.selected > img {
-            filter:
-                drop-shadow(0 0 1.5px #ff2d8b) drop-shadow(0 0 1.5px #ff2d8b)
-                drop-shadow(0 0 1.5px #ff2d8b) drop-shadow(0 0 1px #ff2d8b);
+        /* selection paints the element's actual segmentation mask (its alpha
+           silhouette) in pink via mask-image -- never the rectangular bbox.
+           (drop-shadow was rendering the element's box for large scaled images.) */
+        .pg-selmask {
+            position: absolute; inset: 0; opacity: 0; pointer-events: none;
+            background: #ff2d8b;
+            -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+            -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+            transition: opacity .12s ease;
         }
+        .pg-el.selected .pg-selmask { opacity: 0.4; }
         .pg-tint {
             position: absolute; inset: 0; opacity: 0; pointer-events: none;
             -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
@@ -871,7 +882,7 @@
     <section class="narrow pg-panel fp-center" id="playground">
         <div class="pg">
             <h2 class="text-center reveal" style="margin-bottom:0.5rem;">Try the Edit Playground</h2>
-            <p class="pg-sub reveal">Pick a design to see how the ReDesign agent parsed it &mdash; then move, rotate, recolor, restack, fade, or delete any recovered element.</p>
+            <p class="pg-sub reveal">Pick a design to see how the ReDesign agent parsed it.</p>
             <div class="pg-previews reveal" id="pgPreviews"></div>
             <div class="pg-editor reveal">
                 <div class="pg-stage-col">
@@ -933,7 +944,7 @@
     <section class="narrow text-center">
         <h2 class="reveal">What ReDesign Does</h2>
         <p class="reveal whatwedo-lead">ReDesign recovers a fully editable design hierarchy from a single image.<br>A vision-language controller grows a layer tree breadth-first and a verifier checks every step,<br>producing semantic text layers with real fonts, vector shapes with fills, grouped elements with z-order, and isolated elements that survive real edits without disturbing the rest of the design.</p>
-        <figure class="reveal intro-fig" style="margin-top: 1.75rem;">
+        <figure class="reveal intro-fig" style="margin-top: 3.2rem;">
             <img src="assets/figures/intro_teaser.webp" alt="ReDesign: from flat image to editable design" style="max-width: 100%;">
         </figure>
     </section>
@@ -1037,7 +1048,7 @@
     <!-- RESULTS: PARSING ACCURACY (QUALITATIVE) -->
     <section class="narrow fp-center fp-down">
         <h2 class="text-center reveal">Per-Element Reconstruction</h2>
-        <figure class="reveal">
+        <figure class="reveal" style="margin: 2.8rem auto;">
             <img src="assets/figures/exp_accuracy_quali.webp" alt="Per-element reconstruction across methods" style="max-width: 100%;">
             <figcaption>Each row shows design input and outputs across methods. Highlighted elements (green box):<br>ReDesign recovers them cleanly and completely; baselines miss, break, or distort them.</figcaption>
         </figure>
@@ -1073,7 +1084,7 @@
                 </div>
             </div>
 
-            <figure class="reveal dense-fig">
+            <figure class="reveal dense-fig" style="margin: 2rem auto;">
                 <img src="assets/figures/exp_editability_quanti.webp" alt="Editability metrics across atomic edits" style="max-width: 100%;">
                 <figcaption>(a) SSIM after edit replay; ReDesign (orange/teal line) is highest on all axes. (b) Text recall after text edits;<br>ReDesign dominates. Results show structure survives diverse real edits.</figcaption>
             </figure>
@@ -1086,7 +1097,7 @@
         <p style="text-align: center; font-size: 1.15rem;" class="reveal">
             ReDesign applies each edit cleanly to the correct element. Baselines move wrong regions or corrupt the layout.
         </p>
-        <figure class="reveal tall-fig">
+        <figure class="reveal tall-fig" style="margin: 2.4rem auto;">
             <img src="assets/figures/exp_edit_quali.webp" alt="Qualitative edit examples" style="max-width: 100%;">
             <figcaption>Each row: ground-truth edit (left) vs. output under each method.<br>ReDesign's edits are precise and preserve layout integrity; baselines fail or distort.</figcaption>
         </figure>
@@ -1412,6 +1423,7 @@
                     angle: data.angle || 0,
                     opacity: 1, color: null, z: data.z, deleted: false
                 };
+                if (data.mk) decodeMask(o);
                 const d = document.createElement('div');
                 d.className = 'pg-el ' + (data.type === 'text' ? 'text' : 'object');
                 const imgUrl = BASE + m.key + '/' + data.img;
@@ -1423,9 +1435,13 @@
                 tint.className = 'pg-tint';
                 tint.style.webkitMaskImage = "url('" + imgUrl + "')";
                 tint.style.maskImage = "url('" + imgUrl + "')";
+                const selm = document.createElement('div');
+                selm.className = 'pg-selmask';
+                selm.style.webkitMaskImage = "url('" + imgUrl + "')";
+                selm.style.maskImage = "url('" + imgUrl + "')";
                 const rot = document.createElement('div');
                 rot.className = 'pg-rot';
-                d.appendChild(img); d.appendChild(tint); d.appendChild(rot);
+                d.appendChild(img); d.appendChild(tint); d.appendChild(selm); d.appendChild(rot);
                 o.dom = d; o.tint = tint; o.rot = rot;
                 stage.appendChild(d);
                 applyEl(o);
@@ -1455,20 +1471,48 @@
             if (o.color) elColor.value = o.color;
         }
 
-        // Build an alpha map (downscaled) for pixel-accurate hit-testing.
+        // Decode a precomputed packed bitmask (base64, LSB-first) into o.mask.
+        // Works without canvas.getImageData, so hit-testing is correct even when
+        // the page is opened as a local file:// document. (See build_playground_masks.py)
+        function decodeMask(o) {
+            try {
+                const raw = atob(o.data.mk);
+                const bytes = new Uint8Array(raw.length);
+                for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+                const mw = o.data.mw, mh = o.data.mh, n = mw * mh;
+                const mask = new Uint8Array(n);
+                for (let i = 0; i < n; i++) mask[i] = (bytes[i >> 3] >> (i & 7)) & 1;
+                o.mask = mask; o.aw = mw; o.ah = mh;
+            } catch (e) { o.mask = null; }
+        }
+
+        // Runtime fallback: build a dilated opaque mask from the image pixels.
+        // Used only when a precomputed mask is absent and the canvas is readable.
         function buildAlpha(o, img) {
+            if (o.mask) return; // precomputed mask already in place
             const iw = img.naturalWidth, ih = img.naturalHeight;
             if (!iw || !ih) return;
-            const MAX = 240;
+            const MAX = 200;
             const s = Math.min(1, MAX / Math.max(iw, ih));
             const cw = Math.max(1, Math.round(iw * s)), ch = Math.max(1, Math.round(ih * s));
             const c = document.createElement('canvas'); c.width = cw; c.height = ch;
             const ctx = c.getContext('2d', { willReadFrequently: true });
+            let data;
             try {
                 ctx.drawImage(img, 0, 0, cw, ch);
-                o.alpha = ctx.getImageData(0, 0, cw, ch).data;
-                o.aw = cw; o.ah = ch;
-            } catch (e) { o.alpha = null; }
+                data = ctx.getImageData(0, 0, cw, ch).data;
+            } catch (e) { o.mask = null; return; }
+            const n = cw * ch, src = new Uint8Array(n);
+            for (let p = 0; p < n; p++) src[p] = data[p * 4 + 3] > 12 ? 1 : 0;
+            const r = Math.max(2, Math.round(0.03 * Math.max(cw, ch))); // small dilation
+            const dst = new Uint8Array(n);
+            for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
+                if (!src[y * cw + x]) continue;
+                const x0 = Math.max(0, x - r), x1 = Math.min(cw - 1, x + r);
+                const y0 = Math.max(0, y - r), y1 = Math.min(ch - 1, y + r);
+                for (let yy = y0; yy <= y1; yy++) for (let xx = x0; xx <= x1; xx++) dst[yy * cw + xx] = 1;
+            }
+            o.mask = dst; o.aw = cw; o.ah = ch;
         }
 
         // Topmost (by z) element whose actual non-transparent pixel is under (px,py)
@@ -1487,10 +1531,10 @@
                 const lx = dx * Math.cos(a) - dy * Math.sin(a) + elW / 2;
                 const ly = dx * Math.sin(a) + dy * Math.cos(a) + elH / 2;
                 if (lx < 0 || ly < 0 || lx > elW || ly > elH) continue;
-                if (!o.alpha) return i; // alpha not ready yet → fall back to bbox
+                if (!o.mask) return i; // mask not ready yet → fall back to bbox
                 const ax = clamp(Math.floor(lx / elW * o.aw), 0, o.aw - 1);
                 const ay = clamp(Math.floor(ly / elH * o.ah), 0, o.ah - 1);
-                if (o.alpha[(ay * o.aw + ax) * 4 + 3] > 12) return i;
+                if (o.mask[ay * o.aw + ax]) return i;
             }
             return -1;
         }
