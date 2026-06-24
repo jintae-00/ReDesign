@@ -153,15 +153,38 @@
         .hero h1 {
             font-size: clamp(3.5rem, 11vw, 7.5rem);
             line-height: 1.02;
-            margin: 0 0 2.6rem 0;
+            margin: 0 0 1rem 0;            /* tight gap to the subtitle */
         }
         .hero-sub {
             font-size: clamp(1rem, 1.9vw, 1.35rem);
             font-weight: 600;
             line-height: 1.6;
-            margin: 0 auto 4.5rem auto;
+            margin: 0 auto;
         }
-        .hero-affil-wrap { margin: 0 auto 5rem auto; }
+        /* Author list (above the affiliation logo, Vector Prism style) */
+        .hero-authors {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.7rem 2.4rem;
+        }
+        .hero-authors .author {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            line-height: 1.35;
+        }
+        .hero-authors .name {
+            font-family: var(--font-heading);
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: #1c1d2b;
+        }
+        .hero-authors .email {
+            font-size: 0.82rem;
+            color: var(--color-coral-primary);
+        }
+        .hero-affil-wrap { margin: 0 auto; }
         .hero-affil {
             display: block;
             width: clamp(230px, 24vw, 340px);
@@ -545,10 +568,14 @@
         /* dense panels (heading + paragraph + cards + figure) need a smaller
            figure so the whole panel fits one screen and nothing is clipped */
         html.fp-on #fp figure.dense-fig img { max-height: 42vh; }
-        html.fp-on #fp figure.method-fig img { max-height: 42vh; }
+        html.fp-on #fp figure.method-fig img { max-height: 47vh; }
         /* method panel is content-dense → trim its padding so the bigger
            figure still fits one screen */
         html.fp-on #fp > section.method-panel { padding-top: 4vh; padding-bottom: 3.5vh; }
+        /* tighten the gaps inside the method panel */
+        html.fp-on #fp > section.method-panel h2 { margin-bottom: 0.8rem; }
+        html.fp-on #fp > section.method-panel h3 { margin-bottom: 0.5rem; }
+        html.fp-on #fp > section.method-panel .action-grid { margin-top: 0.6rem; margin-bottom: 0.6rem; }
         html.fp-on #fp figure.intro-fig img { max-height: 48vh; }
         html.fp-on #fp figure.tall-fig img { max-height: 54vh; }
         /* extra breathing room above/below a figure */
@@ -605,7 +632,7 @@
             letter-spacing: 0.2em;
             text-transform: uppercase;
             color: #43314f;
-            margin-bottom: 1.5rem;
+            margin-bottom: 2.4rem;
         }
 
         /* solid dark so it reads on the bold panel backgrounds */
@@ -615,7 +642,7 @@
             font-weight: 800;
             line-height: 1.15;
             letter-spacing: -0.02em;
-            margin: 0 0 1.8rem 0;
+            margin: 0 0 2.6rem 0;
             color: #1c1d2b;
         }
 
@@ -623,7 +650,7 @@
             font-family: var(--font-body);
             font-size: clamp(1.2rem, 2vw, 1.55rem);
             font-weight: 500;
-            line-height: 1.85;
+            line-height: 2.05;
             color: #3a3b4f;
             margin: 0 auto;
             max-width: 780px;
@@ -699,10 +726,20 @@
     <div id="fp">
     <!-- HERO SECTION -->
     <header class="hero text-center">
-        <h1 class="text-gradient reveal">ReDesign</h1>
-        <h4 class="text-muted reveal hero-sub">Recovering Editable Design Structures from Images via Agentic Decomposition</h4>
+        <div class="hero-head reveal">
+            <h1 class="text-gradient">ReDesign</h1>
+            <h4 class="text-muted hero-sub">Recovering Editable Design Structures from Images via Agentic Decomposition</h4>
+        </div>
+        <div class="hero-authors reveal">
+            <span class="author"><span class="name">Jooyeol Yun</span><span class="email">blizzard072@kaist.ac.kr</span></span>
+            <span class="author"><span class="name">Jintae Park</span><span class="email">sonjt00@kaist.ac.kr</span></span>
+            <span class="author"><span class="name">Hyesu Lim</span><span class="email">hyesulim.ac@gmail.com</span></span>
+            <span class="author"><span class="name">Junha Hyung</span><span class="email">sharpeeee@kaist.ac.kr</span></span>
+            <span class="author"><span class="name">Hyungjin Chung</span><span class="email">{Placeholder}@korea.ac.kr</span></span>
+            <span class="author"><span class="name">Jaegul Choo</span><span class="email">jchoo@kaist.ac.kr</span></span>
+        </div>
         <div class="reveal hero-affil-wrap">
-            <img class="hero-affil" src="assets/logo_kaist.svg" alt="KAIST">
+            <img class="hero-affil" src="assets/logo_kaist.svg" alt="KAIST AI">
         </div>
         <div class="hero-btns reveal">
             <a href="https://openreview.net/pdf?id=JiEr8B3WBr" class="btn btn-outline"><img class="btn-icon" src="https://cdn.simpleicons.org/arxiv/B31B1B" alt="" aria-hidden="true"> Paper</a>
