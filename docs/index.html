@@ -172,6 +172,7 @@
             display: flex;
             flex-direction: column;
             gap: 0.9rem;
+            margin: 4.5vh 0;   /* more breathing room above (title) and below (logos) */
         }
         .hero-authors .author-row {
             display: flex;
@@ -223,14 +224,14 @@
             flex-wrap: nowrap;
             justify-content: center;
             align-items: center;
-            gap: clamp(1rem, 3.2vw, 2.8rem);
+            gap: clamp(0.9rem, 2.6vw, 2.4rem);
             width: 100%;
             margin: 0 auto;
         }
         .hero-affil {
             flex: 0 1 auto;
-            max-width: 23%;
-            max-height: clamp(2.4rem, 5vw, 4rem);
+            max-width: 24%;
+            max-height: clamp(2.6rem, 5.2vw, 4.2rem);
             width: auto;
             height: auto;
             object-fit: contain;
@@ -241,6 +242,8 @@
             box-shadow: none;      /* blend cleanly with the white hero */
             border-radius: 0;
         }
+        /* Helmholtz is a very wide (13:1) mark — give it more width so it isn't tiny */
+        .hero-affil--wide { max-width: 33%; }
         /* venue line under the KAIST AI logo — matches the hero subtitle
            (same size/weight + the coral→blue gradient text) */
         .hero-venue {
@@ -603,11 +606,15 @@
             margin-left: auto;
             margin-right: auto;
         }
-        /* hero spreads its content from top to bottom */
+        /* hero spreads its content from top to bottom; ReDesign sits higher */
         html.fp-on #fp > header.hero {
             justify-content: space-between;
-            padding-top: 11vh;
-            padding-bottom: 11vh;
+            padding-top: 5.5vh;
+            padding-bottom: 8vh;
+        }
+        /* let the logo row breathe wider than the 950px text column */
+        html.fp-on #fp > header.hero > .hero-affil-wrap {
+            max-width: min(1120px, 94vw);
         }
         /* statements: grouped & vertically centered, tighter spacing */
         html.fp-on #fp > section.fp-statement {
@@ -915,7 +922,7 @@
         <div class="reveal hero-affil-wrap">
             <div class="hero-logos">
                 <img class="hero-affil" src="assets/logo_kaist.svg" alt="KAIST AI">
-                <img class="hero-affil" src="assets/logo_helmholtz.svg" alt="Helmholtz Munich">
+                <img class="hero-affil hero-affil--wide" src="assets/logo_helmholtz.svg" alt="Helmholtz Munich">
                 <img class="hero-affil" src="assets/logo_ku.png" alt="Korea University">
                 <img class="hero-affil" src="assets/logo_everex.png" alt="EverEx">
             </div>
