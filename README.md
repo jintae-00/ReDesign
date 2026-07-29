@@ -3,7 +3,7 @@
 ### Recovering Editable Design Structures from Images via Agentic Decomposition
 
 <p align="center">
-  <a href="https://openreview.net/pdf?id=JiEr8B3WBr"><img alt="Paper" height="30" src="https://img.shields.io/badge/Paper-OpenReview-b31b1b?style=flat-square&logo=readthedocs&logoColor=white"></a>
+  <a href="https://arxiv.org/abs/2607.25565"><img alt="Paper" height="30" src="https://img.shields.io/badge/Paper-arXiv-b31b1b?style=flat-square&logo=arxiv&logoColor=white"></a>
   &emsp;&emsp;&emsp;
   <a href="https://jintae-00.github.io/ReDesign/"><img alt="Project Page" height="30" src="https://img.shields.io/badge/Project_Page-ReDesign-2ea44f?style=flat-square&logo=githubpages&logoColor=white"></a>
   &emsp;&emsp;&emsp;
@@ -13,6 +13,17 @@
 > **ReDesign turns a single flat raster image back into an editable design:** text with real typography, vector shapes (fill/stroke), images, groups, and z-order, exported as an editable **JSON hierarchy**.
 > When the original file is lost, a flat export no longer says which pixels form which object or how layers stack.
 > ReDesign recovers that structure.
+
+<br>
+
+## Teaser Video
+
+<p align="center">
+  <a href="https://raw.githubusercontent.com/jintae-00/ReDesign/main/docs/assets/Redesign-intro.mp4">
+    <img alt="ReDesign teaser video" src="docs/assets/Redesign-intro-poster.jpg" width="85%">
+  </a>
+</p>
+<p align="center"><i>Click to play, or watch it on the <a href="https://jintae-00.github.io/ReDesign/">project page</a>.</i></p>
 
 <br>
 
@@ -72,7 +83,7 @@ ReDesign/
 ### 1. Environment
 
 ```bash
-git clone https://github.com/sonjt00/ReDesign.git
+git clone https://github.com/jintae-00/ReDesign.git
 cd ReDesign
 
 conda env create -f environment.yml

@@ -17,12 +17,14 @@ tags:
 # ReDesign Figma-909 Benchmark
 
 <p align="center">
-  <a href="https://openreview.net/pdf?id=JiEr8B3WBr"><img alt="Paper" src="https://img.shields.io/badge/Paper-OpenReview-b31b1b?style=for-the-badge&logo=readthedocs&logoColor=white"></a>
+  <a href="https://arxiv.org/abs/2607.25565"><img alt="Paper" src="https://img.shields.io/badge/Paper-arXiv-b31b1b?style=for-the-badge&logo=arxiv&logoColor=white"></a>
   &emsp;&emsp;&emsp;&emsp;
   <a href="https://jintae-00.github.io/ReDesign/"><img alt="Project Page" src="https://img.shields.io/badge/Project_Page-ReDesign-2ea44f?style=for-the-badge&logo=githubpages&logoColor=white"></a>
   &emsp;&emsp;&emsp;&emsp;
-  <a href="https://github.com/sonjt00/ReDesign"><img alt="Code" src="https://img.shields.io/badge/Code-GitHub-8957e5?style=for-the-badge&logo=github&logoColor=white"></a>
+  <a href="https://github.com/jintae-00/ReDesign"><img alt="Code" src="https://img.shields.io/badge/Code-GitHub-8957e5?style=for-the-badge&logo=github&logoColor=white"></a>
 </p>
+
+<video src="https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909/resolve/main/Redesign-intro.mp4" controls muted loop playsinline width="100%"></video>
 
 ![ReDesign Figma-909 dataset overview](./exp_dataset.png)
 
@@ -38,7 +40,7 @@ tags:
 
 **Figma-909** is the evaluation benchmark for ReDesign: 909 real-world Figma Community designs, each a self-contained **episode** with ground-truth layer decomposition metadata and per-element images, supporting both **reconstruction-accuracy** and **editability** evaluation.
 
-> 📁 The dataset files (metadata, images, attribution) live in the **[Files and versions](https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909/tree/main)** tab above. See the [ReDesign GitHub repository](https://github.com/sonjt00/ReDesign) for the download script and the full pipeline.
+> 📁 The dataset files (metadata, images, attribution) live in the **[Files and versions](https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909/tree/main)** tab above. See the [ReDesign GitHub repository](https://github.com/jintae-00/ReDesign) for the download script and the full pipeline.
 
 <br>
 <br>
@@ -103,7 +105,7 @@ REDESIGN_FIGMA_DATA=figma_data REDESIGN_AGENT_DIR=outputs/figma_agent \
     python evaluation/eval_editability_figma.py --models agent
 ```
 
-See the [ReDesign GitHub repository](https://github.com/sonjt00/ReDesign) for the
+See the [ReDesign GitHub repository](https://github.com/jintae-00/ReDesign) for the
 full pipeline (environment, checkpoints, inference, evaluation).
 
 Complete per-episode attribution for all 288 original authors is provided in
@@ -118,4 +120,4 @@ Questions, feedback, or requests? Open a thread in the
 **[Community tab](https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909/discussions)**
 of this dataset. If you are the author of a frame and would like it removed,
 please start a discussion here or open an issue on the
-[GitHub repository](https://github.com/sonjt00/ReDesign).
+[GitHub repository](https://github.com/jintae-00/ReDesign).
