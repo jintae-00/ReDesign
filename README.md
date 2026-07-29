@@ -19,11 +19,10 @@
 ## Teaser Video
 
 <p align="center">
-  <a href="https://raw.githubusercontent.com/jintae-00/ReDesign/main/docs/assets/Redesign-intro.mp4">
+  <a href="https://jintae-00.github.io/ReDesign/assets/Redesign-intro.mp4">
     <img alt="ReDesign teaser video" src="docs/assets/Redesign-intro-poster.jpg" width="85%">
   </a>
 </p>
-<p align="center"><i>Click to play, or watch it on the <a href="https://jintae-00.github.io/ReDesign/">project page</a>.</i></p>
 
 <br>
 

@@ -26,6 +26,10 @@ tags:
 
 <video src="https://huggingface.co/datasets/Jintae-Park/ReDesign-Figma909/resolve/main/Redesign-intro.mp4" controls muted loop playsinline width="100%"></video>
 
+<br>
+<br>
+<br>
+
 ![ReDesign Figma-909 dataset overview](./exp_dataset.png)
 
 > **ReDesign turns a single flat raster image back into an editable design:** text with real typography, vector shapes (fill/stroke), images, groups, and z-order, exported as an editable **JSON hierarchy**.
