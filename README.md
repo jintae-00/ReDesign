@@ -18,11 +18,7 @@
 
 ## Teaser Video
 
-<p align="center">
-  <a href="https://jintae-00.github.io/ReDesign/assets/Redesign-intro.mp4">
-    <img alt="ReDesign teaser video" src="docs/assets/Redesign-intro-poster.jpg" width="85%">
-  </a>
-</p>
+https://github.com/user-attachments/assets/44ce6a40-7f8b-440a-8724-168d4659758a
 
 <br>
 
