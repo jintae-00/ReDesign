@@ -1,6 +1,6 @@
-# ReDesign (ECCV 2026)
+# ReDesign: Recovering Editable Design Structures from Images via Agentic Decomposition (ECCV 2026)
 
-### Recovering Editable Design Structures from Images via Agentic Decomposition
+This is the official implementation of the paper: **ReDesign: Recovering Editable Design Structures from Images via Agentic Decomposition**
 
 <p align="center">
   <a href="https://arxiv.org/abs/2607.25565"><img alt="Paper" height="30" src="https://img.shields.io/badge/Paper-arXiv-b31b1b?style=flat-square&logo=arxiv&logoColor=white"></a>
